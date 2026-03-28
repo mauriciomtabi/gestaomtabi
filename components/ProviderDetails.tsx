@@ -213,6 +213,10 @@ const ProviderDetails: React.FC<Props> = ({ provider, attendance, onBack, onUpda
     }).sort((a, b) => b.date.localeCompare(a.date));
   }, [attendance, selectedYear, selectedMonth]);
 
+  const isFiltered = selectedYear !== 'Todos' || selectedMonth !== 'Todos';
+  const filteredWorkedMinutes = filteredAttendance.reduce((acc, curr) => acc + (curr.durationMinutes || 0), 0);
+  const displayedWorkedMinutes = isFiltered ? filteredWorkedMinutes : totalWorkedMinutes;
+
   const attendanceTotalPages = Math.ceil(filteredAttendance.length / ATTENDANCE_ITEMS_PER_PAGE);
   const paginatedAttendance = useMemo(() => {
     return filteredAttendance.slice(
@@ -534,13 +538,13 @@ const ProviderDetails: React.FC<Props> = ({ provider, attendance, onBack, onUpda
             </div>
 
             <div className="flex flex-col items-center">
-              <Speedometer percentage={progressPercent} value={formatMinutesToHHMM(totalWorkedMinutes)} label="Horas Cumpridas" />
+              <Speedometer percentage={progressPercent} value={formatMinutesToHHMM(displayedWorkedMinutes)} label={isFiltered ? "Horas do Período" : "Horas Cumpridas"} />
             </div>
 
             <div className="grid grid-cols-3 gap-3">
               {[
                 { label: "TOTAL", val: `${(provider.totalHoursToFulfill || 0)}h`, col: "text-slate-800", bg: "bg-white" },
-                { label: "FEITO", val: formatMinutesToHHMM(totalWorkedMinutes), col: "text-emerald-700", bg: "bg-emerald-50", b: "border-emerald-100" },
+                { label: isFiltered ? "FEITO (PERÍODO)" : "FEITO", val: formatMinutesToHHMM(displayedWorkedMinutes), col: "text-emerald-700", bg: "bg-emerald-50", b: "border-emerald-100" },
                 { label: "SALDO", val: formatMinutesToHHMM(remainingMinutes), col: "text-red-700", bg: "bg-red-50", b: "border-red-100" }
               ].map((stat, i) => (
                 <div key={i} className={`${stat.bg} ${stat.b || 'border-slate-100'} p-3 rounded-2xl border flex flex-col items-center justify-center text-center shadow-sm`}>

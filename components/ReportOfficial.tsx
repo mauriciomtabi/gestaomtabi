@@ -78,15 +78,27 @@ const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
   };
 
   const handleGeneratePDF = () => {
-    // Esconder a lateral na hora de imprimir
     const style = document.createElement('style');
     style.innerHTML = `
       @media print {
-        body { background-color: white; margin: 0; }
+        @page { size: A4 portrait; margin: 0; }
+        body, html { 
+          background-color: white !important; 
+          margin: 0 !important; 
+          height: auto !important;
+          overflow: visible !important;
+        }
         nav { display: none !important; }
         .no-print { display: none !important; }
-        @page { size: A4 portrait; margin: 1cm; }
-        * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        /* Remove barras de rolagem e sombras no print */
+        ::-webkit-scrollbar { display: none !important; }
+        * { 
+          -webkit-print-color-adjust: exact; 
+          print-color-adjust: exact; 
+          box-shadow: none !important; 
+        }
+        /* Força os containers a expandirem no pdf */
+        div, main { overflow: visible !important; height: auto !important; }
       }
     `;
     document.head.appendChild(style);
@@ -170,8 +182,8 @@ const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
       </div>
 
       {/* Papel A4 Oficial - Container para o PDF */}
-      <div className="w-full overflow-x-auto pb-12 md:pb-0 md:overflow-visible print:border-none print:shadow-none print:m-0 print:p-0">
-        <div id="official-document-content" className="min-w-[21cm] max-w-[21cm] mx-auto bg-white p-[1cm] md:p-[2cm] text-black shadow-2xl md:shadow-lg animate-in zoom-in-95 duration-700 print:shadow-none print:m-0 print:p-0" style={{ fontFamily: '"Times New Roman", Times, serif', fontSize: '12pt', lineHeight: '1.5' }}>
+      <div className="w-full pb-12 md:pb-0 overflow-visible print:border-none print:shadow-none print:m-0 print:p-0">
+        <div id="official-document-content" className="min-w-[21cm] max-w-[21cm] mx-auto bg-white p-[1.5cm] md:p-[2cm] text-black shadow-2xl md:shadow-lg animate-in zoom-in-95 duration-700 print:shadow-none print:m-0 print:p-[2cm] print:max-w-none print:w-full" style={{ fontFamily: '"Times New Roman", Times, serif', fontSize: '12pt', lineHeight: '1.5' }}>
           
           {/* Brasão e Cabeçalho */}
         <div className="text-center mb-10 flex flex-col items-center">
