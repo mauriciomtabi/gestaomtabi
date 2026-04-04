@@ -11,7 +11,7 @@ interface Props {
   hasExistingFace: boolean;
 }
 
-type Status = 'idle' | 'loading-models' | 'ready' | 'detecting' | 'success' | 'error' | 'saving';
+type Status = 'idle' | 'loading-models' | 'ready' | 'confirming' | 'detecting' | 'success' | 'error' | 'saving';
 
 const FaceEnrollment: React.FC<Props> = ({ provider, onClose, onSuccess, hasExistingFace }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -20,7 +20,7 @@ const FaceEnrollment: React.FC<Props> = ({ provider, onClose, onSuccess, hasExis
   const [status, setStatus] = useState<Status>('loading-models');
   const [message, setMessage] = useState('Preparando processamento...');
   const [faceDetected, setFaceDetected] = useState(false);
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   const detectionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopCamera = useCallback(() => {
@@ -61,7 +61,7 @@ const FaceEnrollment: React.FC<Props> = ({ provider, onClose, onSuccess, hasExis
 
   useEffect(() => {
     loadFaceModels()
-      .then(() => { startCamera('user'); })
+      .then(() => { startCamera('environment'); })
       .catch((err: Error) => {
         setStatus('error');
         setMessage(err.message);
@@ -69,6 +69,15 @@ const FaceEnrollment: React.FC<Props> = ({ provider, onClose, onSuccess, hasExis
 
     return () => { stopCamera(); };
   }, []);
+
+  // Called when user clicks the Capture button — shows confirmation first
+  const handleRequestCapture = () => {
+    if (!faceDetected) {
+      setMessage('Nenhum rosto detectado. Certifique-se de que o rosto está bem iluminado e centralizado.');
+      return;
+    }
+    setStatus('confirming');
+  };
 
   const handleCapture = async () => {
     if (!videoRef.current) return;
@@ -136,6 +145,7 @@ const FaceEnrollment: React.FC<Props> = ({ provider, onClose, onSuccess, hasExis
   };
 
   const isLoading = ['loading-models', 'detecting', 'saving'].includes(status);
+  const isConfirming = status === 'confirming';
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[500] flex items-center justify-center p-4">
@@ -205,6 +215,31 @@ const FaceEnrollment: React.FC<Props> = ({ provider, onClose, onSuccess, hasExis
               </div>
             </div>
           )}
+          {/* Confirmation overlay */}
+          {isConfirming && (
+            <div className="absolute inset-0 bg-black/75 backdrop-blur-sm flex flex-col items-center justify-center gap-4 z-30 p-6">
+              <div className="bg-slate-800 border border-white/10 rounded-2xl p-6 w-full text-center">
+                <Camera size={32} className="text-blue-400 mx-auto mb-3" />
+                <p className="text-white font-black uppercase text-sm mb-1">Confirmar Captura</p>
+                <p className="text-slate-400 text-xs mb-5">O rosto atual na câmera será registrado como a biometria de <strong className="text-white">{provider.name}</strong>. Confirma?</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setStatus('ready')}
+                    className="flex-1 py-3 rounded-xl border border-white/10 text-slate-400 text-xs font-black uppercase hover:bg-white/5 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleCapture}
+                    className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase transition-all"
+                  >
+                    Confirmar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Face detected indicator */}
           {status === 'ready' && (
             <div className={`absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${
@@ -259,8 +294,8 @@ const FaceEnrollment: React.FC<Props> = ({ provider, onClose, onSuccess, hasExis
             </button>
           )}
           <button
-            onClick={handleCapture}
-            disabled={isLoading || status !== 'ready'}
+            onClick={handleRequestCapture}
+            disabled={isLoading || isConfirming || status !== 'ready'}
             className={`flex-1 py-3.5 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
               faceDetected && status === 'ready'
                 ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20'
