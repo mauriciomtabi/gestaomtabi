@@ -3,9 +3,9 @@ import React, { useState, useRef, useEffect, SyntheticEvent } from 'react';
 import ReactCrop, { Crop, PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { extractAttendanceFromFile } from '../services/geminiService';
-import { Upload, Loader2, Check, X, FileText, AlertCircle, Save, AlertTriangle, Image as ImageIcon, Sparkles, Cpu } from 'lucide-react';
+import { Upload, Loader2, Check, X, FileText, AlertCircle, Save, AlertTriangle, Image as ImageIcon, Sparkles, Cpu, Calculator } from 'lucide-react';
 import { AttendanceRecord } from '../types';
-import { calculateDuration } from '../utils/timeUtils';
+import { calculateDuration, formatMinutesToHHMM } from '../utils/timeUtils';
 import * as pdfjs from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
@@ -343,22 +343,36 @@ const AttendanceSheetOCR: React.FC<Props> = ({ providerId, providerName, existin
             </div>
           ) : (
             <div className="space-y-6">
-              {isNameMismatched ? (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex gap-3 items-start">
-                  <AlertTriangle className="text-red-600 shrink-0" size={24} />
-                  <div>
-                    <h4 className="font-black text-red-700 text-sm uppercase">Divergência de Identidade</h4>
-                    <p className="text-xs text-red-600 leading-relaxed">
-                      O nome detectado (<strong className="underline">{extractedName}</strong>) não parece ser o mesmo deste cadastro.
-                    </p>
+              <div className="space-y-4">
+                {isNameMismatched ? (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex gap-3 items-start">
+                    <AlertTriangle className="text-red-600 shrink-0" size={24} />
+                    <div>
+                      <h4 className="font-black text-red-700 text-sm uppercase">Divergência de Identidade</h4>
+                      <p className="text-xs text-red-600 leading-relaxed">
+                        O nome detectado (<strong className="underline">{extractedName}</strong>) não parece ser o mesmo deste cadastro.
+                      </p>
+                    </div>
                   </div>
+                ) : (
+                  <div className="flex items-center gap-2 p-3 bg-amber-50 text-amber-700 rounded-xl text-xs font-medium border border-amber-100">
+                    <AlertCircle size={16} />
+                    <span>Verifique os dados extraídos e corrija se necessário.</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between p-4 bg-blue-50 border border-blue-100 rounded-2xl shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-blue-600 p-2 rounded-xl text-white shadow-md shadow-blue-200">
+                      <Calculator size={20} />
+                    </div>
+                    <span className="font-black text-blue-900 uppercase text-[10px] md:text-xs tracking-widest">Somatório da Folha:</span>
+                  </div>
+                  <span className="text-xl md:text-2xl font-black text-blue-700">
+                    {formatMinutesToHHMM(extractedData.reduce((acc, curr) => acc + (curr.durationMinutes || 0), 0))}
+                  </span>
                 </div>
-              ) : (
-                <div className="flex items-center gap-2 p-3 bg-amber-50 text-amber-700 rounded-xl text-xs font-medium border border-amber-100">
-                  <AlertCircle size={16} />
-                  <span>Verifique os dados extraídos e corrija se necessário.</span>
-                </div>
-              )}
+              </div>
 
               <div className="max-h-[40vh] overflow-y-auto space-y-3 pr-2">
                 {extractedData.map((record, idx) => {

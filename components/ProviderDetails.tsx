@@ -572,24 +572,27 @@ const ProviderDetails: React.FC<Props> = ({ provider, attendance, onBack, onUpda
             <div className="p-5 flex flex-wrap sm:flex-row justify-between items-center gap-3 bg-white">
               <h3 className="hidden sm:block text-base font-black text-slate-800 uppercase tracking-tight">Registro de Frequência</h3>
               {provider.status === 'active' && (
-                <div className="flex w-full sm:w-auto gap-2">
+                <div className="flex w-full sm:w-auto gap-2 justify-center">
                   <button 
                     onClick={() => setIsJustificationOpen(true)} 
-                    className="flex-1 sm:flex-none bg-white text-amber-600 border border-amber-600 px-4 py-2.5 rounded-xl hover:bg-amber-50 transition-all flex items-center justify-center gap-2 text-[10px] font-black shadow-sm"
+                    title="Justificativa"
+                    className="flex-1 sm:flex-none bg-white text-amber-600 border border-amber-600 p-2.5 sm:px-4 sm:py-2.5 rounded-xl hover:bg-amber-50 transition-all flex items-center justify-center gap-2 text-[10px] font-black shadow-sm"
                   >
-                    <FileWarning size={16} /> Justificativa
+                    <FileWarning size={16} /> <span className="hidden sm:inline">Justificativa</span>
                   </button>
                   <button 
                     onClick={() => setIsManualEntryOpen(true)} 
-                    className="flex-1 sm:flex-none bg-white text-blue-600 border border-blue-600 px-4 py-2.5 rounded-xl hover:bg-blue-50 transition-all flex items-center justify-center gap-2 text-[10px] font-black shadow-sm"
+                    title="Manual"
+                    className="flex-1 sm:flex-none bg-white text-blue-600 border border-blue-600 p-2.5 sm:px-4 sm:py-2.5 rounded-xl hover:bg-blue-50 transition-all flex items-center justify-center gap-2 text-[10px] font-black shadow-sm"
                   >
-                    <Plus size={16} /> Manual
+                    <Plus size={16} /> <span className="hidden sm:inline">Manual</span>
                   </button>
                   <button 
                     onClick={() => setIsOcrOpen(true)} 
-                    className="flex-1 sm:flex-none bg-blue-600 text-white px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-[10px] font-black shadow-lg shadow-blue-500/30"
+                    title="Digitalizar"
+                    className="flex-1 sm:flex-none bg-blue-600 text-white p-2.5 sm:px-4 sm:py-2.5 rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2 text-[10px] font-black shadow-lg shadow-blue-500/30"
                   >
-                    <Scan size={16} /> Digitalizar
+                    <Scan size={16} /> <span className="hidden sm:inline">Digitalizar</span>
                   </button>
                 </div>
               )}
@@ -845,21 +848,22 @@ const ProviderDetails: React.FC<Props> = ({ provider, attendance, onBack, onUpda
               <h3 className="font-black text-white uppercase tracking-tight text-base">{viewingGeneralDoc.title}</h3>
               <p className="text-[9px] text-white/40 font-black uppercase tracking-widest">{provider.name || 'Sem Nome'}</p>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center bg-white/10 rounded-2xl p-1 mr-4">
-                <button onClick={zoomOut} className="p-2 text-white hover:bg-white/10 rounded-xl transition-all"><ZoomOut size={18} /></button>
+            <div className="flex items-center gap-1 md:gap-2">
+              <div className="hidden sm:flex items-center bg-white/10 rounded-2xl p-1 mr-4">
+                <button onClick={zoomOut} className="p-2 text-white hover:bg-white/10 rounded-xl transition-all" title="Diminuir Zoom"><ZoomOut size={18} /></button>
                 <button onClick={resetZoom} className="px-3 text-[10px] font-black text-white hover:bg-white/10 rounded-xl transition-all uppercase">{Math.round(zoomScale * 100)}%</button>
-                <button onClick={zoomIn} className="p-2 text-white hover:bg-white/10 rounded-xl transition-all"><ZoomIn size={18} /></button>
+                <button onClick={zoomIn} className="p-2 text-white hover:bg-white/10 rounded-xl transition-all" title="Aumentar Zoom"><ZoomIn size={18} /></button>
                 <div className="w-px h-4 bg-white/10 mx-1"></div>
-                <button onClick={resetZoom} className="p-2 text-white hover:bg-white/10 rounded-xl transition-all"><RotateCcw size={18} /></button>
+                <button onClick={resetZoom} className="p-2 text-white hover:bg-white/10 rounded-xl transition-all" title="Resetar Zoom"><RotateCcw size={18} /></button>
               </div>
               <button 
                 onClick={() => handleDownload(viewingGeneralDoc.data, `documento_${viewingGeneralDoc.title.toLowerCase().replace(/\s+/g, '_')}.png`)}
-                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest mr-2"
+                className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest mr-0 md:mr-2"
+                title="Baixar"
               >
-                <Download size={18} /> Baixar
+                <Download size={18} /> <span className="hidden sm:inline">Baixar</span>
               </button>
-              <button onClick={() => { setViewingGeneralDoc(null); resetZoom(); }} className="p-2.5 bg-white/10 rounded-full text-white hover:bg-white/20"><X size={20}/></button>
+              <button onClick={() => { setViewingGeneralDoc(null); resetZoom(); }} className="p-2 md:p-2.5 bg-white/10 rounded-full text-white hover:bg-white/20"><X size={18} className="md:w-5 md:h-5"/></button>
             </div>
           </div>
           <div className="flex-1 bg-slate-900/50 overflow-auto p-8 flex items-center justify-center">
@@ -877,21 +881,22 @@ const ProviderDetails: React.FC<Props> = ({ provider, attendance, onBack, onUpda
               <h3 className="font-black text-white uppercase tracking-tight text-base">Documento de Baixa / Devolução</h3>
               <p className="text-[9px] text-white/40 font-black uppercase tracking-widest">{provider.name || 'Sem Nome'}</p>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center bg-white/10 rounded-2xl p-1 mr-4">
-                <button onClick={zoomOut} className="p-2 text-white hover:bg-white/10 rounded-xl transition-all"><ZoomOut size={18} /></button>
+            <div className="flex items-center gap-1 md:gap-2">
+              <div className="hidden sm:flex items-center bg-white/10 rounded-2xl p-1 mr-4">
+                <button onClick={zoomOut} className="p-2 text-white hover:bg-white/10 rounded-xl transition-all" title="Diminuir Zoom"><ZoomOut size={18} /></button>
                 <button onClick={resetZoom} className="px-3 text-[10px] font-black text-white hover:bg-white/10 rounded-xl transition-all uppercase">{Math.round(zoomScale * 100)}%</button>
-                <button onClick={zoomIn} className="p-2 text-white hover:bg-white/10 rounded-xl transition-all"><ZoomIn size={18} /></button>
+                <button onClick={zoomIn} className="p-2 text-white hover:bg-white/10 rounded-xl transition-all" title="Aumentar Zoom"><ZoomIn size={18} /></button>
                 <div className="w-px h-4 bg-white/10 mx-1"></div>
-                <button onClick={resetZoom} className="p-2 text-white hover:bg-white/10 rounded-xl transition-all"><RotateCcw size={18} /></button>
+                <button onClick={resetZoom} className="p-2 text-white hover:bg-white/10 rounded-xl transition-all" title="Resetar Zoom"><RotateCcw size={18} /></button>
               </div>
               <button 
                 onClick={() => handleDownload(viewingReturnDoc, 'documento_baixa.png')}
-                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest mr-2"
+                className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest mr-0 md:mr-2"
+                title="Baixar"
               >
-                <Download size={18} /> Baixar
+                <Download size={18} /> <span className="hidden sm:inline">Baixar</span>
               </button>
-              <button onClick={() => { setViewingReturnDoc(null); resetZoom(); }} className="p-2.5 bg-white/10 rounded-full text-white hover:bg-white/20"><X size={20}/></button>
+              <button onClick={() => { setViewingReturnDoc(null); resetZoom(); }} className="p-2 md:p-2.5 bg-white/10 rounded-full text-white hover:bg-white/20"><X size={18} className="md:w-5 md:h-5"/></button>
             </div>
           </div>
           <div className="flex-1 bg-slate-900/50 overflow-auto p-8 flex items-center justify-center">

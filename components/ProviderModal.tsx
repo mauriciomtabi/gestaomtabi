@@ -444,7 +444,7 @@ const ProviderModal: React.FC<Props> = ({ provider, onClose, onSubmit }) => {
                 Cancelar
               </button>
               <button type="submit" disabled={loading || isSubmitting} className="flex-1 py-3.5 bg-blue-600 text-white font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all active:scale-[0.98] disabled:opacity-50">
-                {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+                {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : (!provider && <Save size={20} />)}
                 {isSubmitting ? 'Salvando...' : provider ? 'Salvar Alterações' : 'Salvar Cadastro'}
               </button>
             </div>
