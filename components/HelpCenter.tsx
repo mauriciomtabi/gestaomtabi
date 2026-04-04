@@ -1,14 +1,21 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Book, Users, ScanFace, Fuel, FileText, Settings as SettingsIcon, AlertCircle, ChevronRight, CheckCircle2, ChevronDown, MonitorPlay, Sparkles } from 'lucide-react';
+import { Search, Book, Users, ScanFace, Fuel, FileText, AlertCircle, CheckCircle2, ChevronDown, MonitorPlay, Sparkles, ThumbsUp } from 'lucide-react';
 
 type Topic = {
   id: string;
   category: string;
   title: string;
-  icon: any;
+  icon: React.ElementType;
   content: React.ReactNode;
   tags: string[];
 };
+
+const Screenshot: React.FC<{ src: string; caption: string }> = ({ src, caption }) => (
+  <figure className="my-6 rounded-2xl overflow-hidden border border-slate-200 shadow-md bg-slate-50">
+    <img src={src} alt={caption} className="w-full object-cover" />
+    <figcaption className="text-center text-xs text-slate-500 font-medium py-2 px-4 border-t border-slate-100 bg-white">{caption}</figcaption>
+  </figure>
+);
 
 const HELP_DATA: Topic[] = [
   {
@@ -16,23 +23,37 @@ const HELP_DATA: Topic[] = [
     category: 'Visão Geral',
     title: 'Painel Principal (Dashboard)',
     icon: MonitorPlay,
-    tags: ['painel', 'dashboard', 'início', 'gráficos', 'resumo'],
+    tags: ['painel', 'dashboard', 'início', 'gráficos', 'resumo', 'abastecimento', 'combustível', 'indicadores'],
     content: (
       <div className="space-y-4">
         <p className="text-slate-600 leading-relaxed">
-          O <strong>Painel Principal</strong> (Dashboard) é a central de comando do sistema de Gestão CBM. 
+          O <strong>Painel Principal</strong> (Dashboard) é a central de comando do Sistema de Gestão CBM.
           Aqui você encontra um resumo panorâmico de todas as operações ativas.
         </p>
+
+        <Screenshot src="/docs/painel.png" caption="Painel Principal — visão geral com indicadores e alertas do sistema" />
+
         <h3 className="text-lg font-black text-slate-800 mt-6">O que você encontra aqui:</h3>
+
+        <h4 className="font-black text-slate-700 mt-4">📋 Indicadores de Prestadores</h4>
         <ul className="list-disc pl-5 space-y-2 text-slate-600">
-          <li><strong>Estatísticas em Tempo Real:</strong> Número de prestadores ativos, horas totais a cumprir, abastecimentos pendentes (em análise).</li>
-          <li><strong>Alertas de Inatividade:</strong> O sistema de inteligência dispara comunicados visuais na cor vermelha para prestadores que estão há mais de 7 dias sem lançar registro de evolução do serviço.</li>
-          <li><strong>Atalhos Rápidos:</strong> Botões que levam você diretamente para o perfil de prestadores em alerta, ou listas de combustíveis aguardando conferência.</li>
+          <li><strong>Prestadores Ativos:</strong> Quantidade total de prestadores com pena em andamento na unidade.</li>
+          <li><strong>Horas Totais a Cumprir:</strong> Somatório consolidado de todas as horas pendentes.</li>
+          <li><strong>Alertas de Inatividade:</strong> O sistema emite alertas visuais em vermelho para prestadores que estão há mais de 7 dias sem lançar nenhum registro de frequência.</li>
+          <li><strong>Atalhos Rápidos:</strong> Botões que levam diretamente ao perfil dos prestadores em alerta.</li>
         </ul>
+
+        <h4 className="font-black text-slate-700 mt-6">⛽ Indicadores de Abastecimento</h4>
+        <ul className="list-disc pl-5 space-y-2 text-slate-600">
+          <li><strong>Abastecimentos Pendentes:</strong> Quantidade de notas fiscais registradas que ainda aguardam conferência e validação por um responsável.</li>
+          <li><strong>Consumo Recente:</strong> Visão rápida dos últimos abastecimentos, com viatura, litros e valor.</li>
+          <li><strong>Atalho para Gestão de Frotas:</strong> Clique direto no indicador para ir à tela de conferência e aprovação dos abastecimentos.</li>
+        </ul>
+
         <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mt-4 flex items-start gap-3">
           <CheckCircle2 className="text-blue-600 shrink-0 mt-0.5" size={20} />
           <p className="text-sm text-blue-900 font-medium">
-            <strong>Dica de Produtividade:</strong> Use o painel diariamente como sua "triagem". Resolva os gargalos em vermelho primeiro antes de iniciar novas tarefas ou cadastros.
+            <strong>Dica de Produtividade:</strong> Use o painel diariamente como sua triagem. Resolva os alertas em vermelho primeiro antes de iniciar novas tarefas ou cadastros.
           </p>
         </div>
       </div>
@@ -43,33 +64,52 @@ const HELP_DATA: Topic[] = [
     category: 'Prestadores',
     title: 'Cadastro e Listagem de Prestadores',
     icon: Users,
-    tags: ['prestador', 'cadastro', 'novo', 'listar', 'processo', 'edição', 'horas'],
+    tags: ['prestador', 'cadastro', 'novo', 'listar', 'processo', 'edição', 'horas', 'encaminhamento', 'identidade', 'documento', 'folha'],
     content: (
       <div className="space-y-4">
         <p className="text-slate-600 leading-relaxed">
-          O módulo de <strong>Prestadores</strong> permite acompanhar aqueles que estão cumprindo Serviço Comunitário no quartel.
+          O módulo de <strong>Prestadores</strong> permite acompanhar todos os cidadãos que estão cumprindo Serviço Comunitário no quartel.
         </p>
+
+        <Screenshot src="/docs/prestadores-lista.png" caption="Lista de Prestadores — com filtros por período, busca e abas de status" />
+
         <h3 className="text-lg font-black text-slate-800 mt-4">Como Criar um Novo Cadastro:</h3>
         <ul className="list-decimal pl-5 space-y-2 text-slate-600">
           <li>Clique no botão <strong>+ Novo Cadastro</strong> no canto superior direito.</li>
-          <li>Preencha os dados obrigatórios como Nome, Número do Processo e o total de horas a cumprir estabelecido pelo juiz.</li>
-          <li>Ao salvar, o sistema inicializa um Dossiê na linha do tempo informando que você registrou a entrada daquela pessoa.</li>
+          <li>Preencha os dados obrigatórios: Nome completo, Número do Processo e o total de horas a cumprir estabelecido pelo juiz.</li>
+          <li>
+            <strong>Folha de Encaminhamento e Documento de Identidade:</strong> É obrigatório anexar esses documentos ao cadastro.
+            Para facilitar, o sistema permite <strong>escanear diretamente pelo celular</strong> — basta clicar no botão de digitalização e apontar a câmera para o documento.
+            A tecnologia de Leitura Inteligente identifica automaticamente todos os campos (nome, número do processo, datas, entidade responsável) e preenche o formulário sem nenhuma digitação manual.
+          </li>
+          <li>Ao salvar, o sistema registra automaticamente na linha do tempo do prestador que o cadastro foi criado, quem o cadastrou e quando.</li>
         </ul>
 
+        <Screenshot src="/docs/prestador-cadastro.png" caption="Formulário de Cadastro — com campo para digitalização dos documentos" />
+
         <h3 className="text-lg font-black text-slate-800 mt-6">Estados do Prestador:</h3>
-        <p className="text-slate-600">Os prestadores são distribuídos em três abas usando status coloridos:</p>
+        <p className="text-slate-600">Os prestadores são distribuídos em três abas com status coloridos:</p>
         <div className="space-y-3 mt-2">
           <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border">
             <span className="bg-green-100 text-green-700 px-3 py-1 rounded text-xs font-black">ATIVO</span>
-            <span className="text-sm text-slate-600">Em andamento e cumprindo a carga horária na unidade.</span>
+            <span className="text-sm text-slate-600">Em andamento, cumprindo a carga horária na unidade.</span>
           </div>
           <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border">
             <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded text-xs font-black">FINALIZADO</span>
-            <span className="text-sm text-slate-600">Completaram o seu plano de horas em 100%.</span>
+            <span className="text-sm text-slate-600">Completaram 100% do plano de horas.</span>
           </div>
           <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-lg border">
             <span className="bg-red-100 text-red-700 px-3 py-1 rounded text-xs font-black">DEVOLVIDO</span>
-            <span className="text-sm text-slate-600">Processo encerrado prematuramente (por quebra disciplinar, abandono ou ofício do juizado).</span>
+            <span className="text-sm text-slate-600">Processo encerrado prematuramente por quebra disciplinar, abandono ou ofício do juizado.</span>
+          </div>
+        </div>
+
+        <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 mt-4">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={20} />
+            <p className="text-sm text-amber-900 font-medium">
+              Os contadores de cada aba (Ativos, Finalizados, Devolvidos) são atualizados automaticamente conforme os filtros de período aplicados.
+            </p>
           </div>
         </div>
       </div>
@@ -80,29 +120,35 @@ const HELP_DATA: Topic[] = [
     category: 'Prestadores',
     title: 'Lançar Folha de Frequência (Leitura Inteligente)',
     icon: Sparkles,
-    tags: ['digitalizar', 'folha', 'inteligência', 'ia', 'frequência', 'horas', 'ponto', 'foto'],
+    tags: ['digitalizar', 'folha', 'inteligência', 'frequência', 'horas', 'ponto', 'foto', 'ocr', 'leitura'],
     content: (
       <div className="space-y-4">
         <p className="text-slate-600 leading-relaxed">
-          Para que o sistema some as horas automáticas num processo, utilizamos nossa tecnologia de <strong>Processamento Inteligente (OCR avançado)</strong>, responsável por ler o papel físico onde os horários foram manualmente registrados.
+          Para registrar as horas cumpridas, o sistema utiliza tecnologia de <strong>Processamento Inteligente (Leitura Inteligente)</strong>,
+          responsável por ler o papel físico onde os horários foram registrados manualmente.
+          Isso elimina a necessidade de digitação e reduz erros de lançamento.
         </p>
 
-        <h3 className="text-lg font-black text-slate-800 mt-4">Como Digitalizar Documentos</h3>
-        <ul className="list-decimal pl-5 space-y-2 text-slate-600 mb-6">
+        <Screenshot src="/docs/ocr-modal.png" caption="Modal de Digitalização — câmera ou upload de imagem para leitura automática da folha" />
+
+        <h3 className="text-lg font-black text-slate-800 mt-4">Como Digitalizar uma Folha de Frequência:</h3>
+        <ul className="list-decimal pl-5 space-y-3 text-slate-600 mb-6">
           <li>Acesse a ficha de um <strong>Prestador</strong> na lista.</li>
-          <li>Desça até a aba <strong>Lançamentos e Horas</strong> e clique em <em>Digitalizar Folha</em>.</li>
-          <li>A câmera abrirá (se for no celular) ou um seletor de arquivos aparecerá. Capte a foto da folha em um local <strong>bem iluminado</strong>, priorizando um enquadramento sem fundos irregulares.</li>
-          <li>Na segunda tela, utilize as âncoras para <strong>Mapear e Recortar</strong> as bordas isolando apenas a tabela/dados.</li>
-          <li>Aperte *"Ler e Analisar"*. O motor irá rodar o processamento visual da geometria das palavras por alguns instantes.</li>
-          <li>Todos os dias e horas descem para avaliação final. <strong>Confira o somatório total no topo se bate com os seus cálculos. Você tem liberdade para editar eventuais linhas lidas de forma errônea.</strong></li>
-          <li>Aperte Salvar; A folha e os tempos são lançados permanentemente no perfil do prestador.</li>
+          <li>Localize a aba <strong>Lançamentos e Horas</strong> e clique em <strong>Digitalizar Folha</strong>.</li>
+          <li>A câmera será aberta (em celulares) ou um seletor de arquivos aparecerá. Capture a foto da folha em um local <strong>bem iluminado</strong>, priorizando um enquadramento sem fundos irregulares.</li>
+          <li>Na tela de confirmação, ajuste o recorte se necessário para isolar apenas a tabela de registros.</li>
+          <li>Clique em <strong>Ler e Analisar</strong>. O sistema processará a imagem e extrairá automaticamente todos os dados de entrada, saída e data.</li>
+          <li>Confira o <strong>somatório total de horas</strong> exibido no topo — verifique se bate com seus cálculos. Você pode editar qualquer linha lida de forma incorreta antes de confirmar.</li>
+          <li>Clique em <strong>Salvar</strong>. A folha e os registros de tempo são lançados permanentemente no perfil do prestador.</li>
         </ul>
+
+        <Screenshot src="/docs/ocr-resultado.png" caption="Resultado da Leitura — dados extraídos da folha prontos para conferência e salvamento" />
 
         <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 mt-4">
           <div className="flex items-start gap-2">
             <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={20} />
             <p className="text-sm text-amber-900 font-medium">
-              Sempre realize uma conferência se o documento não apresentar caligrafia muito rasurada. A tecnologia ajuda a poupar tempo, mas a verificação do Militar operador continua soberana no momento de assinar e confirmar os dados contábeis.
+              Sempre confira os dados extraídos antes de confirmar o salvamento, principalmente em documentos com caligrafia muito irregular ou rasurada. A verificação do militar responsável continua sendo obrigatória.
             </p>
           </div>
         </div>
@@ -114,25 +160,55 @@ const HELP_DATA: Topic[] = [
     category: 'Biometria',
     title: 'Check-in e Enrolment Facial',
     icon: ScanFace,
-    tags: ['biometria', 'checkin', 'rosto', 'facial', 'câmera', 'enrolment', 'cadastrar'],
+    tags: ['biometria', 'checkin', 'rosto', 'facial', 'câmera', 'enrolment', 'cadastrar', 'celular', 'militar', 'registro', 'marca d\'água'],
     content: (
       <div className="space-y-4">
         <p className="text-slate-600 leading-relaxed">
-          O sistema pode substituir cadernos de papel e o controle por OCR instalando-se um quiosque de <strong>Reconhecimento Facial (Check-in Facial)</strong> para os prestadores na recepção ou corpo da guarda.
-        </p>
-        
-        <h3 className="text-lg font-black text-slate-800 mt-4">1. Enrolment (Cadastrando a Biometria)</h3>
-        <p className="text-slate-600">
-          Para que o prestador seja reconhecido por vídeo livre, ele precisa ter a sua "assinatura de vetor facial" mapeada. Na página de detalhes do prestador, ao lado da foto de perfil, clique em <strong>Cadastrar Rosto</strong>. 
-          O usuário deverá ser posto em frente a câmera até as marcações de captura mapearem sua geometria (aguarde de 3 a 5 segundos de análise estática). Assim que preenchido, ele está aprovado na biometria do banco de dados.
+          O sistema disponibiliza um módulo de <strong>Check-in por Reconhecimento Facial</strong> para registrar entradas e saídas de prestadores de forma rápida, precisa e sem necessidade de papel.
+          O sistema funciona tanto em computadores quanto em <strong>dispositivos móveis (celulares e tablets)</strong>.
         </p>
 
-        <h3 className="text-lg font-black text-slate-800 mt-6">2. O Check-in em Sí</h3>
+        <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-4">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="text-blue-600 shrink-0 mt-0.5" size={20} />
+            <p className="text-sm text-blue-900 font-medium">
+              <strong>Importante:</strong> O check-in <strong>não é realizado pelo prestador de forma autônoma</strong>. Deve ser <strong>efetuado por um militar de serviço</strong>, que posicionará a câmera em direção ao rosto do prestador e confirmará o registro.
+            </p>
+          </div>
+        </div>
+
+        <h3 className="text-lg font-black text-slate-800 mt-4">1. Enrolment — Cadastrando a Biometria</h3>
         <p className="text-slate-600">
-          Ao deixar um computador aberto na página <strong>"Check-in Facial"</strong> usando a interface do menu lateral, os prestadores poderão sozinhos chegar diante da tela. 
-          O sistema detectará o rosto organicamente comparando com toda a base de dados. Quando identificar, dirá "Bom dia / Boa tarde", marcando a ENTRADA, ou então a SAÍDA. 
+          Para que o prestador seja identificado pela câmera, é necessário cadastrar previamente sua biometria facial.
+          Na página de detalhes do prestador, ao lado da foto de perfil, clique em <strong>Cadastrar Rosto</strong>.
+          O prestador deverá ser posicionado em frente à câmera até que as marcações de captura mapeiem sua geometria facial (processo de 3 a 5 segundos).
+          Após a confirmação, o vetor facial é salvo com segurança na nuvem.
         </p>
-        <p className="text-slate-600">Esses registros descem com o rótulo de <em>Justificativa: BIOMETRIA</em>, injetado de modo assíncrono na nuvem de forma nativa e inviolável, computando as horas automáticas todos os dias que vierem.</p>
+
+        <Screenshot src="/docs/face-enrolment.png" caption="Tela de Cadastro de Biometria — posicionamento do rosto para mapeamento facial" />
+
+        <h3 className="text-lg font-black text-slate-800 mt-6">2. Como Realizar o Check-in</h3>
+        <p className="text-slate-600">
+          Com a câmera iniciada na tela de <strong>Check-in Facial</strong>, o militar de serviço posiciona o dispositivo em direção ao rosto do prestador.
+          O sistema identifica automaticamente a pessoa comparando com toda a base biométrica cadastrada.
+          Ao reconhecer, exibe o nome do prestador e oferece as opções de <strong>Registrar Entrada</strong> ou <strong>Registrar Saída</strong>, conforme o estado atual do prestador no dia.
+        </p>
+
+        <Screenshot src="/docs/face-checkin.png" caption="Check-in Facial — identificação do prestador e botões de entrada/saída" />
+
+        <h3 className="text-lg font-black text-slate-800 mt-6">3. Registro Automático com Comprovação</h3>
+        <p className="text-slate-600">
+          Após a confirmação do registro, as informações são inseridas <strong>automaticamente no cadastro do prestador</strong>.
+          Cada registro biométrico inclui:
+        </p>
+        <ul className="list-disc pl-5 space-y-2 text-slate-600 mt-2">
+          <li>Data e hora exatos do check-in.</li>
+          <li>Uma captura de tela com <strong>marca d'água</strong> contendo o tipo de registro (Entrada ou Saída), data e horário — servindo como comprovante visual inviolável.</li>
+          <li>Rótulo de justificativa <em>BIOMETRIA</em> no histórico do prestador.</li>
+          <li>As horas são calculadas e somadas ao total automaticamente assim que a saída é registrada.</li>
+        </ul>
+
+        <Screenshot src="/docs/face-comprovante.png" caption="Comprovante Biométrico — captura com marca d'água de data/hora gravada no histórico do prestador" />
       </div>
     )
   },
@@ -145,28 +221,25 @@ const HELP_DATA: Topic[] = [
     content: (
       <div className="space-y-4">
         <p className="text-slate-600 leading-relaxed">
-          O controle de combustíveis serve para monitorar gastos e consumo de frota de forma fácil e rastreável, interligando viaturas a cupons escaneados por Leitura Inteligente.
+          O módulo de controle de combustíveis serve para monitorar gastos e consumo de frota de forma fácil e rastreável,
+          interligando viaturas a cupons fiscais escaneados por Leitura Inteligente.
         </p>
+
+        <Screenshot src="/docs/abastecimento.png" caption="Módulo de Gestão de Frotas — lista de abastecimentos e controle de viaturas" />
 
         <div className="space-y-6 mt-4">
           <div className="border-l-4 border-blue-600 pl-4">
             <h4 className="font-black text-slate-800">1. Cadastrando Viaturas</h4>
             <p className="text-sm text-slate-600 mt-1">
-              Primeiro defina quais são os veículos do batalhão de Sapucaia nas configurações ou direto nesta aba, inserido odômetro atual, ano, se é flex/diesel.
-            </p>
-          </div>
-          
-          <div className="border-l-4 border-blue-600 pl-4">
-            <h4 className="font-black text-slate-800">2. Mapeamento de OCR do Cupom (Digitalizar Nota Fiscal)</h4>
-            <p className="text-sm text-slate-600 mt-1">
-              Esqueça de ter que digitar quantidade de litros, tipo e valor do posto manualmente. Utilize a câmera do pwa para escanear um Cupom Fiscal. A leitura inteligente preenche valores, data e local instantaneamente.
+              Primeiro, defina quais são os veículos do batalhão diretamente nesta aba, informando placa, modelo, odômetro atual, ano e tipo de combustível (flex ou diesel).
             </p>
           </div>
 
           <div className="border-l-4 border-blue-600 pl-4">
-            <h4 className="font-black text-slate-800">3. Fluxo de Conferência</h4>
+            <h4 className="font-black text-slate-800">2. Digitalizando o Cupom Fiscal</h4>
             <p className="text-sm text-slate-600 mt-1">
-              Pelo painel, as notas fiscais cadastradas descem sem confirmação. O Chefe do Transporte, Setor de Finanças ou Encarregado Administrativo pode visualizar as notas registradas pelo motorista em campo, conferir os valores de Odômetro (que indicam consumo kml em tela) e o print original de imagem para atestar e fechar o abastecimento do dia. Validadas as medições, o abastecimento é efetivado.
+              Esqueça digitar quantidade de litros, tipo e valor manualmente. Utilize a câmera para escanear o Cupom Fiscal diretamente pelo celular.
+              A Leitura Inteligente preenche automaticamente os valores, data, tipo de combustível e estabelecimento em instantes.
             </p>
           </div>
         </div>
@@ -178,86 +251,58 @@ const HELP_DATA: Topic[] = [
     category: 'Ofícios',
     title: 'Emissão de Relatórios Padrão Judicial',
     icon: FileText,
-    tags: ['relatório', 'ofício', 'juiz', 'imprimir', 'papel', 'processos', 'horas cumpridas', 'pdf'],
+    tags: ['relatório', 'ofício', 'juiz', 'imprimir', 'papel', 'processos', 'horas cumpridas', 'pdf', 'número', 'responsável'],
     content: (
       <div className="space-y-4">
         <p className="text-slate-600 leading-relaxed">
-          O módulo <strong>Relatórios</strong> tira de você a necessidade de manusear ou de fazer "Ctrl+C Ctrl+V" de horas em um Word todas as vezes.
+          O módulo de <strong>Relatórios</strong> elimina a necessidade de redigir ou montar documentos oficiais manualmente.
+          Todas as informações de registro de horas, datas e identificação do prestador são trazidas automaticamente para o documento.
         </p>
-        <p className="text-slate-600">
-          Você pode simplesmente abrir o perfil do prestador desejado (ou usar a aba exclusiva de Relatórios), e escolher a predefinição <strong>"Ofício de Finalização"</strong> ou <strong>"Ofício de Andamento"</strong>.
-          O sistema gera em tela um documento completo da instituição padronizado (com Brasão, identificação oficial VEPMA, horários consolidados, parágrafos formais da brigada civil e assinador automático em rodapé). 
-        </p>
-        <div className="bg-slate-50 p-4 border rounded-xl flex items-center justify-between mt-4">
-          <p className="text-sm font-bold text-slate-600">Apenas aperte IMPRIMIR no navegador, ou gere e exporte o arquivo nativamente como PDF sem rasuras de bordas ou layouts tortos.</p>
+
+        <Screenshot src="/docs/relatorio.png" caption="Emissão de Ofício — documento gerado automaticamente com dados do prestador e horas consolidadas" />
+
+        <h3 className="text-lg font-black text-slate-800 mt-4">Como Emitir um Documento</h3>
+        <ul className="list-decimal pl-5 space-y-2 text-slate-600">
+          <li>Acesse a ficha do prestador ou o menu <strong>Relatórios</strong>.</li>
+          <li>Selecione o tipo de documento: <strong>Ofício de Finalização</strong> ou <strong>Ofício de Andamento</strong>.</li>
+          <li>Preencha apenas dois campos: <strong>Número do Ofício</strong> e <strong>Nome do Responsável pela assinatura</strong>.</li>
+          <li>Todas as demais informações — horas cumpridas, saldo restante, datas de entradas e saídas, dados do prestador e identificação da unidade — são preenchidas automaticamente pelo sistema.</li>
+          <li>Clique em <strong>Imprimir</strong> no navegador ou exporte diretamente como PDF, sem preocupação com bordas ou layouts desconfigurados.</li>
+        </ul>
+
+        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 mt-4 flex items-start gap-3">
+          <CheckCircle2 className="text-emerald-600 shrink-0 mt-0.5" size={20} />
+          <p className="text-sm text-emerald-900 font-medium">
+            O documento é gerado com Brasão oficial, identificação da unidade, parágrafos formais padronizados e rodapé com campo para assinatura — pronto para ser encaminhado ao juizado.
+          </p>
         </div>
       </div>
     )
   },
-  {
-    id: 'faq-1',
-    category: 'FAQ / Dúvidas Frequentes',
-    title: 'Perguntas Frequentes do Sistema (FAQ)',
-    icon: AlertCircle,
-    tags: ['faq', 'dúvidas', 'erros', 'problemas', 'ajuda', 'suporte', 'como fazer'],
-    content: (
-      <div className="space-y-2">
-        <details className="group border border-slate-200 bg-white rounded-xl p-4 cursor-pointer">
-          <summary className="font-black text-slate-800 outline-none list-none flex justify-between items-center group-open:text-blue-600">
-            O aplicativo não aparece com ícone correto / Não abre, fica tudo branco?
-            <ChevronDown className="group-open:rotate-180 transition-transform text-slate-400 group-open:text-blue-600" size={18} />
-          </summary>
-          <div className="mt-4 text-sm text-slate-600 leading-relaxed">
-            Problemas de "Tela Branca" ou de versão que não reage ocorrem devido ao "Cache Pesado" do Navegador, que tentou instalar sem sucesso por falha de internet os "Service Workers". <strong>Solução Rápida:</strong> Vá nas configurações de Aplicativos do celular (ou configurações do navegador de iOS/Safari), clique em limpar "Armazenamento do Site/Cache" ou simplesmente desinstale o app da tela de início e adicione-o novamente por meio do link original. 
-          </div>
-        </details>
-        
-        <details className="group border border-slate-200 bg-white rounded-xl p-4 cursor-pointer mt-3">
-          <summary className="font-black text-slate-800 outline-none list-none flex justify-between items-center group-open:text-blue-600">
-            A Leitura Inteligente (OCR) está demorando além de 30-40 segundos?
-            <ChevronDown className="group-open:rotate-180 transition-transform text-slate-400 group-open:text-blue-600" size={18} />
-          </summary>
-          <div className="mt-4 text-sm text-slate-600 leading-relaxed">
-            Ao digitalizar um documento, o Motor de Leitura pode estar sofrendo para extrair informações puras pois a imagem está desfocada ou o acesso da internet principal local está falhando a rota com nossos servidores remotos. <strong>Solução:</strong> Se uma análise demorar demais ou travar, feche (x) o processo e retome tirando uma foto com maior contraste e foco puro na folha sem ruídos visuais paralelos na mesa/fundo.
-          </div>
-        </details>
-
-        <details className="group border border-slate-200 bg-white rounded-xl p-4 cursor-pointer mt-3">
-          <summary className="font-black text-slate-800 outline-none list-none flex justify-between items-center group-open:text-blue-600">
-            Posso estender as permissões de um Operador do Corpo da Guarda?
-            <ChevronDown className="group-open:rotate-180 transition-transform text-slate-400 group-open:text-blue-600" size={18} />
-          </summary>
-          <div className="mt-4 text-sm text-slate-600 leading-relaxed">
-            Apenas um Master/Admin (ex: o usuário master criado na nuvem) pode acessar todos os cantos. Se um novo soldado entrar na escala, e ele estiver enxergando apenas "Check in Facial", será necessário que um conta de nível Administrador promova ele alterando suas permissões oficiais na própria infraestrutura em banco de dados Supabase/Auth. 
-          </div>
-        </details>
-      </div>
-    )
-  }
 ];
 
 const HelpCenter: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTopicId, setActiveTopicId] = useState<string>(HELP_DATA[0].id);
+  const [feedbackGiven, setFeedbackGiven] = useState<Record<string, 'yes' | 'no'>>({});
 
   const filteredTopics = useMemo(() => {
     if (!searchTerm.trim()) return HELP_DATA;
     const lowerSearch = searchTerm.toLowerCase();
-    
     return HELP_DATA.filter(topic => {
       const matchTitle = topic.title.toLowerCase().includes(lowerSearch);
       const matchCategory = topic.category.toLowerCase().includes(lowerSearch);
       const matchTags = topic.tags.some(tag => tag.toLowerCase().includes(lowerSearch));
-      
-      // Basic text search in content strings wasn't feasible due to JSX structure, 
-      // but tags, title and category cover 99% of search paths
       return matchTitle || matchCategory || matchTags;
     });
   }, [searchTerm]);
 
-  const activeTopic = HELP_DATA.find(t => t.id === activeTopicId) || filteredTopics[0];
+  const activeTopic = useMemo(() => {
+    const found = HELP_DATA.find(t => t.id === activeTopicId);
+    if (found && filteredTopics.find(t => t.id === activeTopicId)) return found;
+    return filteredTopics[0] || null;
+  }, [activeTopicId, filteredTopics]);
 
-  // Group filtered results by category for the sidebar
   const groupedTopics = useMemo(() => {
     const groups: { [key: string]: Topic[] } = {};
     filteredTopics.forEach(t => {
@@ -281,8 +326,8 @@ const HelpCenter: React.FC = () => {
 
       <div className="relative mb-6">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-        <input 
-          type="text" 
+        <input
+          type="text"
           placeholder="Pesquisar por prestador, ocr, biometria, relatórios, dúvida..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
@@ -291,14 +336,14 @@ const HelpCenter: React.FC = () => {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-slate-100">
-        
+
         {/* Sidebar Topics */}
-        <div className="w-full lg:w-1/3 flex flex-col gap-4 border-r-0 lg:border-r border-slate-100 pr-0 lg:pr-4 overflow-y-auto no-scrollbar max-h-[300px] lg:max-h-full">
+        <div className="w-full lg:w-1/3 flex flex-col gap-4 border-r-0 lg:border-r border-slate-100 pr-0 lg:pr-4 overflow-y-auto no-scrollbar max-h-[300px] lg:max-h-full shrink-0">
           {Object.keys(groupedTopics).length === 0 ? (
             <div className="text-center p-8 bg-slate-50 rounded-xl">
               <p className="text-slate-500 font-bold">Nenhum resultado encontrado.</p>
-              <button 
-                onClick={() => setSearchTerm('')} 
+              <button
+                onClick={() => setSearchTerm('')}
                 className="mt-2 text-blue-600 font-black text-xs hover:underline"
               >
                 Limpar Pesquisa
@@ -316,8 +361,8 @@ const HelpCenter: React.FC = () => {
                       key={topic.id}
                       onClick={() => setActiveTopicId(topic.id)}
                       className={`w-full text-left flex items-start gap-3 p-3 rounded-xl transition-all ${
-                        activeTopic?.id === topic.id 
-                          ? 'bg-blue-50 text-blue-800 border border-blue-100 shadow-sm ring-1 ring-blue-500/10' 
+                        activeTopic?.id === topic.id
+                          ? 'bg-blue-50 text-blue-800 border border-blue-100 shadow-sm ring-1 ring-blue-500/10'
                           : 'text-slate-600 hover:bg-slate-50 border border-transparent hover:border-slate-100'
                       }`}
                     >
@@ -338,31 +383,50 @@ const HelpCenter: React.FC = () => {
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto no-scrollbar pl-0 lg:pl-6 pt-4 lg:pt-0">
           {activeTopic ? (
-            <div className="max-w-3xl animate-in slide-in-from-right-4 fade-in duration-500">
+            <div className="max-w-3xl animate-in slide-in-from-right-4 fade-in duration-500" key={activeTopic.id}>
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full text-xs font-black text-slate-500 uppercase tracking-widest mb-4">
                 {activeTopic.category}
               </div>
               <h1 className="text-2xl md:text-3xl font-black text-slate-800 mb-8 leading-tight tracking-tight">
                 {activeTopic.title}
               </h1>
-              
+
               <div className="text-slate-700 documentation-content pb-12">
                 {activeTopic.content}
               </div>
-              
+
               <div className="mt-12 pt-6 border-t border-slate-100 flex items-center justify-between">
-                <p className="text-xs font-medium text-slate-400">Este tópico foi útil?</p>
-                <div className="flex gap-2">
-                  <button className="px-4 py-2 bg-slate-50 text-slate-600 text-xs font-black uppercase rounded-lg hover:bg-emerald-50 hover:text-emerald-700 transition-colors border border-slate-100">Sim</button>
-                  <button className="px-4 py-2 bg-slate-50 text-slate-600 text-xs font-black uppercase rounded-lg hover:bg-red-50 hover:text-red-700 transition-colors border border-slate-100">Não</button>
-                </div>
+                {feedbackGiven[activeTopic.id] ? (
+                  <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm">
+                    <ThumbsUp size={18} />
+                    Obrigado pelo seu feedback!
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs font-medium text-slate-400">Este tópico foi útil?</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setFeedbackGiven(prev => ({ ...prev, [activeTopic.id]: 'yes' }))}
+                        className="px-4 py-2 bg-slate-50 text-slate-600 text-xs font-black uppercase rounded-lg hover:bg-emerald-50 hover:text-emerald-700 transition-colors border border-slate-100"
+                      >
+                        Sim
+                      </button>
+                      <button
+                        onClick={() => setFeedbackGiven(prev => ({ ...prev, [activeTopic.id]: 'no' }))}
+                        className="px-4 py-2 bg-slate-50 text-slate-600 text-xs font-black uppercase rounded-lg hover:bg-red-50 hover:text-red-700 transition-colors border border-slate-100"
+                      >
+                        Não
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           ) : (
-             <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
-               <Book size={64} className="mb-4" />
-               <p className="font-bold">Selecione um tópico na lista ao lado.</p>
-             </div>
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-50">
+              <Book size={64} className="mb-4" />
+              <p className="font-bold">Selecione um tópico na lista ao lado.</p>
+            </div>
           )}
         </div>
 
