@@ -1,5 +1,7 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, SyntheticEvent } from 'react';
+import ReactCrop, { Crop, PixelCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import { extractAttendanceFromFile } from '../services/geminiService';
 import { Upload, Loader2, Check, X, FileText, AlertCircle, Save, AlertTriangle, Image as ImageIcon, Sparkles, Cpu } from 'lucide-react';
 import { AttendanceRecord } from '../types';
@@ -37,7 +39,10 @@ const AttendanceSheetOCR: React.FC<Props> = ({ providerId, providerName, existin
   const [extractedName, setExtractedName] = useState<string | null>(null);
   const [step, setStep] = useState<'upload' | 'review'>('upload');
   const [msgIndex, setMsgIndex] = useState(0);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   // Efeito para alternar mensagens de processamento
   useEffect(() => {
@@ -110,6 +115,9 @@ const AttendanceSheetOCR: React.FC<Props> = ({ providerId, providerName, existin
         base64 = await optimizeImage(rawBase64);
       }
       setPreview(base64);
+      // Reseta o crop state sempre que uma nova imagem é carregada
+      setCrop(undefined);
+      setCompletedCrop(null);
     } catch (err) {
       console.error('Erro ao processar arquivo:', err);
       alert('Não foi possível processar este arquivo.');
@@ -118,12 +126,42 @@ const AttendanceSheetOCR: React.FC<Props> = ({ providerId, providerName, existin
     }
   };
 
+  const getCroppedImageBase64 = async (): Promise<string | null> => {
+    if (!completedCrop || !imgRef.current || completedCrop.width === 0 || completedCrop.height === 0) {
+      return preview;
+    }
+
+    const canvas = document.createElement('canvas');
+    const scaleX = imgRef.current.naturalWidth / imgRef.current.width;
+    const scaleY = imgRef.current.naturalHeight / imgRef.current.height;
+
+    canvas.width = completedCrop.width * scaleX;
+    canvas.height = completedCrop.height * scaleY;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return preview;
+
+    ctx.drawImage(
+      imgRef.current,
+      completedCrop.x * scaleX,
+      completedCrop.y * scaleY,
+      completedCrop.width * scaleX,
+      completedCrop.height * scaleY,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    return canvas.toDataURL('image/jpeg', 0.8);
+  };
+
   const handleProcess = async () => {
     if (!preview || !fileMeta) return;
     setLoading(true);
     setMsgIndex(0);
     try {
-      const base64 = preview.split(',')[1];
+      const finalImageBase64 = await getCroppedImageBase64() || preview;
+      const base64 = finalImageBase64.split(',')[1];
       const result = await extractAttendanceFromFile(base64, 'image/jpeg');
       const records = result.records.map((r: any) => ({
         id: Math.random().toString(36).substr(2, 9),
@@ -233,7 +271,29 @@ const AttendanceSheetOCR: React.FC<Props> = ({ providerId, providerName, existin
                       </div>
                     ) : (
                       <>
-                        <img src={preview!} alt="Preview" className={`max-h-[450px] object-contain w-full transition-all duration-700 ${loading ? 'scale-[1.02] blur-[1px]' : ''}`} />
+                        <div className="absolute top-4 left-0 w-full text-center z-10 pointer-events-none">
+                          <p className="inline-block bg-blue-900/80 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-lg backdrop-blur-sm animate-pulse">
+                            Ajuste as bordas da folha
+                          </p>
+                        </div>
+                        <ReactCrop 
+                          crop={crop} 
+                          onChange={(c) => setCrop(c)} 
+                          onComplete={(c) => setCompletedCrop(c)}
+                          className="flex items-center justify-center bg-slate-100"
+                        >
+                          <img 
+                            ref={imgRef}
+                            src={preview!} 
+                            alt="Preview" 
+                            className={`max-h-[50vh] object-contain w-full transition-all duration-700 ${loading ? 'scale-[1.02] blur-[1px]' : ''}`} 
+                            onLoad={(e: SyntheticEvent<HTMLImageElement>) => {
+                              const { width, height } = e.currentTarget;
+                              // Define um crop inicial deixando uma pequena margem
+                              setCrop({ unit: '%', x: 5, y: 5, width: 90, height: 90 });
+                            }}
+                          />
+                        </ReactCrop>
                         {loading && (
                           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-900/40 grid-overlay">
                             <div className="scan-line"></div>
@@ -273,7 +333,7 @@ const AttendanceSheetOCR: React.FC<Props> = ({ providerId, providerName, existin
                       <button onClick={() => setPreview(null)} className="flex-1 py-4 text-slate-600 font-bold hover:bg-slate-100 rounded-2xl">Trocar</button>
                       <button onClick={handleProcess} className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-xl flex items-center justify-center gap-2">
                         <Sparkles size={20} />
-                        Analisar com IA
+                        Ler e Analisar
                       </button>
                     </div>
                   )}

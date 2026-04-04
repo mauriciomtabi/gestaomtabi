@@ -78,8 +78,8 @@ const App: React.FC = () => {
         setFuelSupplies([]);
         setVehicles([]);
         setView('dashboard');
-      } else if (event === 'TOKEN_REFRESHED' && session) {
-        // Only re-fetch on token refresh, NOT on SIGNED_IN (Login.tsx already handles that)
+      } else if ((event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') && session) {
+        // Tentamos atualizar os dados sempre que a sessão for renovada ou logada
         try {
           await fetchData();
         } catch (err) {
@@ -88,9 +88,20 @@ const App: React.FC = () => {
       }
     });
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Força uma atualização leve e verifica a sessão se o app voltar do background
+        supabase.auth.getSession().then(({ data }) => {
+          if (data.session) fetchData();
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       subscription.unsubscribe();
       clearTimeout(fallbackTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
@@ -165,7 +176,7 @@ const App: React.FC = () => {
     }
   };
 
-  const fetchData = async () => {
+  const fetchData = async (retryCount = 0) => {
     try {
       setConnectionError(false);
       const [pData, aData, fData, vData, nData] = await Promise.all([
@@ -181,8 +192,13 @@ const App: React.FC = () => {
       setVehicles(vData);
       setStationNicknames(nData);
     } catch (err) {
-      console.error("Erro ao atualizar dados:", err);
-      setConnectionError(true);
+      console.error(`Erro ao atualizar dados (tentativa ${retryCount}):`, err);
+      if (retryCount < 3) {
+        // Tenta novamente após 2 segundos, possivelmente esperando o token renovar
+        setTimeout(() => fetchData(retryCount + 1), 2000);
+      } else {
+        setConnectionError(true);
+      }
     }
   };
 
