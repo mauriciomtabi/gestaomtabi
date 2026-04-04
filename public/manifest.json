@@ -1,7 +1,7 @@
 {
   "name": "Gestão CBM - Sapucaia do Sul",
   "short_name": "Gestão CBM",
-  "description": "Sistema de Gestão de Prestadores de Serviços Comunitários - CBMRS",
+  "description": "Sistema de Gestão | CBM Sapucaia do Sul/RS",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
