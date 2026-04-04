@@ -176,9 +176,10 @@ const AttendanceSheetOCR: React.FC<Props> = ({ providerId, providerName, existin
       setExtractedName(result.extractedProviderName);
       setExtractedData(records);
       setStep('review');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro na API do Gemini:', error);
-      alert('Erro na leitura da IA. Verifique a conexão ou a chave da API, e tente uma foto mais nítida.');
+      const errorMsg = error.message || 'Verifique a conexão ou a chave da API, e tente uma foto mais nítida.';
+      alert(`Erro na leitura da IA: ${errorMsg}`);
     } finally {
       setLoading(false);
     }

@@ -5,8 +5,12 @@ import { GoogleGenAI, Type } from "@google/genai";
 const getAI = (): GoogleGenAI => {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (globalThis as any).process?.env?.GEMINI_API_KEY;
   if (!apiKey) {
+    console.error('[Gemini] ERRO: Chave de API não encontrada!');
     throw new Error("GEMINI_API_KEY não está configurado. Contate o administrador do sistema.");
   }
+  // Log mais visível para depuração de ambiente
+  const maskedKey = apiKey.slice(0, 8) + '...' + apiKey.slice(-4);
+  console.log('[Gemini] Initializing with key:', maskedKey);
   return new GoogleGenAI({ apiKey });
 };
 
@@ -18,33 +22,40 @@ export const detectFaceInDocument = async (base64Data: string, mimeType: string)
     Retorne APENAS o JSON no formato especificado.
   `;
 
-  const response = await getAI().models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: {
-      parts: [
-        { inlineData: { mimeType: mimeType, data: base64Data } },
-        { text: prompt }
-      ]
-    },
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          box_2d: {
-            type: Type.ARRAY,
-            items: { type: Type.NUMBER },
-            description: "[ymin, xmin, ymax, xmax] coordenadas normalizadas 0-1000"
-          }
-        },
-        required: ["box_2d"]
+  try {
+    const response = await getAI().models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: {
+        parts: [
+          { inlineData: { mimeType: mimeType, data: base64Data } },
+          { text: prompt }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            box_2d: {
+              type: Type.ARRAY,
+              items: { type: Type.NUMBER },
+              description: "[ymin, xmin, ymax, xmax] coordenadas normalizadas 0-1000"
+            }
+          },
+          required: ["box_2d"]
+        }
       }
-    }
-  });
+    });
 
-  // Extracting text output directly from GenerateContentResponse property as per guidelines.
-  const jsonStr = response.text?.trim() || "{}";
-  return JSON.parse(jsonStr);
+    console.log('[Gemini Face] Raw Response:', response);
+    const jsonStr = response.text?.trim();
+    if (!jsonStr) throw new Error("IA não retornou coordenadas do rosto.");
+    
+    return JSON.parse(jsonStr);
+  } catch (err: any) {
+    console.error('[Gemini Face] Erro:', err);
+    throw err;
+  }
 };
 
 export const extractAttendanceFromFile = async (base64Data: string, mimeType: string) => {
@@ -60,44 +71,60 @@ export const extractAttendanceFromFile = async (base64Data: string, mimeType: st
     6. Retorne APENAS o JSON conforme o esquema definido.
   `;
 
-  const response = await getAI().models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: {
-      parts: [
-        { inlineData: { mimeType: mimeType, data: base64Data } },
-        { text: prompt }
-      ]
-    },
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          extractedProviderName: {
-            type: Type.STRING,
-            description: "Nome do prestador encontrado no topo do documento"
-          },
-          records: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                date: { type: Type.STRING, description: "Data no formato YYYY-MM-DD" },
-                entryTime: { type: Type.STRING, description: "Hora de chegada HH:mm" },
-                exitTime: { type: Type.STRING, description: "Hora de saída HH:mm" },
-              },
-              required: ["date", "entryTime", "exitTime"]
+  try {
+    const response = await getAI().models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: {
+        parts: [
+          { inlineData: { mimeType: mimeType, data: base64Data } },
+          { text: prompt }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            extractedProviderName: {
+              type: Type.STRING,
+              description: "Nome do prestador encontrado no topo do documento"
+            },
+            records: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  date: { type: Type.STRING, description: "Data no formato YYYY-MM-DD" },
+                  entryTime: { type: Type.STRING, description: "Hora de chegada HH:mm" },
+                  exitTime: { type: Type.STRING, description: "Hora de saída HH:mm" },
+                },
+                required: ["date", "entryTime", "exitTime"]
+              }
             }
-          }
-        },
-        required: ["records", "extractedProviderName"]
+          },
+          required: ["records", "extractedProviderName"]
+        }
       }
-    }
-  });
+    });
 
-  // Extracting text output directly from GenerateContentResponse property as per guidelines.
-  const jsonStr = response.text?.trim() || "{}";
-  return JSON.parse(jsonStr);
+    console.log('[Gemini] Raw Response:', response);
+
+    const jsonStr = response.text?.trim();
+    if (!jsonStr) {
+      console.warn('[Gemini] Resposta vazia recebida.');
+      throw new Error("A IA retornou uma resposta vazia. Tente uma foto mais nítida.");
+    }
+
+    try {
+      return JSON.parse(jsonStr);
+    } catch (parseError) {
+      console.error('[Gemini] Erro ao processar JSON:', jsonStr);
+      throw new Error("Erro na formatação dos dados. Tente novamente.");
+    }
+  } catch (err: any) {
+    console.error('[Gemini] Erro na chamada da API:', err);
+    throw err;
+  }
 };
 
 export const extractReferralData = async (base64Data: string, mimeType: string) => {
@@ -124,38 +151,45 @@ export const extractReferralData = async (base64Data: string, mimeType: string) 
     Retorne APENAS o JSON.
   `;
 
-  const response = await getAI().models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: {
-      parts: [
-        { inlineData: { mimeType: mimeType, data: base64Data } },
-        { text: prompt }
-      ]
-    },
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          name: { type: Type.STRING },
-          processNumber: { type: Type.STRING },
-          phone: { type: Type.STRING },
-          address: { type: Type.STRING },
-          assignedEntity: { type: Type.STRING },
-          totalHours: {
-            type: Type.NUMBER,
-            description: "Cálculo resultante do período (Horas semanais * 4 * Meses) or total fixo."
+  try {
+    const response = await getAI().models.generateContent({
+      model: 'gemini-2.0-flash',
+      contents: {
+        parts: [
+          { inlineData: { mimeType: mimeType, data: base64Data } },
+          { text: prompt }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            processNumber: { type: Type.STRING },
+            phone: { type: Type.STRING },
+            address: { type: Type.STRING },
+            assignedEntity: { type: Type.STRING },
+            totalHours: {
+              type: Type.NUMBER,
+              description: "Cálculo resultante do período (Horas semanais * 4 * Meses) or total fixo."
+            },
+            referralDate: { type: Type.STRING },
+            receiptDate: { type: Type.STRING },
+            observations: { type: Type.STRING },
           },
-          referralDate: { type: Type.STRING },
-          receiptDate: { type: Type.STRING },
-          observations: { type: Type.STRING },
-        },
-        required: ["name", "processNumber", "totalHours"]
+          required: ["name", "processNumber", "totalHours"]
+        }
       }
-    }
-  });
+    });
 
-  // Extracting text output directly from GenerateContentResponse property as per guidelines.
-  const jsonStr = response.text?.trim() || "{}";
-  return JSON.parse(jsonStr);
+    console.log('[Gemini Referral] Raw Response:', response);
+    const jsonStr = response.text?.trim();
+    if (!jsonStr) throw new Error("IA não retornou dados do encaminhamento.");
+
+    return JSON.parse(jsonStr);
+  } catch (err: any) {
+    console.error('[Gemini Referral] Erro:', err);
+    throw err;
+  }
 };
