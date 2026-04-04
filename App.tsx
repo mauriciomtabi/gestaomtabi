@@ -12,7 +12,8 @@ import InstallGuide from './components/InstallGuide';
 import FuelSupplyManager from './components/FuelSupplyManager';
 import FaceCheckIn from './components/FaceCheckIn';
 import Settings from './components/Settings';
-import { Users, LayoutDashboard, FileText, Loader2, ShieldCheck, ShieldAlert, Cpu, Database, Network, Sparkles, LogOut, UserCircle, CheckCircle2, X, Smartphone, Fuel, ScanFace, Settings as SettingsIcon } from 'lucide-react';
+import HelpCenter from './components/HelpCenter';
+import { Users, LayoutDashboard, FileText, Loader2, ShieldCheck, ShieldAlert, Cpu, Database, Network, Sparkles, LogOut, UserCircle, CheckCircle2, X, Smartphone, Fuel, ScanFace, Settings as SettingsIcon, HelpCircle } from 'lucide-react';
 import { getProviders, getAttendance, createProvider, updateProvider, saveAttendance, deleteAttendance, saveAuditLog, supabase, getFuelSupplies, getVehicles, getStationNicknames } from './services/supabaseService';
 
 const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => {
@@ -33,7 +34,7 @@ const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () 
 };
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'dashboard' | 'providers' | 'details' | 'reports' | 'settings' | 'fuel' | 'face-checkin'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'providers' | 'details' | 'reports' | 'settings' | 'fuel' | 'face-checkin' | 'help'>('dashboard');
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
@@ -440,6 +441,7 @@ const App: React.FC = () => {
           {currentUser.allowedScreens?.includes('settings') && (
             <NavItem icon={SettingsIcon} label="Configurações" target="settings" active={view === 'settings'} />
           )}
+          <NavItem icon={HelpCircle} label="Ajuda e Documentação" target="help" active={view === 'help'} />
         </div>
 
         <div className="hidden md:flex flex-col mt-auto w-full px-2 space-y-2 py-4">
@@ -543,6 +545,9 @@ const App: React.FC = () => {
             onUpdateProfile={handleUpdateProfile} 
             onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
           />
+        )}
+        {view === 'help' && (
+          <HelpCenter />
         )}
       </main>
 
