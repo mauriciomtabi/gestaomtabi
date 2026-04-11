@@ -447,7 +447,7 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
                           </div>
                           <div className="min-w-0 py-0.5">
                             <p className="text-[10px] font-black text-red-900 uppercase truncate leading-none mb-1">{item.provider.name}</p>
-                            <p className="text-[9px] text-red-600 font-bold leading-tight">Ausente há {item.days} dias. Última vez em: {item.lastDate.toLocaleDateString('pt-BR')}</p>
+                            <p className="text-[9px] text-red-600 font-bold leading-tight">Ausente há {item.days >= 999 ? 'muito tempo' : `${item.days} dias`}. Última vez em: {item.lastDate ? new Date(item.lastDate.includes('T') ? item.lastDate : `${item.lastDate}T12:00:00`).toLocaleDateString('pt-BR') : 'Sem registros'}</p>
                           </div>
                         </div>
                       ))}
