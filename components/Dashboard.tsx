@@ -250,7 +250,7 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
     const lastDate = getLatestVisit(pAttendance);
     const days = getDaysInactivity(lastDate);
     return { provider: p, days, lastDate };
-  }).filter(item => item.days >= 10);
+  }).filter(item => item.days >= 1).sort((a, b) => b.days - a.days);
 
   const closeToFinishAlerts = activeProviders.map(p => {
     const pAttendance = attendance.filter(a => a.providerId === p.id);
@@ -541,17 +541,46 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
                     </div>
                   ) : (
                     <>
-                      {inactivityAlerts.map(item => (
-                        <div key={item.provider.id} className="flex gap-3 p-4 bg-red-50/50 rounded-2xl border border-red-100 group transition-all hover:bg-red-50 hover:shadow-md cursor-pointer" onClick={() => onNavigateProvider(item.provider)}>
-                          <div className="bg-red-600 shadow-sm shadow-red-200 p-2.5 rounded-xl text-white shrink-0 h-fit">
-                            <AlertCircle size={16} />
+                      {inactivityAlerts.map(item => {
+                        const isRed = item.days > 30;
+                        const isYellow = item.days > 7 && item.days <= 30;
+                        // isGreen = item.days <= 7
+                        const cardClass = isRed
+                          ? 'bg-red-50 border-red-300 ring-1 ring-red-200 shadow-sm'
+                          : isYellow
+                          ? 'bg-amber-50 border-amber-200'
+                          : 'bg-emerald-50/60 border-emerald-200';
+                        const iconClass = isRed
+                          ? 'bg-red-600 shadow-red-200'
+                          : isYellow
+                          ? 'bg-amber-500 shadow-amber-200'
+                          : 'bg-emerald-500 shadow-emerald-200';
+                        const nameClass = isRed ? 'text-red-900' : isYellow ? 'text-amber-900' : 'text-emerald-900';
+                        const infoClass = isRed ? 'text-red-600' : isYellow ? 'text-amber-600' : 'text-emerald-600';
+                        const dotColor = isRed ? 'bg-red-500' : isYellow ? 'bg-amber-500' : 'bg-emerald-500';
+                        return (
+                          <div
+                            key={item.provider.id}
+                            className={`flex gap-3 p-4 rounded-2xl border group transition-all hover:shadow-md cursor-pointer ${cardClass}`}
+                            onClick={() => onNavigateProvider(item.provider)}
+                          >
+                            <div className={`${iconClass} shadow-sm p-2.5 rounded-xl text-white shrink-0 h-fit`}>
+                              <AlertCircle size={16} />
+                            </div>
+                            <div className="min-w-0 py-0.5 flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                {isRed && <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${dotColor}`} />}
+                                <p className={`text-[10px] font-black uppercase truncate leading-none ${nameClass}`}>{item.provider.name}</p>
+                              </div>
+                              <p className={`text-[9px] font-bold leading-tight ${infoClass}`}>
+                                Ausente há {item.days >= 999 ? 'muito tempo' : `${item.days} dias`}. Última vez em: {item.lastDate
+                                  ? new Date(item.lastDate.includes('T') ? item.lastDate : `${item.lastDate}T12:00:00`).toLocaleDateString('pt-BR')
+                                  : 'Sem registros'}
+                              </p>
+                            </div>
                           </div>
-                          <div className="min-w-0 py-0.5">
-                            <p className="text-[10px] font-black text-red-900 uppercase truncate leading-none mb-1">{item.provider.name}</p>
-                            <p className="text-[9px] text-red-600 font-bold leading-tight">Ausente há {item.days >= 999 ? 'muito tempo' : `${item.days} dias`}. Última vez em: {item.lastDate ? new Date(item.lastDate.includes('T') ? item.lastDate : `${item.lastDate}T12:00:00`).toLocaleDateString('pt-BR') : 'Sem registros'}</p>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                       {closeToFinishAlerts.map(item => (
                         <div key={item.provider.id} className="flex gap-3 p-4 bg-blue-50/50 rounded-2xl border border-blue-100 group transition-all hover:bg-blue-50 hover:shadow-md cursor-pointer" onClick={() => onNavigateProvider(item.provider)}>
                           <div className="bg-blue-600 shadow-sm shadow-blue-200 p-2.5 rounded-xl text-white shrink-0 h-fit">
