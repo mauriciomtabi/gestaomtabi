@@ -497,7 +497,7 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
                     <div className="flex items-center justify-between px-2">
                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                          <ShieldAlert size={18} className="text-red-500" />
-                         Quadro de Alertas
+                         Quadro de Alertas | Prestadores
                        </h3>
                        {totalAlerts > 0 && <span className="bg-red-50 text-red-600 text-[10px] font-black px-3 py-1.5 rounded-full border border-red-200">{totalAlerts} PENDÊNCIAS</span>}
                     </div>
