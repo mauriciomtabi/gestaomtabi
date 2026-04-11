@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Book, Users, ScanFace, Fuel, FileText, AlertCircle, CheckCircle2, ChevronDown, MonitorPlay, Sparkles, ThumbsUp } from 'lucide-react';
+import {  Search, Book, Users, ScanFace, Fuel, FileText, AlertCircle, CheckCircle2, ChevronDown, MonitorPlay, Sparkles, ThumbsUp , BookOpen } from 'lucide-react';
 
 type Topic = {
   id: string;

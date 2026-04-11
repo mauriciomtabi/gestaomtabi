@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Provider, AttendanceRecord } from '../types';
-import { Plus, ChevronRight, Search, Calendar, Clock, Target, Hourglass, Percent, Filter, ChevronLeft, ArrowDownAZ, AlertCircle } from 'lucide-react';
+import {  Plus, ChevronRight, Search, Calendar, Clock, Target, Hourglass, Percent, Filter, ChevronLeft, ArrowDownAZ, AlertCircle , Users } from 'lucide-react';
 import { formatDateBR, getLatestVisit, formatMinutesToHHMM, getDaysInactivity, formatInactivityMessage } from '../utils/timeUtils';
 
 interface Props {
@@ -124,9 +124,14 @@ const ProviderList: React.FC<Props> = ({ providers, attendance, onSelect, onAdd 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-black text-slate-800">Prestadores</h2>
-          <p className="text-sm text-slate-500 font-medium">Gerenciamento e controle de frequência.</p>
+        <div className="flex items-center gap-4 mb-2">
+          <div className="bg-blue-600 p-3 rounded-2xl shadow-lg shadow-blue-600/30">
+            <Users size={24} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Prestadores</h1>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Gerenciamento e controle de frequência.</p>
+          </div>
         </div>
         <button 
           onClick={onAdd}

@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Provider, AttendanceRecord, MonthlySummary } from '../types';
 import { formatMinutesToHHMM, formatDateBR, getLatestVisit } from '../utils/timeUtils';
-import { FileDown, Filter, Calendar as CalendarIcon, Loader2, AlertCircle } from 'lucide-react';
+import {  FileDown, Filter, Calendar as CalendarIcon, Loader2, AlertCircle , FileText } from 'lucide-react';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
 
