@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Provider, AttendanceRecord, AuditLog, Operator, FuelSupply, Vehicle, StationNickname } from './types';
 import ProviderList from './components/ProviderList';
 import ProviderDetails from './components/ProviderDetails';
@@ -42,6 +42,14 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Operator | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [connectionError, setConnectionError] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+
+  // Scroll para o topo sempre que a view mudar
+  useEffect(() => {
+    if (mainRef.current) {
+      mainRef.current.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [view]);
   
   const [isBooting, setIsBooting] = useState(true);
   const [bootProgress, setBootProgress] = useState(0);
@@ -462,7 +470,7 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 overflow-y-auto">
+      <main ref={mainRef} className="flex-1 p-4 md:p-8 pb-24 md:pb-8 overflow-y-auto">
         {connectionError && (
           <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center justify-between animate-in fade-in slide-in-from-top-4">
             <div className="flex items-center gap-3">
