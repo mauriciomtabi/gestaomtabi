@@ -70,21 +70,33 @@ const Login: React.FC<Props> = ({ onLogin }) => {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
-        password: loginPassword,
-      });
+      // Usa Promise.race para evitar o travamento (Deadlock de Auth Lock do Supabase) 
+      // no primeiro acesso do dia quando requests concorrentes se chocam.
+      const { data, error } = await Promise.race([
+        supabase.auth.signInWithPassword({
+          email: loginEmail,
+          password: loginPassword,
+        }),
+        new Promise<{data: any, error: any}>((_, reject) => 
+          setTimeout(() => reject(new Error("TIMEOUT_AUTH_LOCK")), 10000)
+        )
+      ]);
 
       if (error) throw error;
 
-      // Buscar perfil na tabela profiles
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .maybeSingle();
+      // Buscar perfil na tabela profiles com timeout de segurança
+      const { data: profile } = await Promise.race([
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .maybeSingle(),
+        new Promise<{data: any}>((resolve) => 
+          setTimeout(() => resolve({ data: null }), 6000)
+        )
+      ]);
 
-      // Fallback: usa user_metadata se o perfil não existir
+      // Fallback: usa user_metadata se o perfil não existir ou houver timeout
       const meta = data.user.user_metadata;
 
       const userEmail = profile?.email || data.user.email || '';
@@ -112,13 +124,24 @@ const Login: React.FC<Props> = ({ onLogin }) => {
       onLogin(loggedInUser);
     } catch (err: any) {
       let errorMsg = err.message;
+      
+      // Se detectarmos o deadlock de auth, forçamos o recarregamento. 
+      // Como o token provavelmente já foi salvo no localStorage pelo GoTrueJS
+      // antes do travamento da Promise, o reload fará o usuário entrar direto.
+      if (errorMsg === 'TIMEOUT_AUTH_LOCK' || errorMsg.includes('lock')) {
+        console.warn("Deadlock de autenticação detectado. Recarregando a aplicação...");
+        window.location.reload();
+        return;
+      }
+
       if (errorMsg === 'Invalid login credentials') {
         errorMsg = 'E-mail ou senha incorretos.';
       } else if (errorMsg === 'Email not confirmed') {
         errorMsg = 'E-mail não confirmado. Por favor, verifique sua caixa de entrada e clique no link de confirmação.';
+      } else if (errorMsg === 'Failed to fetch' || errorMsg.includes('Network')) {
+        errorMsg = 'Erro de conexão. Verifique sua rede e tente novamente.';
       }
       setAuthError(errorMsg);
-    } finally {
       setIsLoading(false);
     }
   };
