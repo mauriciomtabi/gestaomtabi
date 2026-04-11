@@ -15,6 +15,8 @@ interface Props {
   onNavigateFuel: () => void;
 }
 
+const currentYear = new Date().getFullYear();
+
 const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehicles, stationNicknames, onNavigateProvider, onNavigateFuel }) => {
   const [activeTab, setActiveTab] = React.useState<'geral' | 'prestadores' | 'abastecimento'>('geral');
   
@@ -25,10 +27,9 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
   const [filterMonths, setFilterMonths] = React.useState<string[]>([]);
 
   // Prestadores Filters
-  const [providerMonth, setProviderMonth] = React.useState<string>(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const [filterYear, setFilterYear] = React.useState<number>(currentYear);
+  const [filterMonth, setFilterMonth] = React.useState<number>(new Date().getMonth() + 1);
+  const providerMonth = `${filterYear}-${String(filterMonth).padStart(2, '0')}`;
 
   const nicknameMap = React.useMemo(() => {
     return stationNicknames.reduce((acc, curr) => {
@@ -90,7 +91,6 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
   // Tabela: Horas por Dia da Semana (Seg a Sáb)
   const attendanceByDayOfWeek = React.useMemo(() => {
     const days = ['Dom', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-    // Vamos pular domingo na view se não for comum, mas no painel geral manteremos todos.
     const data = days.map((day, idx) => ({ name: day, prestadores: 0, index: idx }));
     
     // Precisamos contar prestadores únicos (por dia) para a métrica "Comparecem por dia da semana"
@@ -103,34 +103,33 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
       }
     });
 
-    // Reordenar para começar na Segunda-Feira e remover o Domingo (se ficar muito lixo, mas o ideal é deixar).
+    // Reordenar para começar na Segunda-Feira
     const reordered = [...data.slice(1), data[0]];
     return reordered;
   }, [attendancesInMonth]);
 
-  // Tabela: Horas Trabalhadas por Dia do Mês
-  const hoursPerDay = React.useMemo(() => {
-    const [yearStr, monthStr] = providerMonth.split('-');
-    const year = parseInt(yearStr);
-    const month = parseInt(monthStr);
+  // Tabela: Comparecimentos por Dia do Mês
+  const attendancesPerDay = React.useMemo(() => {
+    const year = filterYear;
+    const month = filterMonth;
     const daysInMonth = new Date(year, month, 0).getDate();
     
     const data = Array.from({length: daysInMonth}, (_, i) => {
       const dayStr = String(i + 1).padStart(2, '0');
-      const dateStr = `${yearStr}-${monthStr}-${dayStr}`;
-      return { date: dateStr, day: i + 1, horas: 0, label: dayStr };
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${dayStr}`;
+      return { date: dateStr, day: i + 1, comparecimentos: 0, label: dayStr };
     });
 
     attendancesInMonth.forEach(a => {
       const datePart = a.date.split('T')[0]; // "YYYY-MM-DD"
       const match = data.find(d => d.date === datePart);
       if (match) {
-        match.horas += (a.durationMinutes / 60);
+        match.comparecimentos += 1;
       }
     });
 
     return data;
-  }, [attendancesInMonth, providerMonth]);
+  }, [attendancesInMonth, filterYear, filterMonth]);
 
   // Fuel Stats
   const totalFuelCost = filteredFuelSupplies.reduce((acc, curr) => acc + curr.totalValue, 0);
@@ -258,32 +257,16 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-20">
-      {/* HEADER COLOURED BACKGROUND BANNER */}
-      <div className="bg-slate-900 rounded-[2.5rem] p-8 md:p-12 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute inset-0 opacity-20 pointer-events-none">
-          <div className="absolute top-[-50%] left-[-10%] w-[80%] h-[150%] bg-blue-600 rounded-full blur-[120px]"></div>
-        </div>
-        <div className="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 backdrop-blur-md">
-                <LayoutDashboard className="text-white" size={24} />
-              </div>
-            </div>
-            <h2 className="text-3xl md:text-5xl font-black tracking-tighter uppercase leading-none">
-              Painel de Controle
-            </h2>
-            <p className="text-blue-300 text-xs md:text-sm font-bold uppercase tracking-[0.2em] max-w-lg">
-              Sistema Integrado de Gestão Administrativa
-            </p>
+      
+      {/* HEADER SIMPLES ESTILO FACE CHECKIN */}
+      <div className="mb-6">
+        <div className="flex items-center gap-4 mb-2">
+          <div className="bg-blue-600 p-3 rounded-2xl shadow-lg shadow-blue-600/30">
+            <LayoutDashboard size={24} className="text-white" />
           </div>
-          
-          <div className="flex bg-white/10 p-4 rounded-3xl border border-white/20 backdrop-blur-md shrink-0 flex-col items-end justify-center self-start md:self-end">
-            <p className="text-[10px] text-blue-200 font-bold uppercase tracking-widest mb-1 flex items-center gap-2">
-              <Calendar size={12} /> Data Atual
-            </p>
-            <p className="text-xl font-black">{new Date().toLocaleDateString('pt-BR')}</p>
-            <p className="text-sm font-bold text-blue-400">{new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Painel de Controle</h1>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Sistema integrado de gestão administrativa</p>
           </div>
         </div>
       </div>
@@ -320,14 +303,6 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               
               <div className="lg:col-span-8 space-y-6">
-                {/* Stats Rápidos Geração Combinada */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <StatCard icon={Users} label="Total Ativos" value={activeProviders.length.toString()} color="blue" />
-                  <StatCard icon={Clock} label="Horas Cumpridas" value={formatMinutesToHHMM(totalWorkedMinutes)} color="blue" />
-                  <StatCard icon={DollarSign} label="Gasto Mensal" value={`R$ ${monthlySpendingData.length > 0 ? Math.round(monthlySpendingData[monthlySpendingData.length-1].value) : 0}`} color="emerald" />
-                  <StatCard icon={Droplets} label="Litros Histórico" value={`${Math.round(totalLiters)}L`} color="emerald" />
-                </div>
-
                 {/* Histórico Recente */}
                 <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden h-full">
                   <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -482,22 +457,36 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
               </div>
               <div className="flex flex-col items-start gap-1">
                 <label className="text-[8px] font-black uppercase text-slate-400 tracking-widest ml-1">Filtrar Período</label>
-                <div className="relative">
-                  <input 
-                    type="month" 
-                    value={providerMonth}
-                    onChange={(e) => setProviderMonth(e.target.value)}
-                    className="appearance-none bg-slate-50 border border-slate-200 text-blue-800 font-black text-sm px-4 py-2 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none w-[180px]"
-                  />
+                <div className="flex items-center gap-2">
+                  <select 
+                    value={filterMonth} 
+                    onChange={(e) => setFilterMonth(Number(e.target.value))}
+                    className="appearance-none bg-slate-50 border border-slate-200 text-blue-800 font-black text-xs px-4 py-2 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none w-[130px] cursor-pointer"
+                  >
+                    {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
+                       <option key={i} value={i+1}>{m}</option>
+                    ))}
+                  </select>
+                  <select 
+                    value={filterYear} 
+                    onChange={(e) => setFilterYear(Number(e.target.value))}
+                    className="appearance-none bg-slate-50 border border-slate-200 text-blue-800 font-black text-xs px-4 py-2 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none w-[90px] cursor-pointer"
+                  >
+                    {[currentYear, currentYear - 1, currentYear - 2, currentYear - 3].map(y => (
+                       <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>
 
             {/* Trinca de Indicadores do Mês */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <StatCard icon={UserPlus} label="Novos Entrantes" value={providerStatsInMonth.novos.toString()} color="blue" className="!h-auto !py-6" />
-              <StatCard icon={FileCheck} label="Finalizados no Período" value={providerStatsInMonth.finalizados.toString()} color="emerald" className="!h-auto !py-6" />
-              <StatCard icon={CornerDownLeft} label="Devolvidos/Retornados" value={providerStatsInMonth.devolvidos.toString()} color="amber" className="!h-auto !py-6" />
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <StatCard icon={Users} label="Total Ativos (Geral)" value={activeProviders.length.toString()} color="blue" />
+              <StatCard icon={Clock} label="Horas Gerais" value={formatMinutesToHHMM(totalWorkedMinutes)} color="emerald" />
+              <StatCard icon={UserPlus} label="Novos Entrantes" value={providerStatsInMonth.novos.toString()} color="slate" />
+              <StatCard icon={FileCheck} label="Finalizados no Período" value={providerStatsInMonth.finalizados.toString()} color="emerald" />
+              <StatCard icon={CornerDownLeft} label="Devolvidos/Retornados" value={providerStatsInMonth.devolvidos.toString()} color="amber" />
             </div>
 
             {/* Gráficos de Frequencia */}
@@ -516,10 +505,10 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={attendanceByDayOfWeek} margin={{ top: 10, left: -25, right: 0, bottom: 0 }}>
+                      <BarChart data={attendanceByDayOfWeek} margin={{ top: 20, left: -25, right: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#64748b' }} />
-                        <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#64748b' }} />
+                        <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#64748b' }} domain={[0, (dataMax: number) => dataMax === 0 ? 5 : Math.ceil(dataMax * 1.25)]} />
                         <Tooltip 
                           cursor={{fill: '#f8fafc'}}
                           contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '11px', fontWeight: 800 }}
@@ -537,30 +526,30 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
                 </div>
               </div>
 
-              {/* Gráfico 2: Horas Diárias */}
+              {/* Gráfico 2: Comparecimentos Diários */}
               <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-200 shadow-sm">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2">
                   <TrendingUp size={14} className="text-emerald-500" />
-                  Horas Trabalhadas (Por Dia do Mês)
+                  Comparecimentos (Por Dia do Mês)
                 </h4>
                 <div className="h-64 w-full">
-                  {!hoursPerDay.some(d => d.horas > 0) ? (
+                  {!attendancesPerDay.some(d => d.comparecimentos > 0) ? (
                     <div className="h-full flex items-center justify-center">
                       <p className="text-[10px] text-slate-400 italic font-bold">Sem dados no período</p>
                     </div>
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={hoursPerDay} margin={{ top: 10, left: -25, right: 0, bottom: 0 }}>
+                      <BarChart data={attendancesPerDay} margin={{ top: 20, left: -25, right: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 800, fill: '#64748b' }} interval="preserveStartEnd" minTickGap={10} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#64748b' }} />
+                        <YAxis allowDecimals={false} axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 800, fill: '#64748b' }} domain={[0, (dataMax: number) => dataMax === 0 ? 5 : Math.ceil(dataMax * 1.25)]} />
                         <Tooltip 
                           cursor={{fill: '#f8fafc'}}
                           contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', fontSize: '11px', fontWeight: 800 }}
-                          formatter={(val: number) => [`${val.toFixed(1)} horas`, 'Total Carga']}
+                          formatter={(val: number) => [`${val} presenças`, 'Comparecimentos']}
                           labelFormatter={(label) => `Dia ${label}`}
                         />
-                        <Bar dataKey="horas" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                        <Bar dataKey="comparecimentos" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
                       </BarChart>
                     </ResponsiveContainer>
                   )}
@@ -665,11 +654,12 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
 
               {/* Stats e Veiculo Eficiente */}
               <div className="lg:col-span-12 grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <StatCard icon={DollarSign} label="Histórico Total (R$)" value={`R$ ${monthlySpendingData.length > 0 ? Math.round(monthlySpendingData[monthlySpendingData.length-1].value) : 0}`} color="slate" />
+                <StatCard icon={Droplets} label="Litros Histórico (Total)" value={`${Math.round(totalLiters)}L`} color="slate" />
                 <StatCard icon={DollarSign} label="Gasto no Filtro" value={`R$ ${totalFuelCost.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`} color="slate" />
-                <StatCard icon={Droplets} label="Litros no Filtro" value={`${Math.round(totalLiters)}L`} color="slate" />
-                <StatCard icon={TrendingUp} label="Preço Médio (Total)" value={`R$ ${avgPricePerLiter.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} color="slate" />
+                <StatCard icon={TrendingUp} label="Preço Médio (Filtro)" value={`R$ ${avgPricePerLiter.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} color="slate" />
                 {bestVehicle && (
-                  <div className="bg-emerald-600 p-4 rounded-3xl shadow-lg shadow-emerald-200 flex flex-col justify-between group hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 cursor-default">
+                  <div className="bg-emerald-600 p-4 rounded-3xl shadow-lg shadow-emerald-200 flex flex-col justify-between group hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 cursor-default sm:col-span-4 md:col-span-1">
                     <div className="flex justify-between items-start mb-3">
                       <div className="p-2 rounded-xl bg-white/20 text-white border border-white/30">
                         <TrendingUp size={16} />
