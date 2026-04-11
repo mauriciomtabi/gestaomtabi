@@ -101,21 +101,29 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
     const days = ['Dom', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const data = days.map((day, idx) => ({ name: day, prestadores: 0, index: idx, provedores: [] as string[] }));
     
+    // Mapeia: date -> Set de providerIds presentes naquele dia
+    const presencasPorDia = new Map<string, Set<string>>();
     chartAttendances.forEach(a => {
       const datePart = a.date.split('T')[0];
       const d = new Date(`${datePart}T12:00:00`);
-      
+      if (isNaN(d.getTime())) return;
       // se houver drilldown no mês e NÃO for este dia, pule
       if (drillDayOfMonth !== null && d.getDate() !== drillDayOfMonth) return;
+      if (!presencasPorDia.has(datePart)) presencasPorDia.set(datePart, new Set());
+      presencasPorDia.get(datePart)!.add(a.providerId);
+    });
 
-      if (!isNaN(d.getDay())) {
-        const item = data[d.getDay()];
-        item.prestadores += 1;
-        const pName = providers.find(p => p.id === a.providerId)?.name || 'Desconhecido';
+    // Agrega por dia da semana, contando prestadores únicos em cada data
+    presencasPorDia.forEach((providerSet, datePart) => {
+      const d = new Date(`${datePart}T12:00:00`);
+      const item = data[d.getDay()];
+      providerSet.forEach(providerId => {
+        const pName = providers.find(p => p.id === providerId)?.name || 'Desconhecido';
         if (!item.provedores.includes(pName)) {
-           item.provedores.push(pName);
+          item.provedores.push(pName);
+          item.prestadores += 1;
         }
-      }
+      });
     });
 
     const reordered = [...data.slice(1), data[0]];
@@ -134,23 +142,31 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
       return { date: dateStr, day: i + 1, comparecimentos: 0, label: dayStr, provedores: [] as string[] };
     });
 
+    // Agrupa por data: cada providerId conta uma única vez por data
+    const presencasPorDia = new Map<string, Set<string>>();
     chartAttendances.forEach(a => {
       const datePart = a.date.split('T')[0];
       const d = new Date(`${datePart}T12:00:00`);
-      
+      if (isNaN(d.getTime())) return;
       // se houver drilldown na semana e NÃO for esse dia da semana, pule
       if (drillDayOfWeek !== null) {
         const days = ['Dom', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
         if (days[d.getDay()] !== drillDayOfWeek) return;
       }
+      if (!presencasPorDia.has(datePart)) presencasPorDia.set(datePart, new Set());
+      presencasPorDia.get(datePart)!.add(a.providerId);
+    });
 
+    presencasPorDia.forEach((providerSet, datePart) => {
       const match = data.find(item => item.date === datePart);
       if (match) {
-        match.comparecimentos += 1;
-        const pName = providers.find(p => p.id === a.providerId)?.name || 'Desconhecido';
-        if (!match.provedores.includes(pName)) {
-           match.provedores.push(pName);
-        }
+        providerSet.forEach(providerId => {
+          const pName = providers.find(p => p.id === providerId)?.name || 'Desconhecido';
+          if (!match.provedores.includes(pName)) {
+            match.provedores.push(pName);
+            match.comparecimentos += 1;
+          }
+        });
       }
     });
 
