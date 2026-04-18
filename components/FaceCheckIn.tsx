@@ -217,58 +217,53 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
         .filter(a => a.providerId === matchedProvider.providerId && a.date === today && !a.exitTime)
         .sort((a, b) => a.entryTime.localeCompare(b.entryTime));
 
-      let lat = "-29.819878";
-      let lng = "-51.161518";
+      let lat = "";
+      let lng = "";
       let accuracyUsed = 0;
 
-      if (navigator.geolocation) {
-        try {
-          // O getCurrentPosition pode ser muito rápido e pegar antena de celular (margin de erro de KM).
-          // Usando watchPosition, forçamos o rádio do GPS a ligar e focar nos satélites até a precisão ficar ótima.
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            let watchId: number;
-            let timeoutId: NodeJS.Timeout;
-            let bestPos: GeolocationPosition | null = null;
+      if (!navigator.geolocation) {
+        throw new Error("Geolocalização não suportada. Use um celular/navegador c/ permissão de GPS.");
+      }
 
-            const finish = () => {
-              clearTimeout(timeoutId);
-              if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
-              if (bestPos) resolve(bestPos);
-              else reject(new Error("Nenhuma posição obtida"));
-            };
+      try {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          let watchId: number;
+          let timeoutId: NodeJS.Timeout;
+          let bestPos: GeolocationPosition | null = null;
 
-            watchId = navigator.geolocation.watchPosition(
-              (pos) => {
-                // Salva a melhor precisão encontrada (menor é melhor, em metros)
-                if (!bestPos || pos.coords.accuracy < bestPos.coords.accuracy) {
-                   bestPos = pos;
-                }
-                // Se atingir uma precisão excelente (<= 25 metros), aprova imediatamente.
-                if (pos.coords.accuracy <= 25) {
-                   finish();
-                }
-              },
-              (err) => console.warn(err), // Não rejeita no primeiro erro, pode oscilar
-              { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
-            );
+          const finish = () => {
+            clearTimeout(timeoutId);
+            if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
+            if (bestPos) resolve(bestPos);
+            else reject(new Error("Timeout atingido sem captação de satélite."));
+          };
 
-            // Aguarda no máximo 8 segundos para obter a melhor precisão possível
-            timeoutId = setTimeout(finish, 8000);
-          });
+          watchId = navigator.geolocation.watchPosition(
+            (pos) => {
+              if (!bestPos || pos.coords.accuracy < bestPos.coords.accuracy) {
+                 bestPos = pos;
+              }
+              if (pos.coords.accuracy <= 40) {
+                 finish();
+              }
+            },
+            (err) => console.warn(err),
+            { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+          );
 
-          // Se a precisão final for pior que 1km (ex: 1500m), é porque não pegou satélite, só antena de celular.
-          // Nesse caso, mantemos o fallback do Quartel para evitar registro bizarro em outra cidade.
-          // Se for menor, usamos a posição real.
-          if (position.coords.accuracy <= 1000) {
-             lat = position.coords.latitude.toFixed(6);
-             lng = position.coords.longitude.toFixed(6);
-             accuracyUsed = Math.round(position.coords.accuracy);
-          } else {
-             accuracyUsed = Math.round(position.coords.accuracy);
-          }
-        } catch (e) {
-          console.warn("GPS timeout, usando fallback", e);
+          // Aguarda até 15s para garantir que os satélites conectem no chip GPS
+          timeoutId = setTimeout(finish, 15000);
+        });
+
+        if (position.coords.accuracy > 150) {
+           throw new Error(`Sinal muito fraco/impreciso (margem de erro de ±${Math.round(position.coords.accuracy)}m). Vá para um local desobstruído a céu aberto para registrar.`);
         }
+
+        lat = position.coords.latitude.toFixed(6);
+        lng = position.coords.longitude.toFixed(6);
+        accuracyUsed = Math.round(position.coords.accuracy);
+      } catch (e: any) {
+        throw new Error(`Falha no GPS: ${e.message}. Verifique se o Local está ATIVADO no aparelho e com permissão no navegador.`);
       }
 
       // Capture frame for proof
@@ -383,6 +378,7 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
     } catch (err: any) {
       setNotification(`Erro ao registrar: ${err.message}`, 'error');
       setStatus('scanning');
+      if (videoRef.current) videoRef.current.play();
     }
   };
 
