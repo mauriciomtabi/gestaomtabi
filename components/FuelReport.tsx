@@ -103,19 +103,37 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
     try {
       const element = document.getElementById('print-container');
       
+      // WORKAROUND: Tailwind v4 insere cores oklch() globais.
+      // html2canvas trava ao tentar ler o background/color do document.body se forem oklch.
+      // Por 1 segundo, forçamos o body a usar HEX absoluto puro.
+      const originalBodyBg = document.body.style.backgroundColor;
+      const originalBodyColor = document.body.style.color;
+      const originalDocBg = document.documentElement.style.backgroundColor;
+      
+      document.documentElement.style.backgroundColor = '#ffffff';
+      document.body.style.backgroundColor = '#ffffff';
+      document.body.style.color = '#000000';
+      
       const opt = {
-        margin: [10, 10, 10, 10], // Top, Left, Bottom, Right
+        margin: [10, 10, 10, 10],
         filename: `ControleCombustivel_${selectedYear}_${selectedMonth}_Q${quinzena}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
           scale: 3, 
           useCORS: true,
-          logging: false 
+          logging: false,
+          backgroundColor: '#ffffff' // Força background do canvas
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
       };
 
       await html2pdf().set(opt).from(element).save();
+      
+      // Restaura estilos originais assim que PDF é gerado
+      document.documentElement.style.backgroundColor = originalDocBg;
+      document.body.style.backgroundColor = originalBodyBg;
+      document.body.style.color = originalBodyColor;
+      
     } catch (err) {
       console.error("Erro ao gerar PDF:", err);
       alert("Houve um erro ao gerar o PDF. Tente novamente.");
@@ -328,9 +346,6 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
               </tbody>
             </table>
           </div>
-        </div>
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
