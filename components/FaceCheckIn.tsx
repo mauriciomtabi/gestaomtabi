@@ -196,20 +196,55 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
 
       let lat = "-29.819878";
       let lng = "-51.161518";
+      let accuracyUsed = 0;
 
       if (navigator.geolocation) {
         try {
+          // O getCurrentPosition pode ser muito rápido e pegar antena de celular (margin de erro de KM).
+          // Usando watchPosition, forçamos o rádio do GPS a ligar e focar nos satélites até a precisão ficar ótima.
           const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, {
-              enableHighAccuracy: true,
-              timeout: 10000,
-              maximumAge: 0
-            });
+            let watchId: number;
+            let timeoutId: NodeJS.Timeout;
+            let bestPos: GeolocationPosition | null = null;
+
+            const finish = () => {
+              clearTimeout(timeoutId);
+              if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
+              if (bestPos) resolve(bestPos);
+              else reject(new Error("Nenhuma posição obtida"));
+            };
+
+            watchId = navigator.geolocation.watchPosition(
+              (pos) => {
+                // Salva a melhor precisão encontrada (menor é melhor, em metros)
+                if (!bestPos || pos.coords.accuracy < bestPos.coords.accuracy) {
+                   bestPos = pos;
+                }
+                // Se atingir uma precisão excelente (<= 25 metros), aprova imediatamente.
+                if (pos.coords.accuracy <= 25) {
+                   finish();
+                }
+              },
+              (err) => console.warn(err), // Não rejeita no primeiro erro, pode oscilar
+              { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+            );
+
+            // Aguarda no máximo 8 segundos para obter a melhor precisão possível
+            timeoutId = setTimeout(finish, 8000);
           });
-          lat = position.coords.latitude.toFixed(6);
-          lng = position.coords.longitude.toFixed(6);
+
+          // Se a precisão final for pior que 1km (ex: 1500m), é porque não pegou satélite, só antena de celular.
+          // Nesse caso, mantemos o fallback do Quartel para evitar registro bizarro em outra cidade.
+          // Se for menor, usamos a posição real.
+          if (position.coords.accuracy <= 1000) {
+             lat = position.coords.latitude.toFixed(6);
+             lng = position.coords.longitude.toFixed(6);
+             accuracyUsed = Math.round(position.coords.accuracy);
+          } else {
+             accuracyUsed = Math.round(position.coords.accuracy);
+          }
         } catch (e) {
-          console.warn("GPS indisponível, usando fallback", e);
+          console.warn("GPS timeout, usando fallback", e);
         }
       }
 
@@ -250,7 +285,8 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
           // Location + Coords
           ctx.font = 'bold 12px "Inter", sans-serif';
           ctx.fillStyle = '#60a5fa';
-          ctx.fillText(`📍 GPS (Lat: ${lat}, Lng: ${lng})`, canvas.width - 15, canvas.height - 25);
+          const precisionText = accuracyUsed > 0 && accuracyUsed <= 1000 ? ` ±${accuracyUsed}m` : ` (Fixa do Quartel)`;
+          ctx.fillText(`📍 GPS (Lat: ${lat}, Lng: ${lng} / Prec: ${precisionText})`, canvas.width - 15, canvas.height - 25);
 
           photoBase64 = canvas.toDataURL('image/jpeg', 0.85);
         }
