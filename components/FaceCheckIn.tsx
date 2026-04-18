@@ -70,56 +70,42 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
   const gpsWatchIdsRef = useRef<number[]>([]);
   const pendingRegisterType = useRef<'entrada' | 'saida' | null>(null);
 
-  // Inicia GPS assim que o popup abre (rosto detectado).
-  // Quando o usuário clicar em Registrar (1-5s depois), a posição já está pronta.
-  // Isso evita qualquer conflito com câmera/TensorFlow que atrasa o GPS.
+  // GPS inicia ao montar o componente (antes de qualquer detecção de rosto).
+  // 3 métodos em paralelo — o mais rápido capta em ~0.2s via Wi-Fi/rede.
+  // Quando o usuário clicar em Registrar, a posição já está armazenada.
   useEffect(() => {
-    const stopGps = () => {
+    if (!navigator.geolocation) return;
+
+    const onPos = (pos: GeolocationPosition) => {
+      if (!gpsPositionRef.current || pos.coords.accuracy < gpsPositionRef.current.coords.accuracy) {
+        gpsPositionRef.current = pos;
+        setGpsAccuracy(Math.round(pos.coords.accuracy));
+      }
+    };
+    const onErr = (err: GeolocationPositionError) => {
+      if (err.code === 1) setGpsError('permission');
+    };
+
+    // Método 1: Wi-Fi/rede — capta em ~0.2s
+    gpsWatchIdsRef.current.push(
+      navigator.geolocation.watchPosition(onPos, onErr,
+        { enableHighAccuracy: false, maximumAge: 0, timeout: 15000 })
+    );
+    // Método 2: GPS chip — refina precisão continuamente
+    gpsWatchIdsRef.current.push(
+      navigator.geolocation.watchPosition(onPos, onErr,
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 })
+    );
+    // Método 3: getCurrentPosition como terceira via
+    navigator.geolocation.getCurrentPosition(onPos, onErr,
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
+
+    return () => {
       gpsWatchIdsRef.current.forEach(id => navigator.geolocation.clearWatch(id));
       gpsWatchIdsRef.current = [];
     };
+  }, []); // Deps vazias: executa uma vez ao montar, GPS ativo durante toda a sessão
 
-    if (status === 'match-found' && navigator.geolocation) {
-      stopGps();
-      gpsPositionRef.current = null;
-      setGpsAccuracy(null);
-
-      const onPos = (pos: GeolocationPosition) => {
-        // Atualiza sempre com a leitura mais precisa
-        if (!gpsPositionRef.current || pos.coords.accuracy < gpsPositionRef.current.coords.accuracy) {
-          gpsPositionRef.current = pos;
-          setGpsAccuracy(Math.round(pos.coords.accuracy));
-        }
-      };
-
-      const onErr = (err: GeolocationPositionError) => {
-        if (err.code === 1) {
-          stopGps();
-          setGpsError('permission');
-        }
-      };
-
-      // Método rápido (Wi-Fi/rede) — retorna em ~0.2s
-      gpsWatchIdsRef.current.push(
-        navigator.geolocation.watchPosition(onPos, onErr,
-          { enableHighAccuracy: false, maximumAge: 0, timeout: 15000 })
-      );
-      // Método preciso (GPS chip) — refina a posição em paralelo
-      gpsWatchIdsRef.current.push(
-        navigator.geolocation.watchPosition(onPos, onErr,
-          { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 })
-      );
-      // getCurrentPosition como terceira via
-      navigator.geolocation.getCurrentPosition(onPos, onErr,
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
-    } else {
-      stopGps();
-      gpsPositionRef.current = null;
-      setGpsAccuracy(null);
-    }
-
-    return stopGps;
-  }, [status]);
 
   const stopCamera = useCallback(() => {
     if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
@@ -277,32 +263,17 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
       let lng = "";
       let accuracyUsed = 0;
 
-      // Usa a posição já capturada em background desde que o popup abriu.
-      // Se ainda não tiver (popup abriu há menos de 0.2s), aguarda até 5s.
-      const getPos = (): Promise<GeolocationPosition> =>
-        new Promise((resolve, reject) => {
-          if (gpsPositionRef.current) {
-            resolve(gpsPositionRef.current);
-            return;
-          }
-          let waited = 0;
-          const poll = setInterval(() => {
-            waited += 200;
-            if (gpsPositionRef.current) {
-              clearInterval(poll);
-              resolve(gpsPositionRef.current);
-            } else if (waited >= 8000) {
-              clearInterval(poll);
-              reject(new Error('GPS_UNAVAILABLE'));
-            }
-          }, 200);
-        });
+      // GPS já está rodando desde o mount do componente.
+      // A posição capturada (~0.2s após abrir a tela) está sempre disponível aqui.
+      const pos = gpsPositionRef.current;
+      if (pos) {
+        lat = pos.coords.latitude.toFixed(6);
+        lng = pos.coords.longitude.toFixed(6);
+        accuracyUsed = Math.round(pos.coords.accuracy);
+      }
+      // Se por algum motivo não houver posição (GPS bloqueado pelo SO),
+      // o registro continua sem coordenadas — nunca bloqueia o operador.
 
-      const position = await getPos();
-      lat = position.coords.latitude.toFixed(6);
-      lng = position.coords.longitude.toFixed(6);
-      accuracyUsed = Math.round(position.coords.accuracy);
-      setGpsAccuracy(null);
 
       // Capture frame for proof
       let photoBase64 = '';
@@ -414,19 +385,9 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
       );
       onAttendanceUpdated();
     } catch (err: any) {
-      // Erros de GPS: mantém popup aberto e mostra guia de ativação
-      if (err.message === 'PERMISSION_DENIED') {
-        setGpsError('permission');
-        setStatus('match-found');
-      } else if (err.message === 'GPS_UNAVAILABLE') {
-        setGpsError('unavailable');
-        setStatus('match-found');
-      } else {
-        // Outros erros (DB, etc): notifica e volta a escanear
-        setNotification(`Erro ao registrar: ${err.message}`, 'error');
-        setStatus('scanning');
-        if (videoRef.current) videoRef.current.play();
-      }
+      setNotification(`Erro ao registrar: ${err.message}`, 'error');
+      setStatus('scanning');
+      if (videoRef.current) videoRef.current.play();
     }
   };
 
