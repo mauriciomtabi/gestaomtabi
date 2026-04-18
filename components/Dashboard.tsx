@@ -379,13 +379,13 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
     if (active && payload && payload.length) {
       const items = payload[0].payload.provedores || [];
       return (
-        <div className="bg-white p-3 rounded-2xl shadow-xl border border-slate-100 max-w-[200px]">
-          <p className="text-[11px] font-black text-slate-800 mb-2 uppercase border-b border-slate-100 pb-2">{label}</p>
+        <div className="bg-white p-4 rounded-2xl shadow-xl border border-slate-100 min-w-[220px] max-w-[280px]">
+          <p className="text-[11px] font-black text-slate-800 mb-1 uppercase border-b border-slate-100 pb-2">{label}</p>
           <p className="text-[10px] font-bold text-slate-500 mb-2">{payload[0].value} presenças</p>
           {items.length > 0 && (
-            <div className="flex flex-col gap-1 max-h-32 overflow-y-auto pr-1 pt-1">
+            <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-1">
               {items.map((name: string, i: number) => (
-                <span key={i} className="text-[9px] font-bold text-slate-600 bg-slate-50 px-2 py-1.5 rounded truncate uppercase border border-slate-100 break-words line-clamp-2">{name}</span>
+                <span key={i} className="text-[9px] font-bold text-slate-700 bg-slate-50 px-2 py-1.5 rounded-lg uppercase border border-slate-100 leading-tight break-words whitespace-normal">{name}</span>
               ))}
             </div>
           )}
@@ -394,6 +394,7 @@ const Dashboard: React.FC<Props> = ({ providers, attendance, fuelSupplies, vehic
     }
     return null;
   };
+
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-20">
