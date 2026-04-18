@@ -72,6 +72,16 @@ const App: React.FC = () => {
   ];
 
   useEffect(() => {
+    // Forçar atualização da página no primeiro acesso do dia
+    const today = new Date().toLocaleDateString();
+    const lastAccess = localStorage.getItem('lastAccessDate');
+    
+    if (lastAccess !== today) {
+      localStorage.setItem('lastAccessDate', today);
+      window.location.reload();
+      return;
+    }
+
     checkUserAndFetch();
 
     // Safety fallback: force boot to finish after 15 seconds if it hangs
