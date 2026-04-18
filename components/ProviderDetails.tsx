@@ -1000,17 +1000,49 @@ const ProviderDetails: React.FC<Props> = ({ provider, attendance, onBack, onUpda
             </div>
           </div>
           <div className="p-6 bg-black/20 backdrop-blur-md border-t border-white/10 flex flex-wrap justify-center gap-4">
-             {viewingAttachment.reason?.startsWith('LOCATION:') && (
-               <a 
-                 href={`https://www.google.com/maps/search/?api=1&query=${viewingAttachment.reason.split(':')[1]}`}
-                 target="_blank"
-                 rel="noopener noreferrer"
-                 className="px-8 py-3 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:bg-blue-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest flex items-center gap-2"
-               >
-                 <MapPin size={16} />
-                 Abrir no Google Maps
-               </a>
-             )}
+             {(() => {
+               if (!viewingAttachment.reason) return null;
+               
+               let locs: any = null;
+               try {
+                 locs = JSON.parse(viewingAttachment.reason);
+               } catch(e) {
+                 if (viewingAttachment.reason.startsWith('LOCATION:')) {
+                   const coords = viewingAttachment.reason.split(':')[1];
+                   if (coords) {
+                     const [elat, elng] = coords.split(',');
+                     locs = { entry: { lat: elat, lng: elng } };
+                   }
+                 }
+               }
+
+               return (
+                 <div className="flex gap-2">
+                   {locs?.entry && (
+                     <a 
+                       href={`https://www.google.com/maps/search/?api=1&query=${locs.entry.lat},${locs.entry.lng}`}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="px-6 py-3 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:bg-blue-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest flex items-center gap-2"
+                     >
+                       <MapPin size={16} />
+                       Loc. Entrada
+                     </a>
+                   )}
+                   {locs?.exit && (
+                     <a 
+                       href={`https://www.google.com/maps/search/?api=1&query=${locs.exit.lat},${locs.exit.lng}`}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="px-6 py-3 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest flex items-center gap-2"
+                     >
+                       <MapPin size={16} />
+                       Loc. Saída
+                     </a>
+                   )}
+                 </div>
+               );
+             })()}
              <button 
               onClick={() => handleDownload(viewingAttachment.attachmentData!, `frequencia_${viewingAttachment.date}.png`)}
               className="px-8 py-3 bg-emerald-600 text-white font-black rounded-2xl shadow-xl hover:bg-emerald-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest flex items-center gap-2"

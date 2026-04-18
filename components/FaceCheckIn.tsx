@@ -194,10 +194,24 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
         .filter(a => a.providerId === matchedProvider.providerId && a.date === today && !a.exitTime)
         .sort((a, b) => a.entryTime.localeCompare(b.entryTime));
 
-      // Local fixo calibrado do Quartel CBM Sapucaia do Sul
-      // (Conforme ajuste de precisão solicitado)
-      const lat = "-29.819878";
-      const lng = "-51.161518";
+      let lat = "-29.819878";
+      let lng = "-51.161518";
+
+      if (navigator.geolocation) {
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0
+            });
+          });
+          lat = position.coords.latitude.toFixed(6);
+          lng = position.coords.longitude.toFixed(6);
+        } catch (e) {
+          console.warn("GPS indisponível, usando fallback", e);
+        }
+      }
 
       // Capture frame for proof
       let photoBase64 = '';
@@ -236,7 +250,7 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
           // Location + Coords
           ctx.font = 'bold 12px "Inter", sans-serif';
           ctx.fillStyle = '#60a5fa';
-          ctx.fillText(`📍 CBM SAPUCAIA DO SUL (Lat: ${lat}, Lng: ${lng})`, canvas.width - 15, canvas.height - 25);
+          ctx.fillText(`📍 GPS (Lat: ${lat}, Lng: ${lng})`, canvas.width - 15, canvas.height - 25);
 
           photoBase64 = canvas.toDataURL('image/jpeg', 0.85);
         }
@@ -252,15 +266,26 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
         
         let finalAttachment = photoBase64;
         if (record.attachmentData && photoBase64) {
-          finalAttachment = await mergeImages(record.attachmentData, photoBase64);
+           finalAttachment = await mergeImages(record.attachmentData, photoBase64);
         }
+
+        let existingLocs: any = {};
+        try {
+           existingLocs = JSON.parse(record.reason || "{}");
+        } catch(e) {
+           if (record.reason && record.reason.startsWith('LOCATION:')) {
+             const [elat, elng] = record.reason.split(':')[1].split(',');
+             existingLocs = { entry: { lat: elat, lng: elng } };
+           }
+        }
+        existingLocs.exit = { lat, lng };
 
         const updatedRecord: AttendanceRecord = {
           ...record,
           exitTime: time,
           durationMinutes: Math.max(0, exitMinutes - entryMinutes),
           attachmentData: finalAttachment || record.attachmentData,
-          reason: `LOCATION:${lat},${lng}`
+          reason: JSON.stringify(existingLocs)
         };
         await saveAttendance([updatedRecord]);
       } else if (type === 'entrada') {
@@ -276,7 +301,7 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
           durationMinutes: 0,
           type: 'presence',
           attachmentData: photoBase64,
-          reason: `LOCATION:${lat},${lng}`
+          reason: JSON.stringify({ entry: { lat, lng } })
         };
         await saveAttendance([newRecord]);
       }
