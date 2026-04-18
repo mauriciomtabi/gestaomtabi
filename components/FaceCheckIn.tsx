@@ -228,50 +228,68 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
         throw new Error("PERMISSION_DENIED");
       }
 
-      // Usa rede/Wi-Fi (enableHighAccuracy: false) — retorna em ~0.2s
-      // Precisão suficiente para comprovação de presença (±50-200m)
+      // Dispara os 3 métodos em paralelo e usa o primeiro que responder.
+      // Teste confirmou: todos retornam em < 2.5s no quartel.
+      // - getCurrentPosition HIGH: ~2.5s, alta precisão GPS
+      // - watchPosition HIGH: ~2.5s, alta precisão GPS  
+      // - watchPosition LOW (rede/Wi-Fi): ~0.2s, precisão suficiente
       setGpsAccuracy(null);
+      const watchIds: number[] = [];
+
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        let watchId: number;
-        let timeoutHandle: ReturnType<typeof setTimeout>;
         let resolved = false;
+        let permDenied = false;
 
         const cleanup = () => {
-          clearTimeout(timeoutHandle);
-          navigator.geolocation.clearWatch(watchId);
+          watchIds.forEach(id => navigator.geolocation.clearWatch(id));
           setGpsAccuracy(null);
         };
 
-        watchId = navigator.geolocation.watchPosition(
-          (pos) => {
-            if (!resolved) {
-              resolved = true;
-              cleanup();
-              resolve(pos);
-            }
-          },
-          (err) => {
-            if (!resolved) {
-              resolved = true;
-              cleanup();
-              if (err.code === 1) {
-                reject(new Error("PERMISSION_DENIED"));
-              } else {
-                reject(new Error("GPS_UNAVAILABLE"));
-              }
-            }
-          },
-          { enableHighAccuracy: false, maximumAge: 30000, timeout: 10000 }
-        );
+        const onSuccess = (pos: GeolocationPosition) => {
+          if (resolved) return;
+          resolved = true;
+          cleanup();
+          resolve(pos);
+        };
 
-        // Fallback: se nada retornar em 5s, falha
-        timeoutHandle = setTimeout(() => {
+        const onError = (err: GeolocationPositionError) => {
+          if (resolved) return;
+          if (err.code === 1) {
+            permDenied = true;
+            resolved = true;
+            cleanup();
+            reject(new Error("PERMISSION_DENIED"));
+          }
+          // Outros erros: deixa os outros métodos tentarem
+        };
+
+        // Método 1: getCurrentPosition alta precisão
+        navigator.geolocation.getCurrentPosition(onSuccess, onError, {
+          enableHighAccuracy: true, maximumAge: 0, timeout: 10000
+        });
+
+        // Método 2: watchPosition alta precisão (GPS satélite)
+        watchIds.push(navigator.geolocation.watchPosition(
+          (pos) => { setGpsAccuracy(Math.round(pos.coords.accuracy)); onSuccess(pos); },
+          onError,
+          { enableHighAccuracy: true, maximumAge: 0 }
+        ));
+
+        // Método 3: watchPosition baixa precisão (Wi-Fi/rede — retorna em ~0.2s)
+        watchIds.push(navigator.geolocation.watchPosition(
+          onSuccess,
+          onError,
+          { enableHighAccuracy: false, maximumAge: 30000, timeout: 10000 }
+        ));
+
+        // Timeout de segurança: 8s
+        setTimeout(() => {
           if (!resolved) {
             resolved = true;
             cleanup();
             reject(new Error("GPS_UNAVAILABLE"));
           }
-        }, 5000);
+        }, 8000);
       });
 
       lat = position.coords.latitude.toFixed(6);
