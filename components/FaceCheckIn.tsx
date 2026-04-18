@@ -123,6 +123,7 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
           const match = findBestMatch(detection.descriptor, providerDescriptors);
           if (match) {
             clearInterval(scanIntervalRef.current!);
+            if (videoRef.current) videoRef.current.pause();
             setMatchedProvider(match);
             setMatchScore(Math.round((1 - match.distance) * 100));
             setStatus('match-found');
@@ -307,8 +308,8 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
           // Location + Coords
           ctx.font = 'bold 12px "Inter", sans-serif';
           ctx.fillStyle = '#60a5fa';
-          const precisionText = accuracyUsed > 0 && accuracyUsed <= 1000 ? ` ±${accuracyUsed}m` : ` (Fixa do Quartel)`;
-          ctx.fillText(`📍 GPS (Lat: ${lat}, Lng: ${lng} / Prec: ${precisionText})`, canvas.width - 15, canvas.height - 25);
+          const precisionText = accuracyUsed > 0 && accuracyUsed <= 1000 ? ` / Prec: ±${accuracyUsed}m` : ``;
+          ctx.fillText(`📍 GPS (Lat: ${lat}, Lng: ${lng}${precisionText})`, canvas.width - 15, canvas.height - 25);
 
           photoBase64 = canvas.toDataURL('image/jpeg', 0.85);
         }
@@ -519,6 +520,7 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
                   onClick={() => {
                     setMatchedProvider(null);
                     setStatus('scanning');
+                    if (videoRef.current) videoRef.current.play();
                     startScanning();
                   }}
                   className="mt-4 px-8 py-4 bg-white text-emerald-900 font-black rounded-2xl shadow-xl hover:bg-emerald-50 active:scale-95 transition-all flex items-center gap-2 uppercase text-sm tracking-widest"
@@ -592,7 +594,12 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
                   </button>
                 )}
                 <button
-                  onClick={() => { setMatchedProvider(null); setStatus('scanning'); startScanning(); }}
+                  onClick={() => { 
+                    setMatchedProvider(null); 
+                    setStatus('scanning'); 
+                    if (videoRef.current) videoRef.current.play(); 
+                    startScanning(); 
+                  }}
                   className="text-slate-400 hover:text-slate-600 text-[10px] font-black uppercase py-4 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all border border-slate-100"
                 >
                   Cancelar — Escanear novamente
