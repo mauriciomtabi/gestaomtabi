@@ -208,16 +208,7 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
     }
   }, [status, providerDescriptors]);
 
-  // Pause video when match is found to make it "fixed", resume when scanning
-  useEffect(() => {
-    if (videoRef.current) {
-      if (status === 'match-found') {
-        videoRef.current.pause();
-      } else if (status === 'scanning') {
-        videoRef.current.play().catch(e => console.log('Video resume error', e));
-      }
-    }
-  }, [status]);
+
 
   const getProviderTodayState = (providerId: string) => {
     const today = new Date().toISOString().split('T')[0];
@@ -497,9 +488,9 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
             {/* Scanning overlay */}
             {status === 'scanning' && (
               <div className="absolute inset-0 pointer-events-none">
-                {/* Corner markers */}
+                {/* Face outline marker */}
                 <div className={`absolute top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 transition-opacity ${providerDescriptors.length > 0 ? 'opacity-100' : 'opacity-30'}`}>
-                  <div className="border-2 border-blue-400/50 rounded-full w-44 h-44" />
+                  <div className="border-2 border-dashed border-blue-400/60 rounded-[50%] w-48 h-64 shadow-[0_0_0_9999px_rgba(0,0,0,0.4)] ring-2 ring-blue-400/20" />
                 </div>
                 <div className="absolute bottom-4 left-0 right-0 flex justify-center">
                   <div className="bg-black/60 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2">
