@@ -3,8 +3,6 @@ import React, { useState, useMemo } from 'react';
 import { Provider, AttendanceRecord, MonthlySummary } from '../types';
 import { formatMinutesToHHMM, formatDateBR, getLatestVisit } from '../utils/timeUtils';
 import {  FileDown, Filter, Calendar as CalendarIcon, Loader2, AlertCircle , FileText } from 'lucide-react';
-// @ts-ignore
-import html2pdf from 'html2pdf.js';
 
 interface Props {
   providers: Provider[];
@@ -29,7 +27,6 @@ const months = [
 const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
-  const [isGenerating, setIsGenerating] = useState(false);
 
   const today = new Date().toLocaleDateString('pt-BR', {
     day: '2-digit',
@@ -114,44 +111,36 @@ const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
     return months.find(m => m.value === selectedMonth)?.label.toLowerCase() || "novembro";
   };
 
-  const handleGeneratePDF = async () => {
-    setIsGenerating(true);
-    try {
-      const element = document.getElementById('official-document-content');
-      
-      const originalBodyBg = document.body.style.backgroundColor;
-      const originalBodyColor = document.body.style.color;
-      const originalDocBg = document.documentElement.style.backgroundColor;
-      
-      document.documentElement.style.backgroundColor = '#ffffff';
-      document.body.style.backgroundColor = '#ffffff';
-      document.body.style.color = '#000000';
-
-      const opt = {
-        margin: [5, 5, 5, 5],
-        filename: `Oficio_${selectedYear}_${selectedMonth}.pdf`,
-        image: { type: 'jpeg', quality: 1 },
-        html2canvas: { 
-          scale: 2, 
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff'
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
-      await html2pdf().set(opt).from(element).save();
-
-      document.documentElement.style.backgroundColor = originalDocBg;
-      document.body.style.backgroundColor = originalBodyBg;
-      document.body.style.color = originalBodyColor;
-      
-    } catch (err) {
-      console.error("Erro ao gerar PDF:", err);
-      alert("Houve um erro ao gerar o PDF. Tente novamente.");
-    } finally {
-      setIsGenerating(false);
-    }
+  const handleGeneratePDF = () => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @media print {
+        @page { size: A4 portrait; margin: 0; }
+        body, html, #root, main { 
+          background-color: white !important; 
+          margin: 0 !important; 
+          padding: 0 !important;
+          height: auto !important;
+          overflow: visible !important;
+          border: none !important;
+        }
+        nav { display: none !important; }
+        .no-print { display: none !important; }
+        ::-webkit-scrollbar { display: none !important; }
+        * { 
+          -webkit-print-color-adjust: exact; 
+          print-color-adjust: exact; 
+          box-shadow: none !important; 
+        }
+        div, main { overflow: visible !important; height: auto !important; }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => document.head.removeChild(style), 1000);
+    }, 100);
   };
 
   const selectClasses = "bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all cursor-pointer";
@@ -173,11 +162,10 @@ const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
           </div>
           <button 
             onClick={handleGeneratePDF}
-            disabled={isGenerating}
-            className={`w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 font-black text-sm active:scale-95 disabled:bg-slate-300 disabled:shadow-none`}
+            className={`w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 font-black text-sm active:scale-95 disabled:bg-slate-300 disabled:shadow-none no-print`}
           >
-            {isGenerating ? <Loader2 className="animate-spin" size={20} /> : <FileDown size={20} />}
-            {isGenerating ? 'Gerando...' : 'Gerar PDF (Ofício)'}
+            <FileDown size={20} />
+            Gerar PDF (Ofício)
           </button>
         </div>
 

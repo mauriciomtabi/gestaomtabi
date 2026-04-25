@@ -97,55 +97,36 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
     return plate;
   };
 
-  const handleGeneratePDF = async () => {
-    setIsGenerating(true);
-
-    try {
-      const element = document.getElementById('print-container');
-      
-      // WORKAROUND: Tailwind v4 insere cores oklch() globais.
-      // html2canvas trava ao tentar ler o background/color do document.body se forem oklch.
-      // Por 1 segundo, forçamos o body a usar HEX absoluto puro.
-      const originalBodyBg = document.body.style.backgroundColor;
-      const originalBodyColor = document.body.style.color;
-      const originalDocBg = document.documentElement.style.backgroundColor;
-      
-      document.documentElement.style.backgroundColor = '#ffffff';
-      document.body.style.backgroundColor = '#ffffff';
-      document.body.style.color = '#000000';
-      
-      // O html2canvas nativamente engrossa bordas (2px) se elas colidirem (border-collapse).
-      // Eu já corrigi a marcação HTML para ser top/left na tabela e bottom/right nas células, evitando sobreposição!
-
-
-      const opt = {
-        margin: [10, 10, 10, 10],
-        filename: `ControleCombustivel_${selectedYear}_${selectedMonth}_Q${quinzena}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-          scale: 3, 
-          useCORS: true,
-          logging: false,
-          backgroundColor: '#ffffff' // Força background do canvas
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-      };
-
-      await html2pdf().set(opt).from(element).save();
-      
-      // Restaura estilos originais assim que PDF é gerado
-      document.documentElement.style.backgroundColor = originalDocBg;
-      document.body.style.backgroundColor = originalBodyBg;
-      document.body.style.color = originalBodyColor;
-      
-      // limpa background
-      
-    } catch (err) {
-      console.error("Erro ao gerar PDF:", err);
-      alert("Houve um erro ao gerar o PDF. Tente novamente.");
-    } finally {
-      setIsGenerating(false);
-    }
+  const handleGeneratePDF = () => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @media print {
+        @page { size: A4 landscape; margin: 0; }
+        body, html, #root, main { 
+          background-color: white !important; 
+          margin: 0 !important; 
+          padding: 0 !important;
+          height: auto !important;
+          overflow: visible !important;
+          border: none !important;
+        }
+        nav { display: none !important; }
+        .no-print { display: none !important; }
+        ::-webkit-scrollbar { display: none !important; }
+        * { 
+          -webkit-print-color-adjust: exact; 
+          print-color-adjust: exact; 
+          box-shadow: none !important; 
+        }
+        div, main { overflow: visible !important; height: auto !important; }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => document.head.removeChild(style), 1000);
+    }, 100);
   };
 
   const monthLabel = months.find(m => m.value === selectedMonth)?.label || '';
@@ -159,11 +140,11 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
         </h2>
         <button
           onClick={handleGeneratePDF}
-          disabled={isGenerating || filteredSupplies.length === 0}
-          className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-md shadow-blue-600/30 font-black text-xs uppercase tracking-wider disabled:bg-slate-300 disabled:shadow-none"
+          disabled={filteredSupplies.length === 0}
+          className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-md shadow-blue-600/30 font-black text-xs uppercase tracking-wider disabled:bg-slate-300 disabled:shadow-none no-print"
         >
-          {isGenerating ? <Loader2 className="animate-spin" size={16} /> : <FileDown size={16} />}
-          {isGenerating ? 'Gerando...' : 'Gerar PDF Oficial'}
+          <FileDown size={16} />
+          Imprimir / PDF Oficial
         </button>
       </div>
       
@@ -229,13 +210,12 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
       )}
 
       {/* Relatório Visível em Tela (Preview real do PDF) */}
-      <div className="w-full overflow-x-auto bg-slate-100 rounded-3xl border border-slate-200 p-4 md:p-8 flex justify-center shadow-inner relative">
+      <div className="w-full overflow-x-auto bg-slate-100 rounded-3xl border border-slate-200 p-4 md:p-8 flex justify-center shadow-inner relative print:p-0 print:border-none print:bg-white print:shadow-none">
         
-        {/* Wrapper visual da folha (isola classes oklch de shadow/border do Tailwind v4 que quebram o html2canvas) */}
-        <div className="shadow-xl shrink-0 border border-slate-200 bg-white" style={{ width: '1122px', minHeight: '793px' }}>
+        {/* Wrapper visual da folha */}
+        <div className="shadow-xl shrink-0 border border-slate-200 bg-white print:border-none print:shadow-none" style={{ width: '1122px', minHeight: '793px' }}>
           
-          {/* O container que será efetivamente capturado (APENAS ESTILOS INLINE EM HEX/RGB PARA EVITAR OKLCH) */}
-          <div id="print-container" className="p-10 font-sans w-full h-full" style={{ backgroundColor: '#ffffff', color: '#000000' }}>
+          <div id="print-container" className="p-10 font-sans w-full h-full print:p-0">
             
             {/* Cabeçalho */}
             <div className="flex justify-between items-start mb-6 w-full">
@@ -257,19 +237,18 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
               </div>
             </div>
 
-            {/* Tabela */}
-            <table className="w-full text-center text-[12px] font-sans" style={{ borderTop: '1px solid black', borderLeft: '1px solid black', borderSpacing: 0 }}>
+            <table className="w-full text-center text-[12px] font-sans border-collapse" style={{ border: '1px solid black' }}>
               <thead>
-                <tr>
-                  <th className="font-bold" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', width: '19%', padding: '8px 4px', lineHeight: '1', verticalAlign: 'middle' }}>OPM</th>
-                  <th className="font-bold" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', width: '10%', padding: '8px 4px', lineHeight: '1', verticalAlign: 'middle' }}>Vtr</th>
-                  <th className="font-bold" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', width: '10%', padding: '8px 4px', lineHeight: '1', verticalAlign: 'middle' }}>Data</th>
-                  <th className="font-bold" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', width: '16%', padding: '8px 4px', lineHeight: '1', verticalAlign: 'middle' }}>Posto Combustível</th>
-                  <th className="font-bold" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', width: '12%', padding: '8px 4px', lineHeight: '1', verticalAlign: 'middle' }}>Motorista</th>
-                  <th className="font-bold" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', width: '8%', padding: '8px 4px', lineHeight: '1', verticalAlign: 'middle' }}>Qtde Litros</th>
-                  <th className="font-bold" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', width: '10%', padding: '8px 4px', lineHeight: '1', verticalAlign: 'middle' }}>Tipo Combustível</th>
-                  <th className="font-bold" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', width: '8%', padding: '8px 4px', lineHeight: '1', verticalAlign: 'middle' }}>Valor Unitário</th>
-                  <th className="font-bold whitespace-nowrap" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', width: '15%', padding: '8px 4px', lineHeight: '1', verticalAlign: 'middle' }}>Valor Abastecido</th>
+                <tr className="border-b border-black">
+                  <th className="py-2 px-2 border-r border-black font-bold" style={{ width: '19%' }}>OPM</th>
+                  <th className="py-2 px-2 border-r border-black font-bold" style={{ width: '10%' }}>Vtr</th>
+                  <th className="py-2 px-2 border-r border-black font-bold" style={{ width: '10%' }}>Data</th>
+                  <th className="py-2 px-2 border-r border-black font-bold" style={{ width: '16%' }}>Posto Combustível</th>
+                  <th className="py-2 px-2 border-r border-black font-bold" style={{ width: '12%' }}>Motorista</th>
+                  <th className="py-2 px-2 border-r border-black font-bold" style={{ width: '8%' }}>Qtde Litros</th>
+                  <th className="py-2 px-2 border-r border-black font-bold" style={{ width: '10%' }}>Tipo Combustível</th>
+                  <th className="py-2 px-2 border-r border-black font-bold" style={{ width: '8%' }}>Valor Unitário</th>
+                  <th className="py-2 px-2 font-bold whitespace-nowrap" style={{ width: '15%' }}>Valor Abastecido</th>
                 </tr>
               </thead>
               <tbody>
@@ -287,32 +266,32 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
                   };
                   
                   return (
-                    <tr key={s.id || idx}>
-                      <td style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '6px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
+                    <tr key={s.id || idx} className="border-b border-black">
+                      <td className="py-1.5 px-2 border-r border-black text-center align-middle">
                         {opmName}
                       </td>
-                      <td className="font-bold" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '6px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
+                      <td className="py-1.5 px-2 font-bold border-r border-black text-center align-middle">
                         {formatPlate(s.plate)}
                       </td>
-                      <td style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '6px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
+                      <td className="py-1.5 px-2 border-r border-black text-center align-middle">
                         {supplyDate.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'})}
                       </td>
-                      <td className="uppercase" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '6px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
+                      <td className="py-1.5 px-2 uppercase border-r border-black text-center align-middle">
                         {getStationDisplayName(s.location, nicknameMap)}
                       </td>
-                      <td className="uppercase font-bold text-[11px]" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '6px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
+                      <td className="py-1.5 px-2 uppercase font-bold text-[11px] border-r border-black text-center align-middle">
                         {s.driver}
                       </td>
-                      <td className="font-bold whitespace-nowrap" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '6px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
+                      <td className="py-1.5 px-2 font-bold whitespace-nowrap border-r border-black text-center align-middle">
                         {s.liters.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
-                      <td className="uppercase" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '6px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
+                      <td className="py-1.5 px-2 uppercase border-r border-black text-center align-middle">
                         {getShortenedFuelType(s.fuelType)}
                       </td>
-                      <td className="whitespace-nowrap" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '6px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
+                      <td className="py-1.5 px-2 whitespace-nowrap border-r border-black text-center align-middle">
                         R$ {s.pricePerLiter.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
-                      <td className="font-bold whitespace-nowrap" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '6px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
+                      <td className="py-1.5 px-2 font-bold whitespace-nowrap text-center align-middle border-none">
                         R$ {s.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                     </tr>
@@ -321,31 +300,31 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
                 
                 {/* Espaços em branco para manter a estética de tabela Excel caso haja poucos itens */}
                 {Array.from({ length: Math.max(0, 10 - filteredSupplies.length) }).map((_, i) => (
-                  <tr key={`empty-${i}`} style={{ height: '28px' }}>
-                    <td style={{ borderBottom: '1px solid black', borderRight: '1px solid black' }}></td>
-                    <td style={{ borderBottom: '1px solid black', borderRight: '1px solid black' }}></td>
-                    <td style={{ borderBottom: '1px solid black', borderRight: '1px solid black' }}></td>
-                    <td style={{ borderBottom: '1px solid black', borderRight: '1px solid black' }}></td>
-                    <td style={{ borderBottom: '1px solid black', borderRight: '1px solid black' }}></td>
-                    <td style={{ borderBottom: '1px solid black', borderRight: '1px solid black' }}></td>
-                    <td style={{ borderBottom: '1px solid black', borderRight: '1px solid black' }}></td>
-                    <td style={{ borderBottom: '1px solid black', borderRight: '1px solid black' }}></td>
-                    <td style={{ borderBottom: '1px solid black', borderRight: '1px solid black' }}></td>
+                  <tr key={`empty-${i}`} className="border-b border-black">
+                    <td className="py-3 px-2 border-r border-black"></td>
+                    <td className="py-3 px-2 border-r border-black"></td>
+                    <td className="py-3 px-2 border-r border-black"></td>
+                    <td className="py-3 px-2 border-r border-black"></td>
+                    <td className="py-3 px-2 border-r border-black"></td>
+                    <td className="py-3 px-2 border-r border-black"></td>
+                    <td className="py-3 px-2 border-r border-black"></td>
+                    <td className="py-3 px-2 border-r border-black"></td>
+                    <td className="py-3 px-2 border-none"></td>
                   </tr>
                 ))}
                 
                 {/* Linha de Total */}
                 <tr>
-                  <td colSpan={5} className="font-bold" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'right', padding: '6px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
+                  <td colSpan={5} className="font-bold border-r border-black text-right py-2 px-2 align-middle">
                     
                   </td>
-                  <td className="font-bold whitespace-nowrap" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', backgroundColor: '#f3f4f6', padding: '6px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
+                  <td className="font-bold whitespace-nowrap border-r border-black text-center align-middle bg-slate-100 py-2 px-2 print:bg-gray-200" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
                     {totalLiters.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
-                  <td colSpan={2} className="font-bold" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'right', padding: '6px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
+                  <td colSpan={2} className="font-bold border-r border-black text-right py-2 px-2 align-middle">
                     
                   </td>
-                  <td className="font-bold whitespace-nowrap" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', backgroundColor: '#f3f4f6', padding: '6px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
+                  <td className="font-bold whitespace-nowrap text-center align-middle border-none bg-slate-100 py-2 px-2 print:bg-gray-200" style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
                     R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                 </tr>
