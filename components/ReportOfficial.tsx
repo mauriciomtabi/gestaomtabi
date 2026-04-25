@@ -154,7 +154,7 @@ const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
       totalToFulfillMinutes: totalRequired,
       remainingMinutes: Math.max(0, totalRequired - totalWorked)
     };
-  });
+  }).sort((a, b) => (a.providerName || '').localeCompare(b.providerName || ''));
 
   const getMonthLabel = () => {
     if (selectedMonth === 'Todos') {
