@@ -959,7 +959,7 @@ const ProviderDetails: React.FC<Props> = ({ provider, attendance, onBack, onUpda
         <div className="fixed inset-0 bg-slate-950/95 z-[3000] flex flex-col backdrop-blur-xl animate-in fade-in duration-300">
           <div className="p-3 md:p-6 border-b flex justify-between items-center bg-black/20 backdrop-blur-md border-white/10">
             <div className="flex flex-col">
-              <h3 className="font-black text-white uppercase tracking-tight text-xs md:text-base">Folha de Frequência Digitalizada</h3>
+              <h3 className="font-black text-white uppercase tracking-tight text-xs md:text-base">Registro de Frequência</h3>
               <p className="text-[8px] md:text-[9px] text-white/40 font-black uppercase tracking-widest">LANÇAMENTO EM: {formatDateBR(viewingAttachment.date)}</p>
             </div>
             <div className="flex items-center gap-1 md:gap-2">
