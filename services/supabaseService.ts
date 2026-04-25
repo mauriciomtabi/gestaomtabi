@@ -1,6 +1,8 @@
 
+
 import { createClient } from '@supabase/supabase-js';
 import { Provider, AttendanceRecord, AuditLog, FuelSupply, Vehicle, StationNickname } from '../types';
+import type { GeoPerimeter } from './geoService';
 
 const SUPABASE_URL = 'https://gsdweukrawfmgqprngyl.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzZHdldWtyYXdmbWdxcHJuZ3lsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4NjE2OTUsImV4cCI6MjA4NTQzNzY5NX0.dTdM1Jyhu0G0skkuBH2flsgnKXbmFtLYTh3wj0TDRiQ';
@@ -664,6 +666,16 @@ export const updateUserAccess = async (userId: string, allowedScreens: string[],
 };
 
 // --- Foto de Perfil via Supabase Storage ---
+// --- Funções de Perímetro GPS ---
+export const getGeoPerimeter = async (): Promise<GeoPerimeter | null> => {
+  const value = await getSystemConfig('geo_perimeter');
+  return value ?? null;
+};
+
+export const saveGeoPerimeter = async (perimeter: GeoPerimeter): Promise<void> => {
+  await updateSystemConfig('geo_perimeter', perimeter);
+};
+
 export const uploadProfilePhoto = async (userId: string, base64DataUrl: string): Promise<string> => {
   // Convert base64 data URL to Blob
   const res = await fetch(base64DataUrl);

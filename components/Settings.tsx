@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Operator } from '../types';
 import UserProfile from './UserProfile';
-import { Settings as SettingsIcon, Smartphone, UserCircle, ChevronRight, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Settings as SettingsIcon, Smartphone, UserCircle, ChevronRight, ShieldCheck, CheckCircle2, AlertCircle, MapPin, Navigation, Save, ToggleLeft, ToggleRight } from 'lucide-react';
 import packageJson from '../package.json';
+import { getCurrentPosition } from '../services/geoService';
 
 interface Props {
   currentUser: Operator;
@@ -102,10 +103,174 @@ const Settings: React.FC<Props> = ({ currentUser, onUpdateProfile, onOpenInstall
 
         {/* Admin Access Control Panel */}
         {currentUser.isAdmin && (
-          <div className="mt-6 w-full max-w-7xl mx-auto">
+          <div className="mt-6 w-full max-w-7xl mx-auto flex flex-col gap-6">
+            <GeoPerimeterConfig />
             <UserAccessControl />
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+const GeoPerimeterConfig: React.FC = () => {
+  const [enabled, setEnabled] = useState(false);
+  const [lat, setLat] = useState('');
+  const [lng, setLng] = useState('');
+  const [radius, setRadius] = useState('50');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [gettingGps, setGettingGps] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<{type: 'success'|'error', text: string}|null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const { getGeoPerimeter } = await import('../services/supabaseService');
+        const cfg = await getGeoPerimeter();
+        if (cfg) {
+          setEnabled(cfg.enabled);
+          setLat(String(cfg.lat));
+          setLng(String(cfg.lng));
+          setRadius(String(cfg.radius));
+        }
+      } catch { /* ignore */ } finally { setLoading(false); }
+    };
+    load();
+  }, []);
+
+  useEffect(() => {
+    if (statusMsg) {
+      const t = setTimeout(() => setStatusMsg(null), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [statusMsg]);
+
+  const handleUseCurrentLocation = async () => {
+    setGettingGps(true);
+    try {
+      const pos = await getCurrentPosition(8000);
+      setLat(pos.lat.toFixed(7));
+      setLng(pos.lng.toFixed(7));
+    } catch {
+      setStatusMsg({ type: 'error', text: 'Não foi possível obter a localização. Verifique as permissões do navegador.' });
+    } finally { setGettingGps(false); }
+  };
+
+  const handleSave = async () => {
+    const parsedLat = parseFloat(lat);
+    const parsedLng = parseFloat(lng);
+    const parsedRadius = parseInt(radius);
+    if (isNaN(parsedLat) || isNaN(parsedLng) || isNaN(parsedRadius) || parsedRadius <= 0) {
+      setStatusMsg({ type: 'error', text: 'Preencha todos os campos corretamente antes de salvar.' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const { saveGeoPerimeter } = await import('../services/supabaseService');
+      await saveGeoPerimeter({ lat: parsedLat, lng: parsedLng, radius: parsedRadius, enabled });
+      setStatusMsg({ type: 'success', text: 'Perímetro salvo com sucesso!' });
+    } catch {
+      setStatusMsg({ type: 'error', text: 'Erro ao salvar o perímetro.' });
+    } finally { setSaving(false); }
+  };
+
+  if (loading) return null;
+
+  return (
+    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-emerald-100 text-emerald-600 rounded-xl">
+            <MapPin size={20} />
+          </div>
+          <div>
+            <h2 className="font-black text-slate-800 uppercase text-sm tracking-tight">Perímetro de Check-in</h2>
+            <p className="text-[10px] uppercase font-bold text-slate-500 tracking-widest">Geofencing para registros biométricos</p>
+          </div>
+        </div>
+        <button
+          onClick={() => setEnabled(v => !v)}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border transition-all ${
+            enabled ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-slate-100 border-slate-200 text-slate-500'
+          }`}
+        >
+          {enabled ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+          {enabled ? 'Ativo' : 'Inativo'}
+        </button>
+      </div>
+
+      <div className="p-6">
+        {statusMsg && (
+          <div className={`mb-4 p-3 rounded-xl flex items-center gap-2 text-xs font-bold ${
+            statusMsg.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'
+          }`}>
+            {statusMsg.type === 'success' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+            {statusMsg.text}
+          </div>
+        )}
+
+        <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+          Defina o ponto central (latitude e longitude) e o raio em metros. Quando o militar tentar registrar um check-in fora dessa área, receberá um aviso — mas poderá prosseguir assim mesmo.
+        </p>
+
+        <div className="flex flex-col gap-4">
+          <button
+            onClick={handleUseCurrentLocation}
+            disabled={gettingGps}
+            className="flex items-center justify-center gap-2 w-full py-3 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50"
+          >
+            <Navigation size={14} className={gettingGps ? 'animate-spin' : ''} />
+            {gettingGps ? 'Obtendo localização...' : 'Usar Localização Atual do Dispositivo'}
+          </button>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-black uppercase text-slate-500 mb-1.5">Latitude</label>
+              <input
+                type="number"
+                step="any"
+                value={lat}
+                onChange={e => setLat(e.target.value)}
+                placeholder="-29.1234567"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black uppercase text-slate-500 mb-1.5">Longitude</label>
+              <input
+                type="number"
+                step="any"
+                value={lng}
+                onChange={e => setLng(e.target.value)}
+                placeholder="-51.1234567"
+                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-black uppercase text-slate-500 mb-1.5">Raio do Perímetro (metros)</label>
+            <input
+              type="number"
+              min="10"
+              max="5000"
+              value={radius}
+              onChange={e => setRadius(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50"
+            />
+            <p className="text-[10px] text-slate-400 mt-1">Recomendado: 50–150 metros para o pátio do quartel.</p>
+          </div>
+
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center justify-center gap-2 w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-emerald-600/20 transition-all active:scale-95 disabled:opacity-50"
+          >
+            <Save size={14} />
+            {saving ? 'Salvando...' : 'Salvar Perímetro'}
+          </button>
+        </div>
       </div>
     </div>
   );

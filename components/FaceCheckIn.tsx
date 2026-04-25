@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, CheckCircle2, AlertCircle, Loader2, Clock, LogIn, LogOut, ScanFace, X, Users, SwitchCamera } from 'lucide-react';
+import { Camera, CheckCircle2, AlertCircle, Loader2, Clock, LogIn, LogOut, ScanFace, X, Users, SwitchCamera, MapPin, Navigation } from 'lucide-react';
 import { loadFaceModels, detectAllFaces, findBestMatch, arrayToDescriptor, ProviderDescriptor } from '../services/faceService';
-import { getFaceDescriptors, saveAttendance, saveAuditLog } from '../services/supabaseService';
+import { getFaceDescriptors, saveAttendance, saveAuditLog, getGeoPerimeter } from '../services/supabaseService';
 import { Provider, AttendanceRecord, AuditLog } from '../types';
+import { getCurrentPosition, calculateDistance, GeoPosition, GeoPerimeter } from '../services/geoService';
 
 const mergeImages = (url1: string, url2: string): Promise<string> => {
   return new Promise((resolve) => {
@@ -58,6 +59,14 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
   const [matchScore, setMatchScore] = useState(0);
   const [noMatchTimeout, setNoMatchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [showMobileHistory, setShowMobileHistory] = useState(false);
+
+  // GPS / Geofencing state
+  const [gpsStatus, setGpsStatus] = useState<'pending' | 'acquired' | 'unavailable'>('pending');
+  const [gpsPosition, setGpsPosition] = useState<GeoPosition | null>(null);
+  const [perimeterConfig, setPerimeterConfig] = useState<GeoPerimeter | null>(null);
+  const [perimeterDistance, setPerimeterDistance] = useState<number | null>(null);
+  const [showPerimeterWarning, setShowPerimeterWarning] = useState(false);
+  const [pendingRegisterType, setPendingRegisterType] = useState<'entrada' | 'saida' | null>(null);
 
   const stopCamera = useCallback(() => {
     if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
@@ -163,6 +172,35 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
     };
   }, []);
 
+  // Load perimeter config and track GPS on mount
+  useEffect(() => {
+    let watchId: number | null = null;
+
+    const loadPerimeter = async () => {
+      try {
+        const cfg = await getGeoPerimeter();
+        if (cfg?.enabled) setPerimeterConfig(cfg);
+      } catch { /* silently ignore */ }
+    };
+    loadPerimeter();
+
+    if (navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const position: GeoPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+          setGpsPosition(position);
+          setGpsStatus('acquired');
+        },
+        () => setGpsStatus('unavailable'),
+        { enableHighAccuracy: true, maximumAge: 15000 }
+      );
+    } else {
+      setGpsStatus('unavailable');
+    }
+
+    return () => { if (watchId !== null) navigator.geolocation.clearWatch(watchId); };
+  }, []);
+
   useEffect(() => {
     if (status === 'scanning' && providerDescriptors.length > 0) {
       if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
@@ -181,7 +219,24 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
     return { hasOpenEntry: !!openEntry, lastRecord: todayRecords.length ? todayRecords[todayRecords.length - 1] : null };
   };
 
+  // Check perimeter before registering — warn but never block
+  const requestRegister = (type: 'entrada' | 'saida') => {
+    if (!matchedProvider) return;
+    if (perimeterConfig && gpsPosition) {
+      const dist = calculateDistance(gpsPosition.lat, gpsPosition.lng, perimeterConfig.lat, perimeterConfig.lng);
+      setPerimeterDistance(Math.round(dist));
+      if (dist > perimeterConfig.radius) {
+        setPendingRegisterType(type);
+        setShowPerimeterWarning(true);
+        return;
+      }
+    }
+    handleRegister(type);
+  };
+
   const handleRegister = async (type: 'entrada' | 'saida') => {
+    setShowPerimeterWarning(false);
+    setPendingRegisterType(null);
     if (!matchedProvider) return;
     setStatus('saving');
 
@@ -339,9 +394,28 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
                 <Camera size={64} className="text-blue-500 mb-2" />
                 <div className="text-center">
                   <p className="text-white font-black uppercase text-xl mb-2">Sistema Pronto</p>
-                  <p className="text-slate-400 text-sm max-w-sm mb-8">
+                  <p className="text-slate-400 text-sm max-w-sm mb-4">
                     Os modelos de reconhecimento facial foram carregados com sucesso. Clique abaixo para iniciar a câmera.
                   </p>
+                  {/* GPS status indicator on idle screen */}
+                  <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase mb-4 ${
+                    gpsStatus === 'acquired' && perimeterConfig
+                      ? (perimeterDistance !== null && perimeterDistance <= perimeterConfig.radius
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-amber-500/20 text-amber-400 border border-amber-500/30')
+                      : gpsStatus === 'unavailable'
+                        ? 'bg-slate-700 text-slate-400 border border-slate-600'
+                        : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                  }`}>
+                    <Navigation size={10} />
+                    {gpsStatus === 'pending' && 'Obtendo GPS...'}
+                    {gpsStatus === 'unavailable' && 'GPS indisponível'}
+                    {gpsStatus === 'acquired' && !perimeterConfig && 'GPS ativo'}
+                    {gpsStatus === 'acquired' && perimeterConfig && perimeterDistance !== null &&
+                      (perimeterDistance <= perimeterConfig.radius
+                        ? `Dentro do perímetro (${perimeterDistance}m)`
+                        : `Fora do perímetro (+${perimeterDistance - perimeterConfig.radius}m)`)}
+                  </div>
                 </div>
                 <button
                   onClick={async () => {
@@ -424,9 +498,22 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
               </div>
             )}
           </div>
+
+          {/* GPS badge on camera panel */}
+          {(status === 'scanning' || status === 'match-found' || status === 'no-match') && perimeterConfig && gpsStatus === 'acquired' && perimeterDistance !== null && (
+            <div className={`mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase border w-fit ${
+              perimeterDistance <= perimeterConfig.radius
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-amber-50 text-amber-700 border-amber-200'
+            }`}>
+              <MapPin size={10} />
+              {perimeterDistance <= perimeterConfig.radius
+                ? `Perímetro OK (${perimeterDistance}m)`
+                : `Fora do perímetro (+${perimeterDistance - perimeterConfig.radius}m além)`}
+            </div>
+          )}
         </div>
 
-        {/* Match panel */}
         <div className={`lg:w-80 ${status === 'match-found' && matchedProvider ? 'fixed inset-0 z-50 p-6 pb-24 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm lg:static lg:p-0 lg:pb-0 lg:bg-transparent lg:block lg:z-auto' : ''}`}>
           {status === 'match-found' && matchedProvider ? (
             <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-6 w-full max-w-sm lg:max-w-none animate-in zoom-in-95 duration-300">
@@ -466,10 +553,37 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
               )}
 
               {/* Action buttons */}
+              {/* Perimeter warning modal */}
+              {showPerimeterWarning && perimeterDistance !== null && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-1">
+                  <div className="flex items-start gap-2 mb-3">
+                    <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-amber-800 font-black text-xs uppercase mb-1">Fora do Perímetro</p>
+                      <p className="text-amber-700 text-[11px]">O dispositivo está <strong>{perimeterDistance - (perimeterConfig?.radius ?? 50)}m</strong> além do raio configurado ({perimeterConfig?.radius}m). Deseja prosseguir mesmo assim?</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setShowPerimeterWarning(false); setPendingRegisterType(null); }}
+                      className="flex-1 py-2.5 rounded-xl border border-amber-300 text-amber-700 text-[10px] font-black uppercase hover:bg-amber-100 transition-all"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => pendingRegisterType && handleRegister(pendingRegisterType)}
+                      className="flex-1 py-2.5 rounded-xl bg-amber-600 text-white text-[10px] font-black uppercase hover:bg-amber-700 transition-all"
+                    >
+                      Registrar mesmo assim
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-col gap-3">
                 {!todayState?.hasOpenEntry ? (
                   <button
-                    onClick={() => handleRegister('entrada')}
+                    onClick={() => requestRegister('entrada')}
                     disabled={status === 'saving'}
                     className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
                   >
@@ -478,7 +592,7 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
                   </button>
                 ) : (
                   <button
-                    onClick={() => handleRegister('saida')}
+                    onClick={() => requestRegister('saida')}
                     disabled={status === 'saving'}
                     className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-red-600/20 transition-all active:scale-95"
                   >
