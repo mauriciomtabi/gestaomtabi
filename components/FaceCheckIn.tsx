@@ -57,7 +57,7 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
   const [providerDescriptors, setProviderDescriptors] = useState<ProviderDescriptor[]>([]);
   const [matchedProvider, setMatchedProvider] = useState<{ providerId: string; providerName: string; providerPhoto?: string; distance: number } | null>(null);
   const [matchScore, setMatchScore] = useState(0);
-  const [noMatchTimeout, setNoMatchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const noMatchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showMobileHistory, setShowMobileHistory] = useState(false);
 
   // GPS / Geofencing state
@@ -114,6 +114,7 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
           const match = findBestMatch(detection.descriptor, providerDescriptors);
           if (match) {
             clearInterval(scanIntervalRef.current!);
+            if (noMatchTimeoutRef.current) clearTimeout(noMatchTimeoutRef.current);
             setMatchedProvider(match);
             setMatchScore(Math.round((1 - match.distance) * 100));
             setStatus('match-found');
@@ -121,11 +122,11 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
           }
         }
         setStatus('no-match');
-        if (noMatchTimeout) clearTimeout(noMatchTimeout);
-        setNoMatchTimeout(setTimeout(() => setStatus('scanning'), 3000));
+        if (noMatchTimeoutRef.current) clearTimeout(noMatchTimeoutRef.current);
+        noMatchTimeoutRef.current = setTimeout(() => setStatus('scanning'), 3000);
       } catch { /* silently continue */ }
     }, 400);
-  }, [providerDescriptors, status, noMatchTimeout]);
+  }, [providerDescriptors, status]);
 
   useEffect(() => {
     const init = async () => {
@@ -168,7 +169,7 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
     init();
     return () => {
       stopCamera();
-      if (noMatchTimeout) clearTimeout(noMatchTimeout);
+      if (noMatchTimeoutRef.current) clearTimeout(noMatchTimeoutRef.current);
     };
   }, []);
 
