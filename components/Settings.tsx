@@ -31,27 +31,30 @@ const Settings: React.FC<Props> = ({ currentUser, onUpdateProfile, onOpenInstall
         </div>
       </div>
 
-      {/* Tab bar — same style as ProviderDetails */}
+      {/* Tab bar — same pill style as Dashboard */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col flex-1 min-h-0">
-        <div className="flex border-b border-slate-100 bg-slate-50/50 shrink-0">
+        <div className="flex px-4 md:px-6 gap-2 border-b-2 border-slate-200 pb-4 pt-4 overflow-x-auto no-scrollbar shrink-0">
           <button
             onClick={() => setActiveTab('profile')}
-            className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'profile' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-slate-400 hover:bg-slate-100'}`}
+            className={`group flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'profile' ? 'bg-slate-900 text-white shadow-lg scale-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'}`}
           >
-            <UserCircle size={16} /> Meu Perfil
+            <UserCircle size={18} />
+            <span>Meu Perfil</span>
           </button>
           <button
             onClick={() => setActiveTab('perimeter')}
-            className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'perimeter' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-slate-400 hover:bg-slate-100'}`}
+            className={`group flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'perimeter' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'}`}
           >
-            <MapPin size={16} /> Perímetro
+            <MapPin size={18} />
+            <span>Perímetro</span>
           </button>
           {currentUser.isAdmin && (
             <button
               onClick={() => setActiveTab('users')}
-              className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'users' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-slate-400 hover:bg-slate-100'}`}
+              className={`group flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'users' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 scale-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'}`}
             >
-              <ShieldCheck size={16} /> Usuários
+              <ShieldCheck size={18} />
+              <span>Usuários</span>
             </button>
           )}
         </div>

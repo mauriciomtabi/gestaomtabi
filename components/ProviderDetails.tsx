@@ -1007,84 +1007,73 @@ const ProviderDetails: React.FC<Props> = ({ provider, attendance, onBack, onUpda
               </button>
             </div>
           </div>
-          <div className="flex-1 bg-slate-900/50 overflow-auto p-8 flex items-center justify-center">
-            <div 
-              className="relative transition-transform duration-200 ease-out origin-center"
-              style={{ transform: `scale(${zoomScale})` }}
+
+          {/* Image — fills available height, no scroll needed */}
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div
+              className="flex-1 min-h-0 flex items-center justify-center bg-slate-900/50 p-4"
               onClick={e => e.stopPropagation()}
             >
-              <img src={viewingAttachment.attachmentData} alt="Documento" className="rounded-2xl shadow-2xl border-4 border-white/10 mx-auto h-fit max-w-full"/>
+              <div
+                className="relative transition-transform duration-200 ease-out origin-center w-full h-full flex items-center justify-center"
+                style={{ transform: `scale(${zoomScale})` }}
+              >
+                <img
+                  src={viewingAttachment.attachmentData}
+                  alt="Documento"
+                  className="rounded-2xl shadow-2xl border-4 border-white/10 object-contain max-w-full max-h-full"
+                  style={{ maxHeight: 'calc(100vh - 220px)' }}
+                />
+              </div>
             </div>
-          </div>
-          <div className="p-6 bg-black/20 backdrop-blur-md border-t border-white/10 flex flex-wrap justify-center gap-4">
-             {(() => {
-               if (!viewingAttachment.reason) return null;
-               
-               let locs: any = null;
-               try {
-                 const parsed = JSON.parse(viewingAttachment.reason);
-                 if (parsed.entry?.lat && parsed.entry?.lng) {
-                   locs = { entry: { lat: parsed.entry.lat, lng: parsed.entry.lng } };
-                   if (parsed.exit?.lat && parsed.exit?.lng) locs.exit = { lat: parsed.exit.lat, lng: parsed.exit.lng };
-                   if (parsed.perimeter) locs.perimeter = parsed.perimeter;
-                 }
-               } catch {
-                 const m = viewingAttachment.reason.match(/lat=([-\d.]+).*lng=([-\d.]+)/);
-                 if (m) locs = { entry: { lat: parseFloat(m[1]), lng: parseFloat(m[2]) } };
-               }
 
-               if (!locs?.entry && !locs?.exit) return null;
+            {/* Map section — only if GPS data available */}
+            {(() => {
+              if (!viewingAttachment.reason) return null;
+              let locs: any = null;
+              try {
+                const parsed = JSON.parse(viewingAttachment.reason);
+                if (parsed.entry?.lat && parsed.entry?.lng) {
+                  locs = { entry: { lat: parsed.entry.lat, lng: parsed.entry.lng } };
+                  if (parsed.exit?.lat && parsed.exit?.lng) locs.exit = { lat: parsed.exit.lat, lng: parsed.exit.lng };
+                  if (parsed.perimeter) locs.perimeter = parsed.perimeter;
+                }
+              } catch {
+                const m = viewingAttachment.reason.match(/lat=([-\d.]+).*lng=([-\d.]+)/);
+                if (m) locs = { entry: { lat: parseFloat(m[1]), lng: parseFloat(m[2]) } };
+              }
+              if (!locs?.entry && !locs?.exit) return null;
 
-               return (
-                 <div className="w-full max-w-lg mt-4 text-left">
-                   <div className="flex items-center gap-2 mb-2">
-                     <MapPin size={14} className="text-white/50" />
-                     <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Localização do Registro</span>
-                   </div>
-                   <GeoMapViewer
-                     entry={locs.entry}
-                     exit={locs.exit}
-                     perimeter={locs.perimeter}
-                     height={280}
-                   />
-                   <div className="flex flex-wrap gap-3 mt-3">
-                     {locs.entry && (
-                       <div className="flex items-center gap-1.5 text-[10px] font-bold text-white/70">
-                         <span className="w-3 h-3 rounded-full bg-emerald-500 border-2 border-white/20 shadow inline-block" />
-                         Entrada
-                         {locs.perimeter && ` · ${Math.round(Math.sqrt(Math.pow((locs.entry.lat - locs.perimeter.lat) * 111320, 2) + Math.pow((locs.entry.lng - locs.perimeter.lng) * 111320 * Math.cos(locs.perimeter.lat * Math.PI / 180), 2)))}m do centro`}
-                       </div>
-                     )}
-                     {locs.exit && (
-                       <div className="flex items-center gap-1.5 text-[10px] font-bold text-white/70">
-                         <span className="w-3 h-3 rounded-full bg-red-500 border-2 border-white/20 shadow inline-block" />
-                         Saída
-                         {locs.perimeter && ` · ${Math.round(Math.sqrt(Math.pow((locs.exit.lat - locs.perimeter.lat) * 111320, 2) + Math.pow((locs.exit.lng - locs.perimeter.lng) * 111320 * Math.cos(locs.perimeter.lat * Math.PI / 180), 2)))}m do centro`}
-                       </div>
-                     )}
-                     {locs.perimeter && (
-                       <div className="flex items-center gap-1.5 text-[10px] font-bold text-white/70">
-                         <span className="w-3 h-3 rounded-full bg-blue-500 border-2 border-white/20 shadow inline-block" />
-                         Perímetro ({locs.perimeter.radius}m)
-                       </div>
-                     )}
-                   </div>
-                 </div>
-               );
-             })()}
-             <button 
-              onClick={() => handleDownload(viewingAttachment.attachmentData!, `frequencia_${viewingAttachment.date}.png`)}
-              className="px-8 py-3 bg-emerald-600 text-white font-black rounded-2xl shadow-xl hover:bg-emerald-700 transition-all active:scale-95 uppercase text-[10px] tracking-widest flex items-center gap-2"
-            >
-              <Download size={16} />
-              Download Documento
-            </button>
-             <button 
-              onClick={() => { setViewingAttachment(null); resetZoom(); }}
-              className="px-8 py-3 bg-white/10 text-white font-black rounded-2xl shadow-xl hover:bg-white/20 transition-all active:scale-95 uppercase text-[10px] tracking-widest"
-            >
-              Fechar Visualização
-            </button>
+              return (
+                <div className="shrink-0 px-6 pb-4 pt-3 bg-black/20 border-t border-white/10">
+                  <div className="flex items-center gap-2 mb-2">
+                    <MapPin size={13} className="text-white/50" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-white/50">Localização do Registro</span>
+                  </div>
+                  <GeoMapViewer entry={locs.entry} exit={locs.exit} perimeter={locs.perimeter} height={200} />
+                  <div className="flex flex-wrap gap-3 mt-2">
+                    {locs.entry && (
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-white/70">
+                        <span className="w-3 h-3 rounded-full bg-emerald-500 border-2 border-white/20 shadow inline-block" />
+                        Entrada{locs.perimeter && ` · ${Math.round(Math.sqrt(Math.pow((locs.entry.lat - locs.perimeter.lat) * 111320, 2) + Math.pow((locs.entry.lng - locs.perimeter.lng) * 111320 * Math.cos(locs.perimeter.lat * Math.PI / 180), 2)))}m do centro`}
+                      </div>
+                    )}
+                    {locs.exit && (
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-white/70">
+                        <span className="w-3 h-3 rounded-full bg-red-500 border-2 border-white/20 shadow inline-block" />
+                        Saída{locs.perimeter && ` · ${Math.round(Math.sqrt(Math.pow((locs.exit.lat - locs.perimeter.lat) * 111320, 2) + Math.pow((locs.exit.lng - locs.perimeter.lng) * 111320 * Math.cos(locs.perimeter.lat * Math.PI / 180), 2)))}m do centro`}
+                      </div>
+                    )}
+                    {locs.perimeter && (
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-white/70">
+                        <span className="w-3 h-3 rounded-full bg-blue-500 border-2 border-white/20 shadow inline-block" />
+                        Perímetro ({locs.perimeter.radius}m)
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
