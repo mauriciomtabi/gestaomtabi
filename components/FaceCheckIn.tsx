@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, CheckCircle2, AlertCircle, Loader2, Clock, LogIn, LogOut, ScanFace, X, Users, SwitchCamera, MapPin, MapPinOff, RefreshCw } from 'lucide-react';
+import { Camera, CheckCircle2, AlertCircle, Loader2, Clock, LogIn, LogOut, ScanFace, X, Users, SwitchCamera } from 'lucide-react';
 import { loadFaceModels, detectAllFaces, findBestMatch, arrayToDescriptor, ProviderDescriptor } from '../services/faceService';
 import { getFaceDescriptors, saveAttendance, saveAuditLog } from '../services/supabaseService';
 import { Provider, AttendanceRecord, AuditLog } from '../types';
@@ -52,57 +52,12 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
   const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [status, setStatus] = useState<ScreenStatus>('loading');
-  const statusRef = useRef<ScreenStatus>(status);
-  
-  useEffect(() => {
-    statusRef.current = status;
-  }, [status]);
-
   const [loadingMessage, setLoadingMessage] = useState('Inicializando câmera...');
   const [providerDescriptors, setProviderDescriptors] = useState<ProviderDescriptor[]>([]);
   const [matchedProvider, setMatchedProvider] = useState<{ providerId: string; providerName: string; providerPhoto?: string; distance: number } | null>(null);
   const [matchScore, setMatchScore] = useState(0);
-  const noMatchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [noMatchTimeout, setNoMatchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [showMobileHistory, setShowMobileHistory] = useState(false);
-  const [gpsError, setGpsError] = useState<'permission' | 'unavailable' | null>(null);
-  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
-  const gpsPositionRef = useRef<GeolocationPosition | null>(null);
-  const gpsWatchIdsRef = useRef<number[]>([]);
-  const pendingRegisterType = useRef<'entrada' | 'saida' | null>(null);
-
-  // GPS inicia ao montar o componente (antes de qualquer detecção de rosto).
-  // 3 métodos em paralelo — o mais rápido capta em ~0.2s via Wi-Fi/rede.
-  // Quando o usuário clicar em Registrar, a posição já está armazenada.
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-
-    const onPos = (pos: GeolocationPosition) => {
-      // Ignora triangulação grosseira de antena de celular que gera erros > 1km
-      if (pos.coords.accuracy > 500) return;
-
-      if (!gpsPositionRef.current || pos.coords.accuracy < gpsPositionRef.current.coords.accuracy) {
-        gpsPositionRef.current = pos;
-        setGpsAccuracy(Math.round(pos.coords.accuracy));
-      }
-    };
-    const onErr = (err: GeolocationPositionError) => {
-      if (err.code === 1) setGpsError('permission');
-    };
-
-    // Apenas habilitamos requisições de alta precisão do chip GPS (sem cache)
-    gpsWatchIdsRef.current.push(
-      navigator.geolocation.watchPosition(onPos, onErr,
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 })
-    );
-    navigator.geolocation.getCurrentPosition(onPos, onErr,
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
-
-    return () => {
-      gpsWatchIdsRef.current.forEach(id => navigator.geolocation.clearWatch(id));
-      gpsWatchIdsRef.current = [];
-    };
-  }, []); // Deps vazias: executa uma vez ao montar, GPS ativo durante toda a sessão
-
 
   const stopCamera = useCallback(() => {
     if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
@@ -135,26 +90,14 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
   }, []);
 
   const startScanning = useCallback(() => {
-    if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
-
     scanIntervalRef.current = setInterval(async () => {
       if (!videoRef.current || providerDescriptors.length === 0) return;
-      if (['match-found', 'saving', 'confirmed'].includes(statusRef.current)) {
-        clearInterval(scanIntervalRef.current!);
-        return;
-      }
+      if (['match-found', 'saving', 'confirmed'].includes(status)) return;
 
       try {
         const detections = await detectAllFaces(videoRef.current);
-        
-        // Bloqueia redefinições assíncronas caso já tenhamos encontrado um rosto!
-        if (['match-found', 'saving', 'confirmed'].includes(statusRef.current)) {
-          clearInterval(scanIntervalRef.current!);
-          return;
-        }
-
         if (detections.length === 0) {
-          setStatus(prev => (prev === 'scanning' || prev === 'no-match') ? 'scanning' : prev);
+          setStatus('scanning');
           return;
         }
 
@@ -162,22 +105,18 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
           const match = findBestMatch(detection.descriptor, providerDescriptors);
           if (match) {
             clearInterval(scanIntervalRef.current!);
-            if (videoRef.current) videoRef.current.pause();
             setMatchedProvider(match);
             setMatchScore(Math.round((1 - match.distance) * 100));
             setStatus('match-found');
             return;
           }
         }
-        
-        setStatus(prev => prev === 'scanning' ? 'no-match' : prev);
-        if (noMatchTimeoutRef.current) clearTimeout(noMatchTimeoutRef.current);
-        noMatchTimeoutRef.current = setTimeout(() => {
-          setStatus(prev => prev === 'no-match' ? 'scanning' : prev);
-        }, 3000);
+        setStatus('no-match');
+        if (noMatchTimeout) clearTimeout(noMatchTimeout);
+        setNoMatchTimeout(setTimeout(() => setStatus('scanning'), 3000));
       } catch { /* silently continue */ }
     }, 400);
-  }, [providerDescriptors]);
+  }, [providerDescriptors, status, noMatchTimeout]);
 
   useEffect(() => {
     const init = async () => {
@@ -220,8 +159,7 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
     init();
     return () => {
       stopCamera();
-      if (noMatchTimeoutRef.current) clearTimeout(noMatchTimeoutRef.current);
-      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current);
+      if (noMatchTimeout) clearTimeout(noMatchTimeout);
     };
   }, []);
 
@@ -256,22 +194,6 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
         .filter(a => a.providerId === matchedProvider.providerId && a.date === today && !a.exitTime)
         .sort((a, b) => a.entryTime.localeCompare(b.entryTime));
 
-      let lat = "";
-      let lng = "";
-      let accuracyUsed = 0;
-
-      // GPS já está rodando desde o mount do componente.
-      // A posição capturada (~0.2s após abrir a tela) está sempre disponível aqui.
-      const pos = gpsPositionRef.current;
-      if (pos) {
-        lat = pos.coords.latitude.toFixed(6);
-        lng = pos.coords.longitude.toFixed(6);
-        accuracyUsed = Math.round(pos.coords.accuracy);
-      } else {
-        throw new Error('Aguardando sinal GPS de alta precisão. Aguarde uns segundos ou vá para um local aberto externo.');
-      }
-
-
       // Capture frame for proof
       let photoBase64 = '';
       if (videoRef.current && canvasRef.current) {
@@ -283,36 +205,20 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
         if (ctx) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           
+          // Add Watermark
           const timestampStr = new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR');
+          const watermarkText = type === 'entrada' ? `ENTRADA: ${timestampStr}` : `SAÍDA: ${timestampStr}`;
           
-          // Solid Background for Watermark (Guarantees contrast)
-          ctx.fillStyle = 'rgba(0,0,0,0.85)';
-          ctx.fillRect(0, canvas.height - 110, canvas.width, 110);
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+          ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
           
+          ctx.font = 'bold 16px "Inter", sans-serif';
+          ctx.fillStyle = '#ffffff';
           ctx.textAlign = 'right';
           ctx.textBaseline = 'middle';
-          ctx.shadowColor = '#000000';
-          ctx.shadowBlur = 4;
-          ctx.shadowOffsetX = 1;
-          ctx.shadowOffsetY = 1;
+          ctx.fillText(watermarkText, canvas.width - 15, canvas.height - 20);
 
-          // Type and Date
-          ctx.font = '900 18px "Inter", sans-serif';
-          ctx.fillStyle = type === 'entrada' ? '#4ade80' : '#f87171'; // bright green or red
-          ctx.fillText(`${type === 'entrada' ? 'ENTRADA' : 'SAÍDA'}: ${timestampStr}`, canvas.width - 15, canvas.height - 80);
-          
-          // Operator
-          ctx.font = 'bold 12px "Inter", sans-serif';
-          ctx.fillStyle = '#cbd5e1';
-          ctx.fillText(`OPERADOR: ${currentUser.toUpperCase()}`, canvas.width - 15, canvas.height - 50);
-          
-          // Location + Coords
-          ctx.font = 'bold 12px "Inter", sans-serif';
-          ctx.fillStyle = '#60a5fa';
-          const precisionText = accuracyUsed > 0 && accuracyUsed <= 1000 ? ` / Prec: ±${accuracyUsed}m` : ``;
-          ctx.fillText(`📍 GPS (Lat: ${lat}, Lng: ${lng}${precisionText})`, canvas.width - 15, canvas.height - 25);
-
-          photoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+          photoBase64 = canvas.toDataURL('image/jpeg', 0.8);
         }
       }
 
@@ -326,26 +232,14 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
         
         let finalAttachment = photoBase64;
         if (record.attachmentData && photoBase64) {
-           finalAttachment = await mergeImages(record.attachmentData, photoBase64);
+          finalAttachment = await mergeImages(record.attachmentData, photoBase64);
         }
-
-        let existingLocs: any = {};
-        try {
-           existingLocs = JSON.parse(record.reason || "{}");
-        } catch(e) {
-           if (record.reason && record.reason.startsWith('LOCATION:')) {
-             const [elat, elng] = record.reason.split(':')[1].split(',');
-             existingLocs = { entry: { lat: elat, lng: elng } };
-           }
-        }
-        existingLocs.exit = { lat, lng };
 
         const updatedRecord: AttendanceRecord = {
           ...record,
           exitTime: time,
           durationMinutes: Math.max(0, exitMinutes - entryMinutes),
-          attachmentData: finalAttachment || record.attachmentData,
-          reason: JSON.stringify(existingLocs)
+          attachmentData: finalAttachment || record.attachmentData
         };
         await saveAttendance([updatedRecord]);
       } else if (type === 'entrada') {
@@ -360,8 +254,7 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
           exitTime: '',
           durationMinutes: 0,
           type: 'presence',
-          attachmentData: photoBase64,
-          reason: JSON.stringify({ entry: { lat, lng } })
+          attachmentData: photoBase64
         };
         await saveAttendance([newRecord]);
       }
@@ -384,7 +277,6 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
     } catch (err: any) {
       setNotification(`Erro ao registrar: ${err.message}`, 'error');
       setStatus('scanning');
-      if (videoRef.current) videoRef.current.play();
     }
   };
 
@@ -522,7 +414,6 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
                   onClick={() => {
                     setMatchedProvider(null);
                     setStatus('scanning');
-                    if (videoRef.current) videoRef.current.play();
                     startScanning();
                   }}
                   className="mt-4 px-8 py-4 bg-white text-emerald-900 font-black rounded-2xl shadow-xl hover:bg-emerald-50 active:scale-95 transition-all flex items-center gap-2 uppercase text-sm tracking-widest"
@@ -536,75 +427,9 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
         </div>
 
         {/* Match panel */}
-        <div className={`lg:w-80 ${(status === 'match-found' || status === 'saving') && matchedProvider ? 'fixed inset-0 z-50 p-6 pb-24 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm lg:static lg:p-0 lg:pb-0 lg:bg-transparent lg:block lg:z-auto' : ''}`}>
-          {(status === 'match-found' || status === 'saving') && matchedProvider ? (
-            <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-6 w-full max-w-sm lg:max-w-none animate-in zoom-in-95 duration-300 relative overflow-hidden">
-
-              {/* GPS Error Overlay */}
-              {gpsError && (
-                <div className="absolute inset-0 bg-white rounded-3xl z-10 flex flex-col p-6">
-                  <div className="flex-1 flex flex-col items-center justify-center text-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-                      <MapPinOff size={32} className="text-red-500" />
-                    </div>
-                    <div>
-                      <p className="font-black text-slate-900 uppercase text-sm mb-1">
-                        {gpsError === 'permission' ? 'Permissão de Localização Negada' : 'GPS Não Encontrado'}
-                      </p>
-                      <p className="text-slate-500 text-xs leading-relaxed">
-                        {gpsError === 'permission'
-                          ? 'O navegador bloqueou o acesso à sua localização.'
-                          : 'O sistema não conseguiu capturar sua localização em 5 segundos.'}
-                      </p>
-                    </div>
-
-                    <div className="w-full bg-amber-50 border border-amber-200 rounded-2xl p-4 text-left">
-                      <p className="text-amber-800 font-black text-[10px] uppercase tracking-widest mb-2">Como ativar:</p>
-                      {gpsError === 'permission' ? (
-                        <ol className="text-amber-700 text-xs space-y-1 list-decimal list-inside">
-                          <li>Toque no ícone 🔒 na barra de endereço do navegador</li>
-                          <li>Selecione <strong>"Permissões do site"</strong></li>
-                          <li>Em <strong>"Localização"</strong>, selecione <strong>"Permitir"</strong></li>
-                          <li>Recarregue a página e tente novamente</li>
-                        </ol>
-                      ) : (
-                        <ol className="text-amber-700 text-xs space-y-1 list-decimal list-inside">
-                          <li>Abra as <strong>Configurações</strong> do celular</li>
-                          <li>Vá em <strong>Localização</strong> (ou Privacidade → Localização)</li>
-                          <li>Certifique-se de que está <strong>ATIVADO</strong></li>
-                          <li>Verifique se o modo é <strong>"Alta precisão"</strong> (não "Economia de bateria")</li>
-                          <li>Volte aqui e clique em <strong>Tentar Novamente</strong></li>
-                        </ol>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2 mt-4">
-                    <button
-                      onClick={() => {
-                        setGpsError(null);
-                        if (pendingRegisterType.current) handleRegister(pendingRegisterType.current);
-                      }}
-                      className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
-                    >
-                      <RefreshCw size={16} />
-                      Tentar Novamente
-                    </button>
-                    <button
-                      onClick={() => {
-                        setGpsError(null);
-                        setMatchedProvider(null);
-                        setStatus('scanning');
-                        if (videoRef.current) videoRef.current.play();
-                        startScanning();
-                      }}
-                      className="text-slate-400 text-[10px] font-black uppercase py-3 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all border border-slate-100"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )}
+        <div className={`lg:w-80 ${status === 'match-found' && matchedProvider ? 'fixed inset-0 z-50 p-6 pb-24 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm lg:static lg:p-0 lg:pb-0 lg:bg-transparent lg:block lg:z-auto' : ''}`}>
+          {status === 'match-found' && matchedProvider ? (
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-100 p-6 w-full max-w-sm lg:max-w-none animate-in zoom-in-95 duration-300">
               {/* Provider photo / avatar */}
               <div className="flex flex-col items-center mb-6">
                 {matchedProvider.providerPhoto ? (
@@ -644,40 +469,30 @@ const FaceCheckIn: React.FC<Props> = ({ providers, attendance, currentUser, onAt
               <div className="flex flex-col gap-3">
                 {!todayState?.hasOpenEntry ? (
                   <button
-                    onClick={() => { pendingRegisterType.current = 'entrada'; handleRegister('entrada'); }}
+                    onClick={() => handleRegister('entrada')}
                     disabled={status === 'saving'}
-                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95 disabled:opacity-50"
+                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
                   >
-                    {status === 'saving' ? <Loader2 size={18} className="animate-spin" /> : <LogIn size={18} />}
-                    {status === 'saving' ? 'SALVANDO...' : 'Registrar Entrada'}
+                    <LogIn size={18} />
+                    Registrar Entrada
                   </button>
                 ) : (
                   <button
-                    onClick={() => { pendingRegisterType.current = 'saida'; handleRegister('saida'); }}
+                    onClick={() => handleRegister('saida')}
                     disabled={status === 'saving'}
-                    className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-red-600/20 transition-all active:scale-95 disabled:opacity-50"
+                    className="w-full py-4 bg-red-600 hover:bg-red-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-red-600/20 transition-all active:scale-95"
                   >
-                    {status === 'saving' ? <Loader2 size={18} className="animate-spin" /> : <LogOut size={18} />}
-                    {status === 'saving' ? 'SALVANDO...' : 'Registrar Saída'}
+                    <LogOut size={18} />
+                    Registrar Saída
                   </button>
                 )}
-
-
-
                 <button
-                  disabled={status === 'saving'}
-                  onClick={() => { 
-                    setMatchedProvider(null); 
-                    setStatus('scanning'); 
-                    if (videoRef.current) videoRef.current.play(); 
-                    startScanning(); 
-                  }}
-                  className="text-slate-400 hover:text-slate-600 text-[10px] font-black uppercase py-4 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all border border-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => { setMatchedProvider(null); setStatus('scanning'); startScanning(); }}
+                  className="text-slate-400 hover:text-slate-600 text-[10px] font-black uppercase py-4 bg-slate-50 hover:bg-slate-100 rounded-2xl transition-all border border-slate-100"
                 >
                   Cancelar — Escanear novamente
                 </button>
               </div>
-
             </div>
           ) : (
             <div className="bg-white rounded-3xl border border-slate-100 p-6 h-full flex flex-col">
