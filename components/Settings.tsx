@@ -39,14 +39,14 @@ const Settings: React.FC<Props> = ({ currentUser, onUpdateProfile, onOpenInstall
             className={`group flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'profile' ? 'bg-slate-900 text-white shadow-lg scale-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'}`}
           >
             <UserCircle size={18} />
-            <span>Meu Perfil</span>
+            <span className="hidden md:inline group-hover:inline">Meu Perfil</span>
           </button>
           <button
             onClick={() => setActiveTab('perimeter')}
             className={`group flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'perimeter' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'}`}
           >
             <MapPin size={18} />
-            <span>Perímetro</span>
+            <span className="hidden md:inline group-hover:inline">Perímetro</span>
           </button>
           {currentUser.isAdmin && (
             <button
@@ -54,7 +54,7 @@ const Settings: React.FC<Props> = ({ currentUser, onUpdateProfile, onOpenInstall
               className={`group flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'users' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 scale-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'}`}
             >
               <ShieldCheck size={18} />
-              <span>Usuários</span>
+              <span className="hidden md:inline group-hover:inline">Usuários</span>
             </button>
           )}
         </div>
