@@ -148,10 +148,10 @@ const BlankAttendanceSheet: React.FC<Props> = ({ provider, onClose }) => {
               
               {/* Informações 1 */}
               <tr>
-                <td colSpan={2} className="py-0.5 px-2" style={{ border: '1px solid black', width: '65%' }}>
+                <td colSpan={2} className="py-0.5 px-2" style={{ border: '1px solid black', width: '75%' }}>
                   <span className="font-bold">Processo nº:</span> <span className="outline-none whitespace-nowrap" contentEditable suppressContentEditableWarning>{provider.processNumber || '____________________'}</span>
                 </td>
-                <td colSpan={3} className="py-0.5 px-2" style={{ border: '1px solid black', width: '35%' }}>
+                <td colSpan={3} className="py-0.5 px-2" style={{ border: '1px solid black', width: '25%' }}>
                   <span className="font-bold">Mês de cumprimento:</span> <span className="outline-none bg-yellow-200/50 print:bg-transparent" contentEditable suppressContentEditableWarning>{targetMonth} / {targetYear}</span>
                 </td>
               </tr>
@@ -193,11 +193,11 @@ const BlankAttendanceSheet: React.FC<Props> = ({ provider, onClose }) => {
 
               {/* Cabeçalho da Grade */}
               <tr className="font-bold text-center">
-                <td className="py-1 w-[12%]" style={{ border: '1px solid black' }}>Data</td>
-                <td className="py-1 w-[14%]" style={{ border: '1px solid black' }}>Chegada</td>
-                <td className="py-1 w-[14%]" style={{ border: '1px solid black' }}>Saída</td>
-                <td className="py-1 w-[30%]" style={{ border: '1px solid black' }}>Assinatura do prestador</td>
-                <td className="py-1 w-[30%]" style={{ border: '1px solid black' }}>
+                <td className="py-1 w-[16%]" style={{ border: '1px solid black' }}>Data</td>
+                <td className="py-1 w-[12%]" style={{ border: '1px solid black' }}>Chegada</td>
+                <td className="py-1 w-[12%]" style={{ border: '1px solid black' }}>Saída</td>
+                <td className="py-1 w-[35%]" style={{ border: '1px solid black' }}>Assinatura do prestador</td>
+                <td className="py-1 w-[25%]" style={{ border: '1px solid black' }}>
                   <div className="flex flex-col items-center justify-center leading-tight">
                     <span>Assinatura do</span>
                     <span>responsável</span>
