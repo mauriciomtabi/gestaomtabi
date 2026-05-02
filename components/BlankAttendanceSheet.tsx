@@ -22,7 +22,10 @@ const BlankAttendanceSheet: React.FC<Props> = ({ provider, onClose }) => {
     const style = document.createElement('style');
     style.innerHTML = `
       @media print {
-        @page { size: A4 portrait; margin: 0; }
+        @page { 
+          size: A4 portrait; 
+          margin: 0; 
+        }
         body, html, #root, main { 
           background-color: white !important; 
           margin: 0 !important; 
@@ -48,6 +51,14 @@ const BlankAttendanceSheet: React.FC<Props> = ({ provider, onClose }) => {
           top: 0;
           width: 100%;
           display: block !important;
+        }
+        .print-page {
+          margin: 0 !important;
+          padding: 1.5cm !important;
+          border: none !important;
+          width: 210mm !important;
+          height: 297mm !important;
+          overflow: hidden !important;
         }
         div, main { overflow: visible !important; height: auto !important; }
       }
@@ -115,7 +126,7 @@ const BlankAttendanceSheet: React.FC<Props> = ({ provider, onClose }) => {
       <div className="w-full py-8 md:py-8 overflow-visible print:p-0 print:py-0 print:border-none print:shadow-none print:bg-white flex justify-center items-start bg-slate-100">
         <div 
           id="blank-sheet-content" 
-          className="bg-white min-w-[21cm] max-w-[21cm] p-[1.5cm] md:p-[2cm] shadow-xl border border-slate-200 print:border-none print:shadow-none print:m-0 print:p-[1cm] print:max-w-none print:w-full"
+          className="bg-white min-w-[21cm] max-w-[21cm] p-[1.5cm] md:p-[2cm] shadow-xl border border-slate-200 print-page print:border-none print:shadow-none print:m-0 print:p-[1cm] print:max-w-none print:w-full"
           style={{ fontFamily: 'Arial, sans-serif', fontSize: '11pt', color: '#000' }}
         >
           {/* Cabeçalho */}
