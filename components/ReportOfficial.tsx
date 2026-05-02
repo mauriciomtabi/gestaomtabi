@@ -206,26 +206,7 @@ const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20 md:pb-0 print:bg-white print:p-0 print:border-none print:shadow-none">
       
       {/* Barra de Filtros (no-print) */}
-      <div className="no-print space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="bg-blue-600 p-3 rounded-2xl shadow-lg shadow-blue-600/30">
-              <FileText size={24} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Ofícios</h1>
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Exportação em PDF institucional.</p>
-            </div>
-          </div>
-          <button 
-            onClick={handleGeneratePDF}
-            className={`w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 font-black text-sm active:scale-95 disabled:bg-slate-300 disabled:shadow-none no-print`}
-          >
-            <FileDown size={20} />
-            Gerar PDF (Ofício)
-          </button>
-        </div>
-
+      <div className="no-print space-y-4">
         {/* Dica: desmarcar cabeçalhos e rodapés */}
         <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 p-3 rounded-2xl text-amber-800">
           <AlertCircle size={18} className="shrink-0 mt-0.5" />
@@ -241,47 +222,58 @@ const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
         </div>
 
         <div className="bg-white p-4 rounded-[2rem] shadow-sm border border-slate-200">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-100 flex-1 md:flex-none">
-              <Filter size={16} className="text-slate-400" />
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-4">Filtrar Período:</span>
-              
-              <div className="flex gap-3 flex-wrap">
-                <select 
-                  value={selectedYear} 
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className={selectClasses}
-                >
-                  <option value="Todos">Ano: Todos</option>
-                  {availableYears.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-100 flex-1 md:flex-none">
+                <Filter size={16} className="text-slate-400" />
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-4">Filtrar Período:</span>
+                
+                <div className="flex gap-3 flex-wrap">
+                  <select 
+                    value={selectedYear} 
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                    className={selectClasses}
+                  >
+                    <option value="Todos">Ano: Todos</option>
+                    {availableYears.map(year => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
 
-                <select 
-                  value={selectedMonth} 
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className={selectClasses}
-                >
-                  <option value="Todos">Mês: Todos</option>
-                  {months.map(m => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
+                  <select 
+                    value={selectedMonth} 
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className={selectClasses}
+                  >
+                    <option value="Todos">Mês: Todos</option>
+                    {months.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
+
+              {(selectedYear !== 'Todos' || selectedMonth !== 'Todos') && (
+                <button 
+                  onClick={() => { setSelectedYear('Todos'); setSelectedMonth('Todos'); }}
+                  className="text-[10px] font-black text-blue-600 hover:text-blue-800 uppercase px-4 py-2 hover:bg-blue-50 rounded-xl transition-all"
+                >
+                  Limpar Filtros
+                </button>
+              )}
             </div>
 
-            {(selectedYear !== 'Todos' || selectedMonth !== 'Todos') && (
-              <button 
-                onClick={() => { setSelectedYear('Todos'); setSelectedMonth('Todos'); }}
-                className="text-[10px] font-black text-blue-600 hover:text-blue-800 uppercase px-4 py-2 hover:bg-blue-50 rounded-xl transition-all"
-              >
-                Limpar Filtros
-              </button>
-            )}
+            <button 
+              onClick={handleGeneratePDF}
+              className={`w-full md:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-8 py-3 rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 font-black text-sm active:scale-95 disabled:bg-slate-300 disabled:shadow-none no-print ml-auto`}
+            >
+              <FileDown size={20} />
+              Gerar PDF (Ofício)
+            </button>
           </div>
         </div>
       </div>
+
 
       {/* Papel A4 Oficial - Container para o PDF */}
       <div className="w-full pb-12 md:pb-0 overflow-visible print:border-none print:shadow-none print:m-0 print:p-0">
