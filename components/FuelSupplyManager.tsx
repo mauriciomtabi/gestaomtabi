@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { FuelSupply, AuditLog, Vehicle, StationNickname } from '../types';
 import { getFuelSupplies, saveFuelSupply, deleteFuelSupply, saveFuelAuditLog, saveVehicle, deleteVehicle, saveStationNickname } from '../services/supabaseService';
-import { Plus, Search, Filter, Calendar, MapPin, Fuel, User, Car, Hash, DollarSign, Eye, Trash2, X, Save, Loader2, Camera, FileText, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2, History, Edit3, Clock, Download, ZoomIn, ZoomOut, RotateCcw, Upload, Image as ImageIcon, Tag } from 'lucide-react';
+import { Plus, Search, Filter, Calendar, MapPin, Fuel, User, Car, Hash, DollarSign, Eye, Trash2, X, Save, Loader2, Camera, FileText, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2, History, Edit3, Clock, Download, ZoomIn, ZoomOut, RotateCcw, Upload, Image as ImageIcon, Tag, LayoutDashboard } from 'lucide-react';
 import { normalizeFuelType, getStationDisplayName } from '../utils/fuelUtils';
 import FuelReceiptOCR from './FuelReceiptOCR';
 import FuelReport from './FuelReport';
@@ -13,10 +13,11 @@ interface Props {
   fuelSupplies: FuelSupply[];
   stationNicknames: StationNickname[];
   onUpdateVehicles: () => void;
+  onNavigateDashboard: () => void;
   setNotification: (msg: string, type: 'success' | 'error') => void;
 }
 
-const FuelSupplyManager: React.FC<Props> = ({ currentUser, vehicles, fuelSupplies, stationNicknames, onUpdateVehicles, setNotification }) => {
+const FuelSupplyManager: React.FC<Props> = ({ currentUser, vehicles, fuelSupplies, stationNicknames, onUpdateVehicles, onNavigateDashboard, setNotification }) => {
   const [supplies, setSupplies] = useState<FuelSupply[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -382,6 +383,14 @@ const FuelSupplyManager: React.FC<Props> = ({ currentUser, vehicles, fuelSupplie
           </div>
         </div>
         <div className="flex gap-3">
+          <button
+            onClick={onNavigateDashboard}
+            title="Ver Painel"
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-white text-slate-600 px-4 md:px-6 py-3 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-all font-black text-xs shadow-sm active:scale-95"
+          >
+            <LayoutDashboard size={18} />
+            <span className="hidden md:inline">Painel</span>
+          </button>
           <button 
             onClick={() => setIsNicknameModalOpen(true)}
             title="Gestão de Postos"

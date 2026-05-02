@@ -453,9 +453,6 @@ const App: React.FC = () => {
           {currentUser.allowedScreens?.includes('fuel') && (
             <NavItem icon={Fuel} label="Abastecimento" target="fuel" active={view === 'fuel'} />
           )}
-          {currentUser.allowedScreens?.includes('reports') && (
-            <NavItem icon={FileText} label="Ofícios" target="reports" active={view === 'reports'} />
-          )}
           {currentUser.allowedScreens?.includes('settings') && (
             <NavItem icon={SettingsIcon} label="Configurações" target="settings" active={view === 'settings'} />
           )}
@@ -520,6 +517,7 @@ const App: React.FC = () => {
             attendance={attendance}
             onSelect={handleSelectProvider}
             onAdd={() => setIsModalOpen(true)}
+            onNavigateDashboard={() => setView('dashboard')}
           />
         )}
         {view === 'details' && currentProvider && (
@@ -545,6 +543,7 @@ const App: React.FC = () => {
             fuelSupplies={fuelSupplies}
             stationNicknames={stationNicknames}
             onUpdateVehicles={fetchData}
+            onNavigateDashboard={() => setView('dashboard')}
             setNotification={(msg: string, type: 'success' | 'error') => setNotification({ message: msg, type })}
           />
         )}

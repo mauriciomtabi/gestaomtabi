@@ -1,14 +1,16 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Provider, AttendanceRecord } from '../types';
-import {  Plus, ChevronRight, Search, Calendar, Clock, Target, Hourglass, Percent, Filter, ChevronLeft, ArrowDownAZ, AlertCircle , Users } from 'lucide-react';
+import { Plus, ChevronRight, Search, Calendar, Clock, Target, Hourglass, Percent, Filter, ChevronLeft, ArrowDownAZ, AlertCircle, Users, LayoutDashboard, FileText } from 'lucide-react';
 import { formatDateBR, getLatestVisit, formatMinutesToHHMM, getDaysInactivity, formatInactivityMessage } from '../utils/timeUtils';
+import ReportOfficial from './ReportOfficial';
 
 interface Props {
   providers: Provider[];
   attendance: AttendanceRecord[];
   onSelect: (id: string) => void;
   onAdd: () => void;
+  onNavigateDashboard: () => void;
 }
 
 const months = [
@@ -30,7 +32,8 @@ const ITEMS_PER_PAGE = 50;
 
 type SortOption = 'name-asc' | 'name-desc' | 'date-desc' | 'date-asc';
 
-const ProviderList: React.FC<Props> = ({ providers, attendance, onSelect, onAdd }) => {
+const ProviderList: React.FC<Props> = ({ providers, attendance, onSelect, onAdd, onNavigateDashboard }) => {
+  const [mainTab, setMainTab] = useState<'providers' | 'reports'>('providers');
   const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'returned'>('active');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedYear, setSelectedYear] = useState('Todos');
@@ -133,15 +136,53 @@ const ProviderList: React.FC<Props> = ({ providers, attendance, onSelect, onAdd 
             <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Gerenciamento e controle de frequência.</p>
           </div>
         </div>
-        <button 
-          onClick={onAdd}
-          className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-2xl flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 font-black text-sm active:scale-95"
+        <div className="flex gap-3">
+          <button
+            onClick={onNavigateDashboard}
+            title="Ver Painel"
+            className="flex items-center gap-2 bg-white text-slate-600 px-4 py-3 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-all font-black text-xs shadow-sm active:scale-95"
+          >
+            <LayoutDashboard size={18} />
+            <span className="hidden sm:inline">Painel</span>
+          </button>
+          <button 
+            onClick={onAdd}
+            className="w-full sm:w-auto bg-blue-600 text-white px-6 py-3 rounded-2xl flex items-center justify-center gap-2 hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 font-black text-sm active:scale-95"
+          >
+            <Plus size={20} />
+            Novo Cadastro
+          </button>
+        </div>
+      </div>
+
+      {/* Main Tabs */}
+      <div className="flex gap-2 border-b border-slate-200">
+        <button
+          onClick={() => setMainTab('providers')}
+          className={`px-6 py-4 text-xs font-black uppercase tracking-widest transition-all border-b-2 flex items-center gap-2 ${
+            mainTab === 'providers' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
         >
-          <Plus size={20} />
-          Novo Cadastro
+          <Users size={16} />
+          Prestadores
+        </button>
+        <button
+          onClick={() => setMainTab('reports')}
+          className={`px-6 py-4 text-xs font-black uppercase tracking-widest transition-all border-b-2 flex items-center gap-2 ${
+            mainTab === 'reports' ? 'border-amber-600 text-amber-700' : 'border-transparent text-slate-400 hover:text-slate-600'
+          }`}
+        >
+          <FileText size={16} />
+          Ofícios
         </button>
       </div>
 
+      {mainTab === 'reports' && (
+        <ReportOfficial providers={providers} attendance={attendance} />
+      )}
+
+      {/* Filters (only visible on providers tab) */}
+      {mainTab === 'providers' && (
       <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4">
         <div className="flex flex-col xl:flex-row gap-4">
           <div className="relative flex-1">
@@ -209,7 +250,9 @@ const ProviderList: React.FC<Props> = ({ providers, attendance, onSelect, onAdd 
           </div>
         </div>
       </div>
+      )}
 
+      {mainTab === 'providers' && (
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="flex border-b border-slate-100">
           <TabButton id="active" label="Ativos" count={counts.active} />
@@ -368,6 +411,7 @@ const ProviderList: React.FC<Props> = ({ providers, attendance, onSelect, onAdd 
           )}
         </div>
       </div>
+      )}
     </div>
   );
 };
