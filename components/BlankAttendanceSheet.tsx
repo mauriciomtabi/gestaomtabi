@@ -136,9 +136,9 @@ const BlankAttendanceSheet: React.FC<Props> = ({ provider, onClose }) => {
               alt="Brasão" 
               style={{ width: '65px', height: 'auto', display: 'block' }}
             />
-            <div className="leading-tight">
-              <div style={{ fontSize: '9pt' }}>ESTADO DO RIO GRANDE DO SUL</div>
-              <div className="font-bold" style={{ fontSize: '12pt' }}>PODER JUDICIÁRIO</div>
+            <div className="flex flex-col">
+              <div style={{ fontSize: '7.5pt', letterSpacing: '0.02em', lineHeight: '1' }}>ESTADO DO RIO GRANDE DO SUL</div>
+              <div className="font-bold" style={{ fontSize: '15pt', letterSpacing: '-0.02em', lineHeight: '1.1' }}>PODER JUDICIÁRIO</div>
             </div>
           </div>
 
@@ -210,11 +210,11 @@ const BlankAttendanceSheet: React.FC<Props> = ({ provider, onClose }) => {
 
               {/* Cabeçalho da Grade */}
               <tr className="font-bold text-center" style={{ fontSize: '10pt' }}>
-                <td className="py-0.5 w-[13%]" style={{ border: '1px solid black' }}>Data</td>
+                <td className="py-0.5 w-[15%]" style={{ border: '1px solid black' }}>Data</td>
                 <td className="py-0.5 w-[11%]" style={{ border: '1px solid black' }}>Chegada</td>
                 <td className="py-0.5 w-[11%]" style={{ border: '1px solid black' }}>Saída</td>
                 <td className="py-0.5 w-[30%]" style={{ border: '1px solid black' }}>Assinatura do prestador</td>
-                <td className="py-0.5 w-[35%]" style={{ border: '1px solid black' }}>
+                <td className="py-0.5 w-[33%]" style={{ border: '1px solid black' }}>
                   <div className="flex flex-col items-center justify-center leading-none">
                     <span>Assinatura do</span>
                     <span>responsável</span>
