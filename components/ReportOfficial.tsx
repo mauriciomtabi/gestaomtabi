@@ -164,35 +164,39 @@ const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
   };
 
   const handleGeneratePDF = () => {
-    const style = document.createElement('style');
-    style.innerHTML = `
-      @media print {
-        @page { size: A4 portrait; margin: 0; }
-        body, html, #root, main { 
-          background-color: white !important; 
-          margin: 0 !important; 
-          padding: 0 !important;
-          height: auto !important;
-          overflow: visible !important;
-          border: none !important;
-        }
-        nav { display: none !important; }
-        .no-print { display: none !important; }
-        ::-webkit-scrollbar { display: none !important; }
-        * { 
-          -webkit-print-color-adjust: exact; 
-          print-color-adjust: exact; 
-          box-shadow: none !important; 
-        }
-        div, main { overflow: visible !important; height: auto !important; }
-      }
-    `;
-    document.head.appendChild(style);
-    
+    const content = document.getElementById('official-document-content');
+    if (!content) return;
+
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) {
+      alert('Popup bloqueado. Permita popups para este site e tente novamente.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Ofício</title>
+        <style>
+          @page { size: A4 portrait; margin: 1.5cm 2cm; }
+          * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          body { margin: 0; padding: 0; background: white; font-family: 'Times New Roman', Times, serif; font-size: 12pt; line-height: 1.5; color: #000; }
+          table { border-collapse: collapse; width: 100%; }
+          th, td { border: 1px solid black; padding: 4px 12px; }
+          thead tr { background-color: #f8fafc; }
+        </style>
+      </head>
+      <body>${content.innerHTML}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
     setTimeout(() => {
-      window.print();
-      setTimeout(() => document.head.removeChild(style), 1000);
-    }, 100);
+      printWindow.print();
+      printWindow.close();
+    }, 500);
   };
 
   const selectClasses = "bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all cursor-pointer";

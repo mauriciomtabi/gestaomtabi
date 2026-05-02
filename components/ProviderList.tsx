@@ -173,7 +173,7 @@ const ProviderList: React.FC<Props> = ({ providers, attendance, onSelect, onAdd,
           }`}
         >
           <FileText size={16} />
-          Ofícios
+          Ofício
         </button>
       </div>
 
