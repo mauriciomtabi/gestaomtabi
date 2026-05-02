@@ -12,7 +12,7 @@ COPY . .
 
 # Write the API key into .env.local so Vite picks it up at build time.
 # Vite automatically reads .env.local and makes VITE_* vars available via import.meta.env
-RUN echo "VITE_GEMINI_API_KEY=AIzaSyCDq4UTGYM2V1UzVVpabv691ULLxsotU1A" > .env.local
+RUN echo "VITE_GEMINI_API_KEY=AIzaSyDOTFK4qXKJe-DxQmzHw8Ge2p7NZna4TPQ" > .env.local
 
 # Build the project (Vite bakes the VITE_GEMINI_API_KEY into the bundle at this step)
 RUN npm run build
