@@ -248,19 +248,42 @@ const AttendanceSheetOCR: React.FC<Props> = ({ providerId, providerName, existin
             <div className="space-y-6">
               {!preview && !converting ? (
                 <div className="flex flex-col gap-4">
-                  <button 
-                    onClick={() => fileInputRef.current?.click()} 
-                    className="w-full flex flex-col items-center justify-center gap-4 py-12 border-4 border-dashed border-slate-100 bg-slate-50 text-slate-500 rounded-[2.5rem] hover:bg-blue-50 hover:border-blue-100 transition-all group"
-                  >
-                    <div className="bg-white p-6 rounded-full shadow-sm group-hover:scale-110 transition-transform">
-                      <Upload size={40} className="text-blue-600" />
-                    </div>
-                    <div className="text-center">
-                      <p className="font-black text-slate-800 uppercase tracking-tight">Tirar Foto da Folha</p>
-                      <p className="text-xs text-slate-400 font-medium">Use a câmera em ambiente iluminado</p>
-                    </div>
-                  </button>
-                  <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*,application/pdf" capture="environment" className="hidden" />
+                  <div className="flex flex-col sm:flex-row gap-4 w-full">
+                    <button 
+                      onClick={() => {
+                        const input = document.getElementById('camera-input');
+                        if (input) input.click();
+                      }} 
+                      className="flex-1 flex flex-col items-center justify-center gap-4 py-8 border-4 border-dashed border-slate-100 bg-slate-50 text-slate-500 rounded-[2rem] hover:bg-blue-50 hover:border-blue-100 transition-all group"
+                    >
+                      <div className="bg-white p-4 rounded-full shadow-sm group-hover:scale-110 transition-transform">
+                        <Camera size={32} className="text-blue-600" />
+                      </div>
+                      <div className="text-center">
+                        <p className="font-black text-slate-800 uppercase tracking-tight text-sm">Tirar Foto</p>
+                        <p className="text-[10px] text-slate-400 font-medium uppercase mt-1">Câmera Traseira</p>
+                      </div>
+                    </button>
+                    
+                    <button 
+                      onClick={() => {
+                        const input = document.getElementById('file-input');
+                        if (input) input.click();
+                      }} 
+                      className="flex-1 flex flex-col items-center justify-center gap-4 py-8 border-4 border-dashed border-slate-100 bg-slate-50 text-slate-500 rounded-[2rem] hover:bg-blue-50 hover:border-blue-100 transition-all group"
+                    >
+                      <div className="bg-white p-4 rounded-full shadow-sm group-hover:scale-110 transition-transform">
+                        <Upload size={32} className="text-blue-600" />
+                      </div>
+                      <div className="text-center">
+                        <p className="font-black text-slate-800 uppercase tracking-tight text-sm">Fazer Upload</p>
+                        <p className="text-[10px] text-slate-400 font-medium uppercase mt-1">Galeria ou PDF</p>
+                      </div>
+                    </button>
+
+                    <input id="camera-input" type="file" onChange={handleFileChange} accept="image/*" capture="environment" className="hidden" />
+                    <input id="file-input" type="file" onChange={handleFileChange} accept="image/*,application/pdf" className="hidden" />
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4">

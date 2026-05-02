@@ -158,20 +158,40 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
                 <h4 className="text-xl font-black text-slate-800 uppercase tracking-tight">Capturar Nota Fiscal</h4>
                 <p className="text-slate-500 text-sm mt-2 font-medium">Posicione a nota em um local iluminado e evite reflexos para uma leitura precisa.</p>
               </div>
-              <div className="flex flex-col w-full gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row w-full gap-3 pt-4">
                 <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:bg-blue-700 transition-all active:scale-95 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest"
+                  onClick={() => {
+                    const input = document.getElementById('fuel-camera-input');
+                    if (input) input.click();
+                  }}
+                  className="flex-1 py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:bg-blue-700 transition-all active:scale-95 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest"
                 >
                   <Camera size={18} />
-                  Tirar Foto / Upload
+                  Tirar Foto
+                </button>
+                <button 
+                  onClick={() => {
+                    const input = document.getElementById('fuel-file-input');
+                    if (input) input.click();
+                  }}
+                  className="flex-1 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl shadow-sm hover:bg-slate-200 transition-all active:scale-95 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest border border-slate-200"
+                >
+                  <Upload size={18} />
+                  Fazer Upload
                 </button>
                 <input 
+                  id="fuel-camera-input"
                   type="file" 
-                  ref={fileInputRef} 
                   onChange={handleFileChange} 
                   accept="image/*" 
                   capture="environment" 
+                  className="hidden" 
+                />
+                <input 
+                  id="fuel-file-input"
+                  type="file" 
+                  onChange={handleFileChange} 
+                  accept="image/*,application/pdf" 
                   className="hidden" 
                 />
               </div>
