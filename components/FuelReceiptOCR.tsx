@@ -1,6 +1,8 @@
 
-import React, { useState, useRef } from 'react';
-import { X, Camera, Upload, Loader2, CheckCircle2, AlertCircle, FileText, Smartphone } from 'lucide-react';
+import React, { useState, useRef, useEffect, SyntheticEvent } from 'react';
+import ReactCrop, { Crop, PixelCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
+import { X, Camera, Upload, Loader2, CheckCircle2, AlertCircle, FileText, Smartphone, Sparkles, Cpu } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { FuelSupply } from '../types';
 
@@ -14,7 +16,10 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showWebcam, setShowWebcam] = useState(false);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -25,6 +30,8 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreview(reader.result as string);
+      setCrop(undefined);
+      setCompletedCrop(null);
       setError(null);
     };
     reader.readAsDataURL(file);
@@ -66,10 +73,41 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
         setPreview(canvas.toDataURL('image/jpeg', 0.8));
+        setCrop(undefined);
+        setCompletedCrop(null);
         stopWebcam();
         setError(null);
       }
     }
+  };
+
+  const getCroppedImageBase64 = async (): Promise<string | null> => {
+    if (!completedCrop || !imgRef.current || completedCrop.width === 0 || completedCrop.height === 0) {
+      return preview;
+    }
+
+    const canvas = document.createElement('canvas');
+    const scaleX = imgRef.current.naturalWidth / imgRef.current.width;
+    const scaleY = imgRef.current.naturalHeight / imgRef.current.height;
+
+    canvas.width = completedCrop.width * scaleX;
+    canvas.height = completedCrop.height * scaleY;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return preview;
+
+    ctx.drawImage(
+      imgRef.current,
+      completedCrop.x * scaleX,
+      completedCrop.y * scaleY,
+      completedCrop.width * scaleX,
+      completedCrop.height * scaleY,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    return canvas.toDataURL('image/jpeg', 0.8);
   };
 
   React.useEffect(() => {
@@ -84,6 +122,9 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
     setError(null);
 
     try {
+      const finalImageBase64 = await getCroppedImageBase64() || preview;
+      const base64Data = finalImageBase64.split(',')[1];
+
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (globalThis as any).process?.env?.GEMINI_API_KEY;
       if (!apiKey) {
         throw new Error("API Key do Gemini não configurada.");
@@ -121,7 +162,7 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
               {
                 inlineData: {
                   mimeType: "image/jpeg",
-                  data: preview.split(',')[1]
+                  data: base64Data
                 }
               }
             ]
@@ -170,7 +211,7 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
         km: result.km || 0,
         attendant: result.attendant || '',
         protocol: result.protocol || '',
-        attachmentData: preview,
+        attachmentData: finalImageBase64,
         attachmentType: 'image/jpeg',
         createdAt: new Date().toISOString()
       };
@@ -185,8 +226,25 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/90 z-[3000] flex items-center justify-center p-4 backdrop-blur-md">
-      <div className="bg-white w-full max-w-xl rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 bg-slate-950/90 z-[3000] flex items-center justify-center p-4 backdrop-blur-md overflow-y-auto">
+      <style>{`
+        @keyframes scan-fuel {
+          0% { top: 0%; opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { top: 100%; opacity: 0; }
+        }
+        .scan-line-fuel {
+          position: absolute;
+          width: 100%;
+          height: 4px;
+          background: linear-gradient(to bottom, transparent, #10b981, transparent);
+          box-shadow: 0 0 15px 2px rgba(16, 185, 129, 0.7);
+          z-index: 20;
+          animation: scan-fuel 3s linear infinite;
+        }
+      `}</style>
+      <div className="bg-white w-full max-w-xl rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col my-auto border border-white/10">
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-blue-50/50">
           <div className="flex items-center gap-3">
             <div className="bg-blue-600 p-2 rounded-xl text-white">
@@ -265,15 +323,41 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
               </div>
             </>
           ) : (
-            <div className="w-full space-y-6">
-              <div className="relative aspect-[3/4] w-full max-w-[300px] mx-auto rounded-3xl overflow-hidden border-4 border-slate-100 shadow-lg">
-                <img src={preview} alt="Preview" className="w-full h-full object-cover" />
-                <button 
-                  onClick={() => setPreview(null)}
-                  className="absolute top-4 right-4 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-all"
+            <div className="w-full space-y-4">
+              <div className="relative rounded-3xl overflow-hidden border bg-slate-50 flex items-center justify-center min-h-[300px]">
+                <div className="absolute top-4 left-0 w-full text-center z-10 pointer-events-none">
+                  <p className="inline-block bg-emerald-900/80 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full shadow-lg backdrop-blur-sm animate-pulse">
+                    Ajuste as bordas da nota
+                  </p>
+                </div>
+                
+                <ReactCrop 
+                  crop={crop} 
+                  onChange={(c) => setCrop(c)} 
+                  onComplete={(c) => setCompletedCrop(c)}
+                  className="flex items-center justify-center bg-slate-100"
                 >
-                  <X size={16} />
-                </button>
+                  <img 
+                    ref={imgRef}
+                    src={preview!} 
+                    alt="Preview" 
+                    className={`max-h-[50vh] object-contain w-full transition-all duration-700 ${loading ? 'scale-[1.02] blur-[1px]' : ''}`} 
+                    onLoad={(e: SyntheticEvent<HTMLImageElement>) => {
+                      const { width, height } = e.currentTarget;
+                      setCrop({ unit: '%', x: 5, y: 5, width: 90, height: 90 });
+                    }}
+                  />
+                </ReactCrop>
+
+                {loading && (
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-900/40">
+                    <div className="scan-line-fuel"></div>
+                    <div className="bg-white/95 backdrop-blur-md p-6 rounded-3xl shadow-2xl flex flex-col items-center max-w-[80%] text-center">
+                      <Loader2 className="animate-spin text-emerald-600 mb-3" size={32} />
+                      <h4 className="text-emerald-900 font-black uppercase tracking-widest text-[10px]">Analisando Nota</h4>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {error && (
