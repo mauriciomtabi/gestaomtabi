@@ -199,49 +199,83 @@ const HELP_DATA: Topic[] = [
   {
     id: 'abastecimento',
     category: 'Gestão de Viaturas',
-    title: 'Combustíveis e Frota',
+    title: '1. Combustíveis e Frota',
     icon: Fuel,
     tags: ['abastecimento', 'viatura', 'gasolina', 'combustível', 'kml', 'notas', 'cupons', 'bomba', 'frota'],
     content: (
       <div className="space-y-4">
         <p className="text-slate-600 leading-relaxed">
-          O módulo de <strong>Abastecimento</strong> foi dividido para separar a operação diária da geração de relatórios oficiais.
+          O módulo de <strong>Abastecimento</strong> centraliza o controle de consumo e quilometragem da frota.
         </p>
 
-        <div className="space-y-8 mt-6">
-          <div className="border border-slate-200 rounded-3xl p-6 bg-white shadow-sm">
-            <h3 className="text-lg font-black text-slate-800 mb-2">Aba: Registro de Frota</h3>
-            <p className="text-sm text-slate-600 mb-4">Gestão das viaturas cadastradas e lançamento de novos cupons fiscais.</p>
-            <Screenshot src="/docs/ABASTECIMENTO - REGISTRO DE FROTA.png" caption="Registro de Frota — Controle de KM e lançamentos ativos" />
-          </div>
+        <h3 className="text-lg font-black text-slate-800 mt-6">Registro de Frota</h3>
+        <p className="text-sm text-slate-600">Acompanhe as últimas viaturas abastecidas e os cupons lançados recentemente.</p>
+        <Screenshot src="/docs/ABASTECIMENTO - REGISTRO DE FROTA.png" caption="Visão Geral — Lista de abastecimentos ativos e histórico rápido" />
 
-          <div className="border border-slate-200 rounded-3xl p-6 bg-white shadow-sm">
-            <h3 className="text-lg font-black text-amber-800 mb-2">Aba: Relatório PDF</h3>
-            <p className="text-sm text-slate-600 mb-4">Consolidação de dados por período para prestação de contas oficial.</p>
-            <Screenshot src="/docs/ABASTECIMETNO - RELATORIO PDF.png" caption="Relatórios — Geração de PDF para controle de combustível" />
-          </div>
-        </div>
+        <h3 className="text-lg font-black text-slate-800 mt-6">Gestão de Viaturas</h3>
+        <p className="text-sm text-slate-600">Cadastre e gerencie os detalhes de cada viatura (Placa, Modelo, KM inicial).</p>
+        <Screenshot src="/docs/ABASTECIMENTO - GESTÃO DE FROTA.png" caption="Frota — Detalhamento e controle individual por viatura" />
+
+        <h3 className="text-lg font-black text-slate-800 mt-6">Relatórios Oficiais (PDF)</h3>
+        <p className="text-sm text-slate-600">Gere documentos consolidados por período para prestação de contas.</p>
+        <Screenshot src="/docs/ABASTECIMETNO - RELATORIO PDF.png" caption="Relatórios — Consolidação de dados para exportação em PDF" />
+      </div>
+    )
+  },
+  {
+    id: 'gerenciar-postos',
+    category: 'Gestão de Viaturas',
+    title: '2. Gerenciar Postos',
+    icon: MonitorPlay,
+    tags: ['posto', 'nome', 'gasolina', 'combustível', 'gerenciar', 'configurar'],
+    content: (
+      <div className="space-y-4">
+        <p className="text-slate-600 leading-relaxed">
+          Para facilitar o lançamento, você pode cadastrar "Apelidos" para os postos de combustíveis conveniados.
+        </p>
+
+        <Screenshot src="/docs/ABASTECIMENTO - GERENCIAR POSTOS.png" caption="Gerenciar Postos — Cadastro de nomes e identificações dos postos" />
+
+        <p className="text-sm text-slate-600 italic">
+          Isso agiliza o preenchimento dos formulários, permitindo selecionar o posto em uma lista pré-definida.
+        </p>
+      </div>
+    )
+  },
+  {
+    id: 'fuel-ocr',
+    category: 'Gestão de Viaturas',
+    title: '3. Digitalizar Cupons',
+    icon: Sparkles,
+    tags: ['ocr', 'cupom', 'nota', 'fiscal', 'digitalizar', 'foto', 'leitura'],
+    content: (
+      <div className="space-y-4">
+        <p className="text-slate-600 leading-relaxed">
+          O sistema utiliza Inteligência Artificial para ler cupons fiscais de abastecimento, extraindo Litros, Valor e Data.
+        </p>
+
+        <Screenshot src="/docs/ABASTECIMENTO - DIGITALIZAR NOTA.png" caption="OCR de Cupons — Extração automática de dados da nota fiscal" />
       </div>
     )
   },
   {
     id: 'relatorios-oficios',
-    category: 'Relatórios',
-    title: 'Emissão de Ofícios',
+    category: 'Prestadores',
+    title: '6. Emissão de Ofícios',
     icon: FileText,
     tags: ['relatório', 'ofício', 'juiz', 'imprimir', 'papel', 'processos', 'horas cumpridas', 'pdf', 'número', 'responsável'],
     content: (
       <div className="space-y-4">
         <p className="text-slate-600 leading-relaxed">
-          O módulo de <strong>Ofícios</strong> agora está integrado diretamente na ficha de cada prestador, facilitando a emissão rápida de documentos para o juizado.
+          O módulo de <strong>Ofícios</strong> está integrado diretamente na ficha de cada prestador, permitindo a emissão rápida de documentos oficiais.
         </p>
 
-        <Screenshot src="/docs/PRESTADORES - OFÍCIO.png" caption="Ofício Judicial — Documento pronto para impressão com dados automáticos" />
+        <Screenshot src="/docs/PRESTADORES - OFÍCIO.png" caption="Ofício Judicial — Documento gerado automaticamente com dados do processo" />
 
         <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 mt-4 flex items-start gap-3">
           <CheckCircle2 className="text-emerald-600 shrink-0 mt-0.5" size={20} />
           <p className="text-sm text-emerald-900 font-medium">
-            O sistema preenche automaticamente as horas totais, saldo restante e parágrafos jurídicos baseados no status atual do prestador.
+            O sistema preenche automaticamente as horas cumpridas e o saldo restante, eliminando erros manuais de cálculo.
           </p>
         </div>
       </div>
