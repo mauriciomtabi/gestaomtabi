@@ -320,6 +320,7 @@ const HELP_DATA: Topic[] = [
 const HelpCenter: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTopicId, setActiveTopicId] = useState<string>(HELP_DATA[0].id);
+  const [showMobileTopics, setShowMobileTopics] = useState(true);
   const [feedbackGiven, setFeedbackGiven] = useState<Record<string, 'yes' | 'no'>>({});
 
   const filteredTopics = useMemo(() => {
@@ -371,10 +372,10 @@ const HelpCenter: React.FC = () => {
         />
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-slate-100">
-
-        {/* Sidebar Topics */}
-        <div className="w-full lg:w-1/3 flex flex-col gap-4 border-r-0 lg:border-r border-slate-100 pr-0 lg:pr-4 overflow-y-auto no-scrollbar max-h-[300px] lg:max-h-full shrink-0">
+      <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-slate-100 overflow-hidden">
+        
+        {/* Sidebar Topics - Hidden on mobile if viewing content */}
+        <div className={`w-full lg:w-1/3 flex flex-col gap-4 border-r-0 lg:border-r border-slate-100 pr-0 lg:pr-4 overflow-y-auto no-scrollbar shrink-0 ${!showMobileTopics ? 'hidden lg:flex' : 'flex'}`}>
           {Object.keys(groupedTopics).length === 0 ? (
             <div className="text-center p-8 bg-slate-50 rounded-xl">
               <p className="text-slate-500 font-bold">Nenhum resultado encontrado.</p>
@@ -395,7 +396,10 @@ const HelpCenter: React.FC = () => {
                   {groupedTopics[category].map(topic => (
                     <button
                       key={topic.id}
-                      onClick={() => setActiveTopicId(topic.id)}
+                      onClick={() => {
+                        setActiveTopicId(topic.id);
+                        setShowMobileTopics(false);
+                      }}
                       className={`w-full text-left flex items-start gap-3 p-3 rounded-xl transition-all ${
                         activeTopic?.id === topic.id
                           ? 'bg-blue-50 text-blue-800 border border-blue-100 shadow-sm ring-1 ring-blue-500/10'
@@ -416,14 +420,23 @@ const HelpCenter: React.FC = () => {
           )}
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto no-scrollbar pl-0 lg:pl-6 pt-4 lg:pt-0">
+        {/* Content Area - Hidden on mobile if choosing topic */}
+        <div className={`flex-1 overflow-y-auto no-scrollbar pl-0 lg:pl-6 pt-0 ${showMobileTopics ? 'hidden lg:block' : 'block'}`}>
           {activeTopic ? (
             <div className="max-w-3xl animate-in slide-in-from-right-4 fade-in duration-500" key={activeTopic.id}>
+              
+              {/* Back button for Mobile */}
+              <button 
+                onClick={() => setShowMobileTopics(true)}
+                className="lg:hidden flex items-center gap-2 text-blue-600 font-black text-[10px] uppercase tracking-widest mb-6 py-2 px-4 bg-blue-50 rounded-xl"
+              >
+                ← Voltar para Tópicos
+              </button>
+
               <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full text-xs font-black text-slate-500 uppercase tracking-widest mb-4">
                 {activeTopic.category}
               </div>
-              <h1 className="text-2xl md:text-3xl font-black text-slate-800 mb-8 leading-tight tracking-tight">
+              <h1 className="text-2xl md:text-3xl font-black text-slate-800 mb-6 md:mb-8 leading-tight tracking-tight">
                 {activeTopic.title}
               </h1>
 
@@ -431,7 +444,7 @@ const HelpCenter: React.FC = () => {
                 {activeTopic.content}
               </div>
 
-              <div className="mt-12 pt-6 border-t border-slate-100 flex items-center justify-between">
+              <div className="mt-12 pt-6 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
                 {feedbackGiven[activeTopic.id] ? (
                   <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm">
                     <ThumbsUp size={18} />

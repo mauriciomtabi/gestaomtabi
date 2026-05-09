@@ -33,35 +33,35 @@ const Settings: React.FC<Props> = ({ currentUser, onUpdateProfile, onOpenInstall
 
       {/* Tab bar — same pill style as Dashboard */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col flex-1 min-h-0">
-        <div className="flex px-4 md:px-6 gap-2 border-b-2 border-slate-200 pb-4 pt-4 overflow-x-auto no-scrollbar shrink-0">
+        <div className="flex px-2 md:px-6 gap-1 md:gap-2 border-b-2 border-slate-200 pb-3 md:pb-4 pt-4 overflow-x-auto no-scrollbar shrink-0">
           <button
             onClick={() => setActiveTab('profile')}
-            className={`group flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'profile' ? 'bg-slate-900 text-white shadow-lg scale-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'}`}
+            className={`group flex items-center justify-center md:justify-start gap-2 px-4 md:px-5 py-2.5 md:py-3 rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-wider transition-all whitespace-nowrap flex-1 md:flex-none ${activeTab === 'profile' ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
           >
             <UserCircle size={18} />
-            <span className="hidden md:inline group-hover:inline">Meu Perfil</span>
+            <span className={activeTab === 'profile' ? 'inline' : 'hidden md:inline'}>Perfil</span>
           </button>
           <button
             onClick={() => setActiveTab('perimeter')}
-            className={`group flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'perimeter' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'}`}
+            className={`group flex items-center justify-center md:justify-start gap-2 px-4 md:px-5 py-2.5 md:py-3 rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-wider transition-all whitespace-nowrap flex-1 md:flex-none ${activeTab === 'perimeter' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
           >
             <MapPin size={18} />
-            <span className="hidden md:inline group-hover:inline">Perímetro</span>
+            <span className={activeTab === 'perimeter' ? 'inline' : 'hidden md:inline'}>Perímetro</span>
           </button>
           {currentUser.isAdmin && (
             <button
               onClick={() => setActiveTab('users')}
-              className={`group flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === 'users' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200 scale-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'}`}
+              className={`group flex items-center justify-center md:justify-start gap-2 px-4 md:px-5 py-2.5 md:py-3 rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-wider transition-all whitespace-nowrap flex-1 md:flex-none ${activeTab === 'users' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
             >
               <ShieldCheck size={18} />
-              <span className="hidden md:inline group-hover:inline">Usuários</span>
+              <span className={activeTab === 'users' ? 'inline' : 'hidden md:inline'}>Usuários</span>
             </button>
           )}
         </div>
 
         <div className="flex-1 overflow-auto pb-24 md:pb-8">
           {activeTab === 'profile' && (
-            <div className="p-6 max-w-4xl mx-auto space-y-6">
+            <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
               {/* Profile card */}
               <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
@@ -76,7 +76,7 @@ const Settings: React.FC<Props> = ({ currentUser, onUpdateProfile, onOpenInstall
                     <ShieldCheck size={12} /> Operador Ativo
                   </div>
                 </div>
-                <div className="p-6">
+                <div className="p-4 md:p-6">
                   <UserProfile user={currentUser} onUpdate={onUpdateProfile} onBack={() => {}} />
                 </div>
               </div>
@@ -123,13 +123,13 @@ const Settings: React.FC<Props> = ({ currentUser, onUpdateProfile, onOpenInstall
           )}
 
           {activeTab === 'perimeter' && (
-            <div className="p-6 max-w-4xl mx-auto">
+            <div className="p-4 md:p-6 max-w-4xl mx-auto">
               <GeoPerimeterConfig setNotification={setNotification} />
             </div>
           )}
 
           {activeTab === 'users' && currentUser.isAdmin && (
-            <div className="p-6 max-w-4xl mx-auto">
+            <div className="p-4 md:p-6 max-w-4xl mx-auto">
               <UserAccessControl />
             </div>
           )}
