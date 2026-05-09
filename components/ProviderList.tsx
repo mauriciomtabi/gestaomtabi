@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Provider, AttendanceRecord } from '../types';
-import { Plus, ChevronRight, Search, Calendar, Clock, Target, Hourglass, Percent, Filter, ChevronLeft, ArrowDownAZ, AlertCircle, Users, LayoutDashboard, FileText } from 'lucide-react';
+import { Plus, ChevronRight, Search, Calendar, Clock, Target, Hourglass, Percent, Filter, ChevronLeft, ArrowDownAZ, AlertCircle, Users, LayoutDashboard, FileText, FileCheck, CornerDownLeft } from 'lucide-react';
 import { formatDateBR, getLatestVisit, formatMinutesToHHMM, getDaysInactivity, formatInactivityMessage } from '../utils/timeUtils';
 import ReportOfficial from './ReportOfficial';
 
@@ -125,12 +125,14 @@ const ProviderList: React.FC<Props> = ({ providers, attendance, onSelect, onAdd,
     currentPage * ITEMS_PER_PAGE
   );
 
-  const TabButton = ({ id, label, count }: { id: typeof activeTab, label: string, count: number }) => (
+  const TabButton = ({ id, label, count, icon: Icon }: { id: typeof activeTab, label: string, count: number, icon: any }) => (
     <button 
       onClick={() => setActiveTab(id)}
-      className={`flex-1 py-3 text-[11px] font-black uppercase tracking-wider border-b-2 transition-all ${activeTab === id ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+      className={`group flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${activeTab === id ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'}`}
     >
-      {label} <span className="ml-1 opacity-50">({count})</span>
+      <Icon size={18} />
+      <span>{label}</span>
+      <span className={`ml-1 text-[10px] ${activeTab === id ? 'text-white/70' : 'text-slate-400'}`}>({count})</span>
     </button>
   );
 
@@ -168,23 +170,23 @@ const ProviderList: React.FC<Props> = ({ providers, attendance, onSelect, onAdd,
       </div>
 
       {/* Main Tabs */}
-      <div className="flex gap-2 border-b border-slate-200">
+      <div className="flex px-2 md:px-0 gap-2 border-b-2 border-slate-200 pb-4 overflow-x-auto no-scrollbar scroll-smooth">
         <button
           onClick={() => setMainTab('providers')}
-          className={`px-6 py-4 text-xs font-black uppercase tracking-widest transition-all border-b-2 flex items-center gap-2 ${
-            mainTab === 'providers' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-400 hover:text-slate-600'
+          className={`group flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${
+            mainTab === 'providers' ? 'bg-slate-900 text-white shadow-lg scale-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'
           }`}
         >
-          <Users size={16} />
+          <Users size={18} />
           Prestadores
         </button>
         <button
           onClick={() => setMainTab('reports')}
-          className={`px-6 py-4 text-xs font-black uppercase tracking-widest transition-all border-b-2 flex items-center gap-2 ${
-            mainTab === 'reports' ? 'border-amber-600 text-amber-700' : 'border-transparent text-slate-400 hover:text-slate-600'
+          className={`group flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${
+            mainTab === 'reports' ? 'bg-amber-600 text-white shadow-lg shadow-amber-200 scale-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'
           }`}
         >
-          <FileText size={16} />
+          <FileText size={18} />
           Ofício
         </button>
       </div>
@@ -268,10 +270,10 @@ const ProviderList: React.FC<Props> = ({ providers, attendance, onSelect, onAdd,
 
       {mainTab === 'providers' && (
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="flex border-b border-slate-100">
-          <TabButton id="active" label="Ativos" count={counts.active} />
-          <TabButton id="completed" label="Finalizados" count={counts.completed} />
-          <TabButton id="returned" label="Devolvidos" count={counts.returned} />
+        <div className="flex px-4 py-3 gap-2 border-b border-slate-100 overflow-x-auto no-scrollbar">
+          <TabButton id="active" label="Ativos" count={counts.active} icon={Users} />
+          <TabButton id="completed" label="Finalizados" count={counts.completed} icon={FileCheck} />
+          <TabButton id="returned" label="Devolvidos" count={counts.returned} icon={CornerDownLeft} />
         </div>
 
         <div className="divide-y divide-slate-50">

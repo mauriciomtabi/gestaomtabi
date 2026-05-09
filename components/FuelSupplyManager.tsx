@@ -427,22 +427,23 @@ const FuelSupplyManager: React.FC<Props> = ({ currentUser, vehicles, fuelSupplie
       </header>
 
       {/* Main Navigation Tabs */}
-      <div className="flex gap-2 border-b border-slate-200">
+      <div className="flex px-2 md:px-0 gap-2 border-b-2 border-slate-200 pb-4 overflow-x-auto no-scrollbar scroll-smooth">
         <button
           onClick={() => setMainTab('records')}
-          className={`px-6 py-4 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${
-            mainTab === 'records' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-400 hover:text-slate-600'
+          className={`group flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${
+            mainTab === 'records' ? 'bg-slate-900 text-white shadow-lg scale-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'
           }`}
         >
+          <Fuel size={18} />
           Registros e Frota
         </button>
         <button
           onClick={() => setMainTab('reports')}
-          className={`px-6 py-4 text-xs font-black uppercase tracking-widest transition-all border-b-2 flex items-center gap-2 ${
-            mainTab === 'reports' ? 'border-amber-600 text-amber-700' : 'border-transparent text-slate-400 hover:text-slate-600'
+          className={`group flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${
+            mainTab === 'reports' ? 'bg-amber-600 text-white shadow-lg shadow-amber-200 scale-100' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'
           }`}
         >
-          <FileText size={16} />
+          <FileText size={18} />
           Relatórios PDF
         </button>
       </div>
