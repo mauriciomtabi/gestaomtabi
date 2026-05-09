@@ -149,8 +149,8 @@ const HELP_DATA: Topic[] = [
         <Screenshot src="/docs/PRESTADORES - CHECKIN FACIAL.png" caption="Check-in — Reconhecimento e validação de presença por rosto e perímetro" />
 
         <h3 className="text-lg font-black text-slate-800 mt-6">Comprovação e Auditoria</h3>
-        <p className="text-sm text-slate-600">Cada registro gera um comprovante visual com marca d'água de data, hora, operador e link de localização.</p>
-        <Screenshot src="/docs/PRESTADORES - REGISTRO DE FREQUENCA POR BIOMENTRIA FACIAL.png" caption="Histórico Biométrico — Registro auditável com face protegida" blurFace={true} />
+        <p className="text-sm text-slate-600">Cada registro gera um comprovante visual com marca d'água de data, hora, operador e mapa de localização GPS.</p>
+        <Screenshot src="/docs/PRESTADORES - COMPROVANTE AUDITORIA FACIAL.png" caption="Comprovação de Auditoria — Registro auditável com localização e perímetro" />
       </div>
     )
   },
