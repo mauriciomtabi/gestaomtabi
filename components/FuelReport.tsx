@@ -353,45 +353,45 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
               </tbody>
             </table>
 
-            {/* Anexos */}
+            {/* Anexos - 1 registro por página, máximo aproveitamento */}
             {(() => {
               const anexosList = filteredSupplies.filter(s => s.attachmentData || s.ticketLogData);
               if (anexosList.length === 0) return null;
 
-              // Agrupa em chunks de 4 anexos (2 linhas x 2 colunas por página A4)
-              const chunks = [];
-              for (let i = 0; i < anexosList.length; i += 4) {
-                chunks.push(anexosList.slice(i, i + 4));
-              }
+              return anexosList.map((s, idx) => (
+                <div key={`anexo-${s.id || idx}`} style={{ pageBreakBefore: 'always', clear: 'both', paddingTop: '16px', height: '240mm', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
+                  {/* Cabeçalho da página de anexo */}
+                  <div style={{ borderBottom: '2px solid #1e3a5f', marginBottom: '12px', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                    <h3 style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e3a5f', margin: 0 }}>
+                      Comprovantes de Abastecimento
+                    </h3>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>
+                      {new Date(s.date).toLocaleDateString('pt-BR')} &nbsp;|&nbsp; Vtr: {formatPlate(s.plate)}
+                    </span>
+                  </div>
 
-              return chunks.map((chunk, chunkIdx) => (
-                <div key={`chunk-${chunkIdx}`} style={{ pageBreakBefore: 'always', clear: 'both', paddingTop: '20px' }}>
-                  <h3 className="text-[16px] font-bold text-center mb-4 uppercase pb-2" style={{ borderBottom: '1px solid black' }}>
-                    Comprovantes e Tickets Log {chunks.length > 1 ? `- Página ${chunkIdx + 1}` : ''}
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    {chunk.map((s, idx) => (
-                      <div key={`anexo-${s.id || idx}`} className="p-3 rounded-xl flex flex-col" style={{ border: '2px solid #e2e8f0', breakInside: 'avoid', pageBreakInside: 'avoid', height: '200px' }}>
-                        <div className="p-1.5 rounded-lg mb-1.5 text-center" style={{ backgroundColor: '#f1f5f9', color: '#000000' }}>
-                          <p className="font-bold text-[10px] uppercase">{getStationDisplayName(s.location, nicknameMap)}</p>
-                          <p className="text-[9px] uppercase font-bold">{new Date(s.date).toLocaleDateString('pt-BR')} - {formatPlate(s.plate)}</p>
+                  {/* Corpo: imagens lado a lado ocupando toda a área restante */}
+                  <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0 }}>
+                    {s.attachmentData && !s.attachmentData.includes('pdf') && !s.attachmentType?.includes('pdf') && (
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1.5px solid #cbd5e1', borderRadius: '12px', overflow: 'hidden', minHeight: 0 }}>
+                        <div style={{ backgroundColor: '#1e3a5f', color: '#ffffff', textAlign: 'center', padding: '6px 0', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>
+                          Nota Fiscal
                         </div>
-                        <div className="flex justify-around items-center gap-2 flex-1 overflow-hidden">
-                          {s.attachmentData && !s.attachmentData.includes('pdf') && !s.attachmentType?.includes('pdf') && (
-                            <div className="flex flex-col items-center justify-center flex-1 h-full">
-                              <span className="text-[8px] font-bold mb-1 uppercase" style={{ color: '#64748b' }}>Nota Fiscal</span>
-                              <img src={s.attachmentData} alt="NF" className="object-contain" style={{ maxHeight: '130px', maxWidth: '100%' }} />
-                            </div>
-                          )}
-                          {s.ticketLogData && !s.ticketLogData.includes('pdf') && !s.ticketLogType?.includes('pdf') && (
-                            <div className="flex flex-col items-center justify-center flex-1 h-full">
-                              <span className="text-[8px] font-bold mb-1 uppercase" style={{ color: '#64748b' }}>Ticket Log</span>
-                              <img src={s.ticketLogData} alt="TL" className="object-contain" style={{ maxHeight: '130px', maxWidth: '100%' }} />
-                            </div>
-                          )}
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', backgroundColor: '#f8fafc', minHeight: 0 }}>
+                          <img src={s.attachmentData} alt="Nota Fiscal" style={{ maxWidth: '100%', maxHeight: '180mm', objectFit: 'contain', display: 'block' }} />
                         </div>
                       </div>
-                    ))}
+                    )}
+                    {s.ticketLogData && !s.ticketLogData.includes('pdf') && !s.ticketLogType?.includes('pdf') && (
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1.5px solid #cbd5e1', borderRadius: '12px', overflow: 'hidden', minHeight: 0 }}>
+                        <div style={{ backgroundColor: '#374151', color: '#ffffff', textAlign: 'center', padding: '6px 0', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>
+                          Ticket Log
+                        </div>
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', backgroundColor: '#f8fafc', minHeight: 0 }}>
+                          <img src={s.ticketLogData} alt="Ticket Log" style={{ maxWidth: '100%', maxHeight: '180mm', objectFit: 'contain', display: 'block' }} />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ));
