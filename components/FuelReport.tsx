@@ -129,7 +129,7 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
           backgroundColor: '#ffffff' // Força background do canvas
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-        pagebreak: { mode: ['css', 'legacy'] }
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       };
 
       await html2pdf().set(opt).from(element).save();
@@ -353,15 +353,38 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
               </tbody>
             </table>
 
-            {/* Anexos - 1 registro por página, máximo aproveitamento */}
+            {/* Anexos - 1 registro por página, dimensões fixas em px para evitar cortes */}
             {(() => {
               const anexosList = filteredSupplies.filter(s => s.attachmentData || s.ticketLogData);
               if (anexosList.length === 0) return null;
 
+              // A4 landscape útil c/ margens 10mm = ~190mm = ~718px a 96dpi
+              // Usamos 680px conservador para garantir que NUNCA transborde
+              const PAGE_H = 680;
+              const HEADER_H = 36;
+              const IMG_MAX_H = PAGE_H - HEADER_H - 32; // 32px = padding + gap
+
               return anexosList.map((s, idx) => (
-                <div key={`anexo-${s.id || idx}`} style={{ pageBreakBefore: 'always', clear: 'both', paddingTop: '16px', height: '240mm', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
-                  {/* Cabeçalho da página de anexo */}
-                  <div style={{ borderBottom: '2px solid #1e3a5f', marginBottom: '12px', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                <div
+                  key={`anexo-${s.id || idx}`}
+                  style={{
+                    pageBreakBefore: 'always',
+                    pageBreakAfter: 'always',
+                    pageBreakInside: 'avoid',
+                    breakBefore: 'page',
+                    breakAfter: 'page',
+                    breakInside: 'avoid',
+                    height: `${PAGE_H}px`,
+                    maxHeight: `${PAGE_H}px`,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    boxSizing: 'border-box',
+                    paddingTop: '12px',
+                  }}
+                >
+                  {/* Cabeçalho */}
+                  <div style={{ height: `${HEADER_H}px`, flexShrink: 0, borderBottom: '2px solid #1e3a5f', marginBottom: '8px', paddingBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <h3 style={{ fontSize: '13px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#1e3a5f', margin: 0 }}>
                       Comprovantes de Abastecimento
                     </h3>
@@ -370,25 +393,25 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
                     </span>
                   </div>
 
-                  {/* Corpo: imagens lado a lado ocupando toda a área restante */}
-                  <div style={{ display: 'flex', gap: '16px', flex: 1, minHeight: 0 }}>
+                  {/* Imagens lado a lado, altura fixa em px */}
+                  <div style={{ display: 'flex', gap: '12px', height: `${IMG_MAX_H}px`, overflow: 'hidden' }}>
                     {s.attachmentData && !s.attachmentData.includes('pdf') && !s.attachmentType?.includes('pdf') && (
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1.5px solid #cbd5e1', borderRadius: '12px', overflow: 'hidden', minHeight: 0 }}>
-                        <div style={{ backgroundColor: '#1e3a5f', color: '#ffffff', textAlign: 'center', padding: '6px 0', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1.5px solid #cbd5e1', borderRadius: '10px', overflow: 'hidden', height: '100%' }}>
+                        <div style={{ backgroundColor: '#1e3a5f', color: '#fff', textAlign: 'center', padding: '5px 0', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>
                           Nota Fiscal
                         </div>
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', backgroundColor: '#f8fafc', minHeight: 0 }}>
-                          <img src={s.attachmentData} alt="Nota Fiscal" style={{ maxWidth: '100%', maxHeight: '180mm', objectFit: 'contain', display: 'block' }} />
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px', backgroundColor: '#f8fafc', overflow: 'hidden' }}>
+                          <img src={s.attachmentData} alt="Nota Fiscal" style={{ maxWidth: '100%', maxHeight: `${IMG_MAX_H - 30}px`, objectFit: 'contain', display: 'block' }} />
                         </div>
                       </div>
                     )}
                     {s.ticketLogData && !s.ticketLogData.includes('pdf') && !s.ticketLogType?.includes('pdf') && (
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1.5px solid #cbd5e1', borderRadius: '12px', overflow: 'hidden', minHeight: 0 }}>
-                        <div style={{ backgroundColor: '#374151', color: '#ffffff', textAlign: 'center', padding: '6px 0', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1.5px solid #cbd5e1', borderRadius: '10px', overflow: 'hidden', height: '100%' }}>
+                        <div style={{ backgroundColor: '#374151', color: '#fff', textAlign: 'center', padding: '5px 0', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', flexShrink: 0 }}>
                           Ticket Log
                         </div>
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '8px', backgroundColor: '#f8fafc', minHeight: 0 }}>
-                          <img src={s.ticketLogData} alt="Ticket Log" style={{ maxWidth: '100%', maxHeight: '180mm', objectFit: 'contain', display: 'block' }} />
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px', backgroundColor: '#f8fafc', overflow: 'hidden' }}>
+                          <img src={s.ticketLogData} alt="Ticket Log" style={{ maxWidth: '100%', maxHeight: `${IMG_MAX_H - 30}px`, objectFit: 'contain', display: 'block' }} />
                         </div>
                       </div>
                     )}
