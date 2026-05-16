@@ -27,6 +27,7 @@ const months = [
 const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
+  const [includeReturned, setIncludeReturned] = useState(true);
 
   const today = new Date().toLocaleDateString('pt-BR', {
     day: '2-digit',
@@ -50,6 +51,8 @@ const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
     }
     
     return providers.filter(p => {
+      if (!includeReturned && p.status === 'returned') return false;
+
       // 1. Se tem assiduidade no mês, sempre aparece
       const pAttendance = attendance.filter(a => a.providerId === p.id);
       const hasAttendanceThisMonth = pAttendance.some(a => {
@@ -115,7 +118,7 @@ const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
       // Fallback
       return false;
     });
-  }, [providers, attendance, selectedYear, selectedMonth]);
+  }, [providers, attendance, selectedYear, selectedMonth, includeReturned]);
 
   const consolidatedData: MonthlySummary[] = filteredProviders.map(p => {
     let pAttendance = attendance.filter(a => a.providerId === p.id);
@@ -251,6 +254,20 @@ const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div 
+                className="flex items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors" 
+                onClick={() => setIncludeReturned(!includeReturned)}
+              >
+                <button
+                  className={`relative w-9 h-5 rounded-full transition-all duration-300 pointer-events-none ${includeReturned ? 'bg-blue-600' : 'bg-slate-300'}`}
+                >
+                  <span className={`absolute top-[2px] w-4 h-4 bg-white rounded-full shadow-sm transition-all duration-300 ${includeReturned ? 'left-[18px]' : 'left-[2px]'}`} />
+                </button>
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest select-none">
+                  Incluir Devolvidos
+                </span>
               </div>
 
               {(selectedYear !== 'Todos' || selectedMonth !== 'Todos') && (
