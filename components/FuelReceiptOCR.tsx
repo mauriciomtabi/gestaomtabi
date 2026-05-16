@@ -10,12 +10,13 @@ interface Props {
   onCancel: () => void;
 }
 
-type CaptureStep = 'select' | 'capture' | 'review' | 'processing';
+type CaptureStep = 'select' | 'capture' | 'review' | 'processing' | 'next_prompt';
 type DocType = 'nf' | 'ticket';
 
 const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
   const [step, setStep] = useState<CaptureStep>('select');
   const [currentDocType, setCurrentDocType] = useState<DocType | null>(null);
+  const [captureMethod, setCaptureMethod] = useState<'camera' | 'upload' | null>(null);
   
   // Imagens capturadas (cropped base64)
   const [images, setImages] = useState<{ nf: string | null, ticket: string | null }>({ nf: null, ticket: null });
@@ -118,12 +119,12 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
       if (currentDocType === 'nf' && !newImages.ticket) {
         setCurrentDocType('ticket');
         setPreview(null);
-        setStep('capture');
+        setStep('next_prompt');
         setLoading(false);
       } else if (currentDocType === 'ticket' && !newImages.nf) {
         setCurrentDocType('nf');
         setPreview(null);
-        setStep('capture');
+        setStep('next_prompt');
         setLoading(false);
       } else {
         // Tem os dois, ou escolheu finalizar direto
@@ -341,12 +342,12 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
               </div>
               
               <div className="flex flex-col sm:flex-row w-full gap-4">
-                <button onClick={() => { const input = document.getElementById('camera-input'); if (input) input.click(); }} className="flex-1 py-6 bg-blue-600 text-white font-black rounded-3xl shadow-xl flex flex-col items-center justify-center gap-3 uppercase text-xs hover:bg-blue-700 transition-all active:scale-95">
+                <button onClick={() => { setCaptureMethod('camera'); const input = document.getElementById('camera-input'); if (input) input.click(); }} className="flex-1 py-6 bg-blue-600 text-white font-black rounded-3xl shadow-xl flex flex-col items-center justify-center gap-3 uppercase text-xs hover:bg-blue-700 transition-all active:scale-95">
                   <Camera size={32} /> Câmera do Dispositivo
                 </button>
                 <input id="camera-input" type="file" onChange={handleFileChange} accept="image/*" capture="environment" className="hidden" />
 
-                <button onClick={() => { const input = document.getElementById('gallery-input'); if (input) input.click(); }} className="flex-1 py-6 bg-slate-100 text-slate-600 font-black rounded-3xl border border-slate-200 flex flex-col items-center justify-center gap-3 uppercase text-xs hover:bg-slate-200 transition-all active:scale-95">
+                <button onClick={() => { setCaptureMethod('upload'); const input = document.getElementById('gallery-input'); if (input) input.click(); }} className="flex-1 py-6 bg-slate-100 text-slate-600 font-black rounded-3xl border border-slate-200 flex flex-col items-center justify-center gap-3 uppercase text-xs hover:bg-slate-200 transition-all active:scale-95">
                   <Upload size={32} /> Escolher da Galeria
                 </button>
                 <input id="gallery-input" type="file" onChange={handleFileChange} accept="image/*,application/pdf" className="hidden" />
@@ -355,6 +356,41 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
               <button onClick={() => setStep('select')} className="mt-4 text-slate-500 font-bold uppercase text-[10px] tracking-widest hover:text-slate-700 transition-colors">
                 Voltar para Seleção
               </button>
+            </div>
+          )}
+
+          {step === 'next_prompt' && (
+            <div className="w-full flex flex-col items-center gap-6 animate-in zoom-in-95 duration-300 py-8">
+              <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mb-2 shadow-inner">
+                 <CheckCircle2 size={48} />
+              </div>
+              <h4 className="text-2xl font-black text-slate-800 uppercase tracking-tight text-center leading-tight">
+                 MUITO BEM!<br/>
+                 <span className="text-emerald-600">AGORA DIGITALIZE {currentDocType === 'nf' ? 'A NOTA FISCAL' : 'O TICKET LOG'}</span>
+              </h4>
+              <p className="text-slate-500 text-sm font-medium text-center">
+                 O primeiro documento foi recebido com sucesso. Faltam apenas os dados {currentDocType === 'nf' ? 'da Nota Fiscal' : 'do Ticket Log'} para prosseguir.
+              </p>
+              
+              <div className="w-full mt-4 flex flex-col gap-3">
+                <button 
+                  onClick={() => {
+                     const input = document.getElementById(captureMethod === 'camera' ? 'camera-input-next' : 'gallery-input-next');
+                     if (input) input.click();
+                  }}
+                  className="w-full py-6 bg-blue-600 text-white font-black rounded-3xl shadow-xl flex items-center justify-center gap-3 uppercase text-[12px] hover:bg-blue-700 active:scale-95 transition-all"
+                >
+                  {captureMethod === 'camera' ? <Camera size={28} /> : <Upload size={28} />}
+                  {captureMethod === 'camera' ? 'Continuar com Câmera' : 'Continuar com Upload'}
+                </button>
+                <button onClick={() => setStep('capture')} className="py-3 text-slate-500 font-bold uppercase text-[10px] tracking-widest hover:text-slate-700 transition-colors">
+                  Mudar forma de captura
+                </button>
+              </div>
+
+              {/* Inputs invisíveis específicos dessa tela */}
+              <input id="camera-input-next" type="file" onChange={handleFileChange} accept="image/*" capture="environment" className="hidden" />
+              <input id="gallery-input-next" type="file" onChange={handleFileChange} accept="image/*,application/pdf" className="hidden" />
             </div>
           )}
 
