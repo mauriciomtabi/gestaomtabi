@@ -263,6 +263,28 @@ const ProviderModal: React.FC<Props> = ({ provider, onClose, onSubmit }) => {
     setCurrentMessages(processingMessages);
     try {
       const data = await extractReferralData(base64.split(',')[1], 'image/png');
+      if (data.totalHours) setIsCalculated(true);
+      
+      setFormData(prev => ({
+        ...prev,
+        referralDoc: base64,
+        name: data.name || prev.name,
+        processNumber: data.processNumber || prev.processNumber,
+        phone: data.phone || prev.phone,
+        address: data.address || prev.address,
+        assignedEntity: data.assignedEntity || prev.assignedEntity,
+        totalHoursToFulfill: data.totalHours || prev.totalHoursToFulfill,
+        referralDate: data.referralDate || prev.referralDate,
+        receiptDate: data.receiptDate || prev.receiptDate,
+        observations: sanitizeObservations(data.observations || prev.observations)
+      }));
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao processar o documento digitalizado.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleIdentityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
