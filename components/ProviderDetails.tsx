@@ -667,11 +667,11 @@ const ProviderDetails: React.FC<Props> = ({ provider, attendance, onBack, onUpda
 
       <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 overflow-hidden">
         <div className="flex border-b border-slate-100 bg-slate-50/50">
-          <button onClick={() => setActiveTab('attendance')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'attendance' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-slate-400 hover:bg-slate-100'}`}><Calendar size={16} /> Lançamentos</button>
+          <button onClick={() => setActiveTab('attendance')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'attendance' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-slate-400 hover:bg-slate-100'}`}><Calendar size={16} /> <span className={`${activeTab === 'attendance' ? 'inline' : 'hidden'} sm:inline`}>Lançamentos</span></button>
           {provider.status === 'active' && (
-            <button onClick={() => setActiveTab('evaluation')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'evaluation' ? 'border-emerald-600 text-emerald-600 bg-white' : 'border-transparent text-slate-400 hover:bg-slate-100'}`}><ClipboardCheck size={16} /> Avaliação <span className="relative flex h-2 w-2 ml-1"><span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 ${evalExistingId ? 'hidden' : ''}`}></span><span className={`relative inline-flex rounded-full h-2 w-2 ${evalExistingId ? 'bg-emerald-500' : 'bg-red-500'}`}></span></span></button>
+            <button onClick={() => setActiveTab('evaluation')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'evaluation' ? 'border-emerald-600 text-emerald-600 bg-white' : 'border-transparent text-slate-400 hover:bg-slate-100'}`}><ClipboardCheck size={16} /> <span className={`flex items-center gap-1 ${activeTab === 'evaluation' ? 'inline-flex' : 'hidden'} sm:inline-flex`}>Avaliação <span className="relative flex h-2 w-2 ml-1"><span className={`animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 ${evalExistingId ? 'hidden' : ''}`}></span><span className={`relative inline-flex rounded-full h-2 w-2 ${evalExistingId ? 'bg-emerald-500' : 'bg-red-500'}`}></span></span></span></button>
           )}
-          <button onClick={() => setActiveTab('history')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'history' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-slate-400 hover:bg-slate-100'}`}><ListFilter size={16} /> Auditoria</button>
+          <button onClick={() => setActiveTab('history')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 border-b-2 transition-all ${activeTab === 'history' ? 'border-blue-600 text-blue-600 bg-white' : 'border-transparent text-slate-400 hover:bg-slate-100'}`}><ListFilter size={16} /> <span className={`${activeTab === 'history' ? 'inline' : 'hidden'} sm:inline`}>Auditoria</span></button>
         </div>
         
         {activeTab === 'attendance' ? (
@@ -950,7 +950,7 @@ const ProviderDetails: React.FC<Props> = ({ provider, attendance, onBack, onUpda
                   </div>
                   <button
                     onClick={() => setEvalForm({ ...evalForm, hadAbsences: !evalForm.hadAbsences })}
-                    className={`relative w-14 h-8 rounded-full transition-all duration-300 ${evalForm.hadAbsences ? 'bg-red-500' : 'bg-slate-200'}`}
+                    className={`shrink-0 min-w-[56px] relative w-14 h-8 rounded-full transition-all duration-300 ${evalForm.hadAbsences ? 'bg-red-500' : 'bg-slate-200'}`}
                   >
                     <span className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${evalForm.hadAbsences ? 'left-7' : 'left-1'}`} />
                   </button>
@@ -969,7 +969,7 @@ const ProviderDetails: React.FC<Props> = ({ provider, attendance, onBack, onUpda
                   </div>
                   <button
                     onClick={() => setEvalForm({ ...evalForm, goodBehavior: !evalForm.goodBehavior })}
-                    className={`relative w-14 h-8 rounded-full transition-all duration-300 ${evalForm.goodBehavior ? 'bg-emerald-500' : 'bg-red-500'}`}
+                    className={`shrink-0 min-w-[56px] relative w-14 h-8 rounded-full transition-all duration-300 ${evalForm.goodBehavior ? 'bg-emerald-500' : 'bg-red-500'}`}
                   >
                     <span className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${evalForm.goodBehavior ? 'left-7' : 'left-1'}`} />
                   </button>
@@ -988,7 +988,7 @@ const ProviderDetails: React.FC<Props> = ({ provider, attendance, onBack, onUpda
                   </div>
                   <button
                     onClick={() => setEvalForm({ ...evalForm, disciplinaryIssues: !evalForm.disciplinaryIssues })}
-                    className={`relative w-14 h-8 rounded-full transition-all duration-300 ${evalForm.disciplinaryIssues ? 'bg-red-500' : 'bg-slate-200'}`}
+                    className={`shrink-0 min-w-[56px] relative w-14 h-8 rounded-full transition-all duration-300 ${evalForm.disciplinaryIssues ? 'bg-red-500' : 'bg-slate-200'}`}
                   >
                     <span className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${evalForm.disciplinaryIssues ? 'left-7' : 'left-1'}`} />
                   </button>
@@ -1007,7 +1007,7 @@ const ProviderDetails: React.FC<Props> = ({ provider, attendance, onBack, onUpda
                   </div>
                   <button
                     onClick={() => setEvalForm({ ...evalForm, satisfactoryService: !evalForm.satisfactoryService })}
-                    className={`relative w-14 h-8 rounded-full transition-all duration-300 ${evalForm.satisfactoryService ? 'bg-emerald-500' : 'bg-red-500'}`}
+                    className={`shrink-0 min-w-[56px] relative w-14 h-8 rounded-full transition-all duration-300 ${evalForm.satisfactoryService ? 'bg-emerald-500' : 'bg-red-500'}`}
                   >
                     <span className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${evalForm.satisfactoryService ? 'left-7' : 'left-1'}`} />
                   </button>
