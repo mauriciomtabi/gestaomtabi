@@ -129,7 +129,7 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
           backgroundColor: '#ffffff' // Força background do canvas
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        pagebreak: { mode: ['css', 'legacy'] }
       };
 
       await html2pdf().set(opt).from(element).save();
