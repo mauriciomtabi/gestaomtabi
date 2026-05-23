@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { ServiceSwap, Operator } from '../types';
-import { getServiceSwaps, createServiceSwap, evaluateServiceSwap, getAllProfiles, cancelServiceSwap, acceptServiceSwap, rejectServiceSwap } from '../services/supabaseService';
+import { getServiceSwaps, createServiceSwap, evaluateServiceSwap, getAllProfiles, cancelServiceSwap, acceptServiceSwap, rejectServiceSwap, updateServiceSwapPayment } from '../services/supabaseService';
 import ServiceSwapReport from './ServiceSwapReport';
 import {
   Calendar,
@@ -114,7 +114,28 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
     data: '',
     horarioInicio: '08:00',
     horarioFim: '08:00',
+    dataPagamento: '',
+    horarioInicioPagamento: '08:00',
+    horarioFimPagamento: '08:00',
   });
+
+  const [informarPagamentoAgora, setInformarPagamentoAgora] = useState(false);
+
+  const [paymentModal, setPaymentModal] = useState<{
+    isOpen: boolean;
+    swap: ServiceSwap | null;
+    dataPagamento: string;
+    horarioInicioPagamento: string;
+    horarioFimPagamento: string;
+  }>({
+    isOpen: false,
+    swap: null,
+    dataPagamento: '',
+    horarioInicioPagamento: '08:00',
+    horarioFimPagamento: '08:00',
+  });
+
+  const [savingPayment, setSavingPayment] = useState(false);
 
   const [substituteSearch, setSubstituteSearch] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -238,6 +259,12 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
     if (!formData.substitutoId) { setNotification('Selecione o substituto.', 'error'); return; }
     if (!formData.data) { setNotification('Preencha a data da troca.', 'error'); return; }
 
+    if (informarPagamentoAgora) {
+      if (!formData.dataPagamento) { setNotification('Preencha a data da devolução.', 'error'); return; }
+      if (!formData.horarioInicioPagamento) { setNotification('Preencha o horário de início da devolução.', 'error'); return; }
+      if (!formData.horarioFimPagamento) { setNotification('Preencha o horário de fim da devolução.', 'error'); return; }
+    }
+
     setSaving(true);
     try {
       const result = await createServiceSwap({
@@ -248,12 +275,25 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
         horarioInicio: formData.horarioInicio,
         horarioFim:    formData.horarioFim,
         status:        'aguardando_substituto',
+        dataPagamento: informarPagamentoAgora ? formData.dataPagamento : null,
+        horarioInicioPagamento: informarPagamentoAgora ? formData.horarioInicioPagamento : null,
+        horarioFimPagamento: informarPagamentoAgora ? formData.horarioFimPagamento : null,
       } as Partial<ServiceSwap>);
 
       if (result) {
         setNotification('Solicitação enviada para aceite do substituto!', 'success');
         setIsModalOpen(false);
-        setFormData({ substitutoId: '', funcao: 'Linha', data: '', horarioInicio: '08:00', horarioFim: '08:00' });
+        setFormData({
+          substitutoId: '',
+          funcao: 'Linha',
+          data: '',
+          horarioInicio: '08:00',
+          horarioFim: '08:00',
+          dataPagamento: '',
+          horarioInicioPagamento: '08:00',
+          horarioFimPagamento: '08:00',
+        });
+        setInformarPagamentoAgora(false);
         setSubstituteSearch('');
         await loadData();
       } else throw new Error('Erro no retorno da criação.');
@@ -345,6 +385,48 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
       } else throw new Error('Erro ao recusar a troca.');
     } catch (err: any) {
       setNotification(err.message || 'Erro ao recusar a solicitação.', 'error');
+    }
+  };
+
+  const handleUpdatePayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paymentModal.swap) return;
+    if (!paymentModal.dataPagamento) {
+      setNotification('Preencha a data da devolução.', 'error');
+      return;
+    }
+    if (!paymentModal.horarioInicioPagamento) {
+      setNotification('Preencha o horário de início.', 'error');
+      return;
+    }
+    if (!paymentModal.horarioFimPagamento) {
+      setNotification('Preencha o horário de fim.', 'error');
+      return;
+    }
+
+    setSavingPayment(true);
+    try {
+      const result = await updateServiceSwapPayment(
+        paymentModal.swap.id,
+        paymentModal.dataPagamento,
+        paymentModal.horarioInicioPagamento,
+        paymentModal.horarioFimPagamento
+      );
+      if (result) {
+        setNotification('Dados de devolução de plantão atualizados com sucesso!', 'success');
+        setPaymentModal({
+          isOpen: false,
+          swap: null,
+          dataPagamento: '',
+          horarioInicioPagamento: '08:00',
+          horarioFimPagamento: '08:00'
+        });
+        await loadData();
+      } else throw new Error('Erro ao salvar as informações de devolução.');
+    } catch (err: any) {
+      setNotification(err.message || 'Erro ao salvar a devolução de plantão.', 'error');
+    } finally {
+      setSavingPayment(false);
     }
   };
 
@@ -555,6 +637,7 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data / Horário</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Escalado</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Substituto</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Devolução</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Avaliação</th>
                   {(currentUser.isAdmin || filteredSwaps.some(s => s.escaladoId === currentUser.id || s.substitutoId === currentUser.id)) && (
                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
@@ -598,6 +681,39 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                         <span className={`text-xs font-bold ${isSubstituto ? 'text-blue-600' : 'text-slate-700'}`}>
                           {swap.substitutoName}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {swap.dataPagamento ? (
+                          <div className="text-xs font-bold text-slate-700 flex flex-col gap-0.5">
+                            <span className="text-emerald-700 bg-emerald-50 border border-emerald-250 px-2 py-0.5 rounded-lg inline-flex items-center gap-1 w-max text-[10px] font-black uppercase">
+                              <Calendar size={10} />
+                              {new Date(swap.dataPagamento + 'T00:00:00').toLocaleDateString('pt-BR')}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-bold ml-1">
+                              {swap.horarioInicioPagamento}h → {swap.horarioFimPagamento}h
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-amber-600 bg-amber-50 border border-amber-250 px-2 py-0.5 rounded-lg">
+                            <Clock size={10} />
+                            A Definir
+                          </span>
+                        )}
+                        
+                        {(swap.escaladoId === currentUser.id || currentUser.isAdmin) && (
+                          <button
+                            onClick={() => setPaymentModal({
+                              isOpen: true,
+                              swap,
+                              dataPagamento: swap.dataPagamento || '',
+                              horarioInicioPagamento: swap.horarioInicioPagamento || '08:00',
+                              horarioFimPagamento: swap.horarioFimPagamento || '08:00'
+                            })}
+                            className="mt-1.5 text-[9px] text-blue-600 hover:text-blue-800 font-black uppercase flex items-center gap-1 active:scale-95 transition-all ml-1"
+                          >
+                            {swap.dataPagamento ? 'Alterar' : 'Informar'}
+                          </button>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         {swap.status === 'recusado_substituto' ? (
@@ -726,6 +842,34 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Substituto</p>
                       <p className={`font-bold truncate ${isSubstituto ? 'text-blue-600' : 'text-slate-800'}`}>{swap.substitutoName}</p>
                     </div>
+                  </div>
+
+                  {/* Bloco de Devolução no Mobile */}
+                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Devolução / Pagamento</p>
+                      {swap.dataPagamento ? (
+                        <p className="font-bold text-slate-800 text-xs">
+                          {new Date(swap.dataPagamento + 'T00:00:00').toLocaleDateString('pt-BR')} · {swap.horarioInicioPagamento}h→{swap.horarioFimPagamento}h
+                        </p>
+                      ) : (
+                        <p className="font-bold text-amber-600 text-xs uppercase">A definir</p>
+                      )}
+                    </div>
+                    {(swap.escaladoId === currentUser.id || currentUser.isAdmin) && (
+                      <button
+                        onClick={() => setPaymentModal({
+                          isOpen: true,
+                          swap,
+                          dataPagamento: swap.dataPagamento || '',
+                          horarioInicioPagamento: swap.horarioInicioPagamento || '08:00',
+                          horarioFimPagamento: swap.horarioFimPagamento || '08:00'
+                        })}
+                        className="py-1.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1 shrink-0"
+                      >
+                        {swap.dataPagamento ? 'Alterar' : 'Informar'}
+                      </button>
+                    )}
                   </div>
 
                   {(swap.aprovadorName || swap.observacao || swap.status === 'recusado_substituto') && (
@@ -968,6 +1112,68 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                     </div>
                   ))}
                 </div>
+
+                {/* Checkbox Devolução */}
+                <div className="pt-2 border-t border-slate-100">
+                  <label className="flex items-center gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={informarPagamentoAgora}
+                      onChange={e => setInformarPagamentoAgora(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                    />
+                    <span className="text-xs font-black uppercase text-slate-600 tracking-wider">Informar devolução de serviço agora</span>
+                  </label>
+                </div>
+
+                {/* Campos de Devolução Condicionais */}
+                {informarPagamentoAgora && (
+                  <div className="space-y-5 border-t border-slate-100 pt-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Data da Devolução *</label>
+                      <div className="relative">
+                        <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15} />
+                        <input
+                          type="date"
+                          required={informarPagamentoAgora}
+                          value={formData.dataPagamento}
+                          onChange={e => setFormData({ ...formData, dataPagamento: e.target.value })}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none font-bold text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Horário de Início (Devolução) *</label>
+                        <div className="relative">
+                          <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15} />
+                          <input
+                            type="time"
+                            required={informarPagamentoAgora}
+                            value={formData.horarioInicioPagamento}
+                            onChange={e => setFormData({ ...formData, horarioInicioPagamento: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none font-bold text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Horário de Fim (Devolução) *</label>
+                        <div className="relative">
+                          <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15} />
+                          <input
+                            type="time"
+                            required={informarPagamentoAgora}
+                            value={formData.horarioFimPagamento}
+                            onChange={e => setFormData({ ...formData, horarioFimPagamento: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none font-bold text-sm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Modal Footer */}
@@ -1188,6 +1394,120 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                 <button onClick={confirmAccept} className="flex-1 py-4 bg-emerald-600 text-white font-black uppercase text-[10px] tracking-widest rounded-2xl shadow-xl shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95">Confirmar Aceite</button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════
+          MODAL — Definir/Editar Devolução
+      ════════════════════════════════════════ */}
+      {paymentModal.isOpen && paymentModal.swap && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1100] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden border border-slate-100 shadow-2xl flex flex-col animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-600 p-2.5 rounded-xl shadow-md shadow-blue-600/20 text-white">
+                  <Calendar size={18} />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 text-base uppercase">Informar Devolução</h3>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mt-0.5">Pagamento de Horas para o Substituto</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPaymentModal({ isOpen: false, swap: null, dataPagamento: '', horarioInicioPagamento: '08:00', horarioFimPagamento: '08:00' })}
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleUpdatePayment} className="space-y-5 p-6">
+              {/* Resumo da Troca original */}
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2 text-xs">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-200 pb-1.5 mb-1.5">Troca Original</p>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Escalado:</span>
+                  <span className="font-bold text-slate-800">{paymentModal.swap.escaladoName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Substituto:</span>
+                  <span className="font-bold text-slate-800">{paymentModal.swap.substitutoName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Função/Plantão:</span>
+                  <span className="font-bold text-slate-800">
+                    {paymentModal.swap.funcao} em {new Date(paymentModal.swap.data + 'T00:00:00').toLocaleDateString('pt-BR')} ({paymentModal.swap.horarioInicio}h → {paymentModal.swap.horarioFim}h)
+                  </span>
+                </div>
+              </div>
+
+              {/* Data da Devolução */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Data da Devolução *</label>
+                <div className="relative">
+                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15} />
+                  <input
+                    type="date"
+                    required
+                    value={paymentModal.dataPagamento}
+                    onChange={e => setPaymentModal({ ...paymentModal, dataPagamento: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none font-bold text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Horários */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Horário de Início *</label>
+                  <div className="relative">
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15} />
+                    <input
+                      type="time"
+                      required
+                      value={paymentModal.horarioInicioPagamento}
+                      onChange={e => setPaymentModal({ ...paymentModal, horarioInicioPagamento: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none font-bold text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Horário de Fim *</label>
+                  <div className="relative">
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15} />
+                    <input
+                      type="time"
+                      required
+                      value={paymentModal.horarioFimPagamento}
+                      onChange={e => setPaymentModal({ ...paymentModal, horarioFimPagamento: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none font-bold text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setPaymentModal({ isOpen: false, swap: null, dataPagamento: '', horarioInicioPagamento: '08:00', horarioFimPagamento: '08:00' })}
+                  className="px-5 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingPayment}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md shadow-blue-200 active:scale-95 flex items-center gap-2 disabled:opacity-60"
+                >
+                  {savingPayment ? <><Loader2 className="animate-spin" size={15} /> Salvando...</> : 'Salvar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

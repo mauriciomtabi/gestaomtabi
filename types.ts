@@ -128,6 +128,9 @@ export interface ServiceSwap {
   aprovadorId?: string;
   observacao?: string;
   dataAprovacao?: string;
+  dataPagamento?: string; // YYYY-MM-DD
+  horarioInicioPagamento?: string; // HH:mm
+  horarioFimPagamento?: string; // HH:mm
   createdAt: string;
   escaladoName?: string;
   substitutoName?: string;

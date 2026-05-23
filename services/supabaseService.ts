@@ -830,6 +830,9 @@ const mapServiceSwapFromDB = (s: any): ServiceSwap => ({
   aprovadorId: s.aprovador_id || undefined,
   observacao: s.observacao || undefined,
   dataAprovacao: s.data_aprovacao || undefined,
+  dataPagamento: s.data_pagamento || undefined,
+  horarioInicioPagamento: s.horario_inicio_pagamento ? s.horario_inicio_pagamento.substring(0, 5) : undefined,
+  horarioFimPagamento: s.horario_fim_pagamento ? s.horario_fim_pagamento.substring(0, 5) : undefined,
   createdAt: s.created_at
 });
 
@@ -845,8 +848,12 @@ const mapServiceSwapToDB = (s: Partial<ServiceSwap>) => {
   if (s.aprovadorId !== undefined) dbData.aprovador_id = s.aprovadorId;
   if (s.observacao !== undefined) dbData.observacao = s.observacao;
   if (s.dataAprovacao !== undefined) dbData.data_aprovacao = s.dataAprovacao;
+  if (s.dataPagamento !== undefined) dbData.data_pagamento = s.dataPagamento || null;
+  if (s.horarioInicioPagamento !== undefined) dbData.horario_inicio_pagamento = s.horarioInicioPagamento || null;
+  if (s.horarioFimPagamento !== undefined) dbData.horario_fim_pagamento = s.horarioFimPagamento || null;
   return dbData;
 };
+
 
 export const getServiceSwaps = async (): Promise<ServiceSwap[]> => {
   try {
@@ -987,4 +994,31 @@ export const deleteUserProfile = async (userId: string): Promise<void> => {
     throw err;
   }
 };
+
+export const updateServiceSwapPayment = async (
+  swapId: string,
+  dataPagamento: string | null,
+  horarioInicioPagamento: string | null,
+  horarioFimPagamento: string | null
+): Promise<ServiceSwap | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('service_swaps')
+      .update({
+        data_pagamento: dataPagamento,
+        horario_inicio_pagamento: horarioInicioPagamento,
+        horario_fim_pagamento: horarioFimPagamento
+      })
+      .eq('id', swapId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data ? mapServiceSwapFromDB(data) : null;
+  } catch (err) {
+    console.error("Erro ao atualizar pagamento da troca:", err);
+    throw err;
+  }
+};
+
 
