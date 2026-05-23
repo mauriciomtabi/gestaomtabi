@@ -9,6 +9,7 @@ export interface AuditLog {
 }
 
 export interface Operator {
+  id?: string;
   name: string;
   warName: string;
   cpf: string;
@@ -114,3 +115,22 @@ export interface MonthlyEvaluation {
   evaluatedBy: string;
   createdAt: string;
 }
+
+export interface ServiceSwap {
+  id: string;
+  escaladoId: string;
+  substitutoId: string;
+  funcao: 'CG' | 'COV' | 'Linha' | 'COBOM';
+  data: string; // YYYY-MM-DD
+  horarioInicio: string; // HH:mm
+  horarioFim: string; // HH:mm
+  status: 'pendente' | 'aprovado' | 'reprovado';
+  aprovadorId?: string;
+  observacao?: string;
+  dataAprovacao?: string;
+  createdAt: string;
+  escaladoName?: string;
+  substitutoName?: string;
+  aprovadorName?: string;
+}
+

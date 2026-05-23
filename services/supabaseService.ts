@@ -1,7 +1,7 @@
 
 
 import { createClient } from '@supabase/supabase-js';
-import { Provider, AttendanceRecord, AuditLog, FuelSupply, Vehicle, StationNickname, MonthlyEvaluation } from '../types';
+import { Provider, AttendanceRecord, AuditLog, FuelSupply, Vehicle, StationNickname, MonthlyEvaluation, ServiceSwap } from '../types';
 import type { GeoPerimeter } from './geoService';
 
 const SUPABASE_URL = 'https://gsdweukrawfmgqprngyl.supabase.co';
@@ -814,5 +814,98 @@ export const getAllMonthlyEvaluationsForMonth = async (year: number, month: numb
   } catch (err) {
     console.error("Erro ao buscar avaliações do mês:", err);
     return [];
+  }
+};
+
+// --- Funções de Troca de Serviço ---
+const mapServiceSwapFromDB = (s: any): ServiceSwap => ({
+  id: s.id,
+  escaladoId: s.escalado_id,
+  substitutoId: s.substituto_id,
+  funcao: s.funcao,
+  data: s.data,
+  horarioInicio: s.horario_inicio ? s.horario_inicio.substring(0, 5) : '', // HH:mm
+  horarioFim: s.horario_fim ? s.horario_fim.substring(0, 5) : '', // HH:mm
+  status: s.status,
+  aprovadorId: s.aprovador_id || undefined,
+  observacao: s.observacao || undefined,
+  dataAprovacao: s.data_aprovacao || undefined,
+  createdAt: s.created_at
+});
+
+const mapServiceSwapToDB = (s: Partial<ServiceSwap>) => {
+  const dbData: any = {};
+  if (s.escaladoId !== undefined) dbData.escalado_id = s.escaladoId;
+  if (s.substitutoId !== undefined) dbData.substituto_id = s.substitutoId;
+  if (s.funcao !== undefined) dbData.funcao = s.funcao;
+  if (s.data !== undefined) dbData.data = s.data;
+  if (s.horarioInicio !== undefined) dbData.horario_inicio = s.horarioInicio;
+  if (s.horarioFim !== undefined) dbData.horario_fim = s.horarioFim;
+  if (s.status !== undefined) dbData.status = s.status;
+  if (s.aprovadorId !== undefined) dbData.aprovador_id = s.aprovadorId;
+  if (s.observacao !== undefined) dbData.observacao = s.observacao;
+  if (s.dataAprovacao !== undefined) dbData.data_aprovacao = s.dataAprovacao;
+  return dbData;
+};
+
+export const getServiceSwaps = async (): Promise<ServiceSwap[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('service_swaps')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      if (error.code === 'PGRST205') return [];
+      throw error;
+    }
+    return (data || []).map(mapServiceSwapFromDB);
+  } catch (err) {
+    console.error("Erro ao buscar trocas de serviço:", err);
+    return [];
+  }
+};
+
+export const createServiceSwap = async (swap: Partial<ServiceSwap>): Promise<ServiceSwap | null> => {
+  try {
+    const dbData = mapServiceSwapToDB(swap);
+    const { data, error } = await supabase
+      .from('service_swaps')
+      .insert([dbData])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data ? mapServiceSwapFromDB(data) : null;
+  } catch (err) {
+    console.error("Erro ao criar troca de serviço:", err);
+    throw err;
+  }
+};
+
+export const evaluateServiceSwap = async (
+  swapId: string,
+  status: 'aprovado' | 'reprovado',
+  approverId: string,
+  observation?: string
+): Promise<ServiceSwap | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('service_swaps')
+      .update({
+        status,
+        aprovador_id: approverId,
+        observacao: observation || null,
+        data_aprovacao: new Date().toISOString()
+      })
+      .eq('id', swapId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data ? mapServiceSwapFromDB(data) : null;
+  } catch (err) {
+    console.error("Erro ao avaliar troca de serviço:", err);
+    throw err;
   }
 };

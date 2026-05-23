@@ -103,13 +103,14 @@ const Login: React.FC<Props> = ({ onLogin }) => {
       const isMaster = userEmail === 'mtabi.adm@gmail.com';
 
       const loggedInUser = {
+        id: data.user.id,
         name: profile?.name || meta?.name || data.user.email?.split('@')[0] || 'Operador',
         warName: profile?.war_name || meta?.war_name || 'MILITAR',
         cpf: profile?.cpf || meta?.cpf || '000.000.000-00',
         email: userEmail,
         rank: profile?.rank || meta?.rank || 'Operador',
         profilePhoto: profile?.profile_photo,
-        allowedScreens: isMaster ? ['dashboard', 'providers', 'face-checkin', 'fuel', 'reports', 'settings'] : (profile?.allowed_screens || ['dashboard', 'fuel', 'face-checkin']),
+        allowedScreens: isMaster ? ['dashboard', 'providers', 'face-checkin', 'fuel', 'reports', 'settings', 'swaps'] : (profile?.allowed_screens || ['dashboard', 'fuel', 'face-checkin', 'swaps']),
         isAdmin: isMaster ? true : (profile?.is_admin || false)
       };
 
@@ -182,7 +183,7 @@ const Login: React.FC<Props> = ({ onLogin }) => {
 
       if (data.user) {
         // Fetch default screens for new users
-        let defaultScreens = ['dashboard', 'fuel', 'face-checkin'];
+        let defaultScreens = ['dashboard', 'fuel', 'face-checkin', 'swaps'];
         try {
           const configScreens = await getSystemConfig('default_screens');
           if (configScreens && Array.isArray(configScreens)) {

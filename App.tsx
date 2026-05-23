@@ -13,7 +13,8 @@ import FuelSupplyManager from './components/FuelSupplyManager';
 import FaceCheckIn from './components/FaceCheckIn';
 import Settings from './components/Settings';
 import HelpCenter from './components/HelpCenter';
-import { Users, LayoutDashboard, FileText, Loader2, ShieldCheck, ShieldAlert, Cpu, Database, Network, Sparkles, LogOut, UserCircle, CheckCircle2, X, Smartphone, Fuel, ScanFace, Settings as SettingsIcon, HelpCircle } from 'lucide-react';
+import ServiceSwapManager from './components/ServiceSwapManager';
+import { Users, LayoutDashboard, FileText, Loader2, ShieldCheck, ShieldAlert, Cpu, Database, Network, Sparkles, LogOut, UserCircle, CheckCircle2, X, Smartphone, Fuel, ScanFace, Settings as SettingsIcon, HelpCircle, RefreshCw } from 'lucide-react';
 import { getProviders, getAttendance, createProvider, updateProvider, saveAttendance, deleteAttendance, saveAuditLog, supabase, getFuelSupplies, getVehicles, getStationNicknames } from './services/supabaseService';
 
 const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => {
@@ -34,7 +35,7 @@ const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () 
 };
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'dashboard' | 'providers' | 'details' | 'reports' | 'settings' | 'fuel' | 'face-checkin' | 'help'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'providers' | 'details' | 'reports' | 'settings' | 'fuel' | 'face-checkin' | 'help' | 'swaps'>('dashboard');
   const [dashboardTab, setDashboardTab] = useState<'geral' | 'prestadores' | 'abastecimento'>('geral');
   
   const navigateToDashboard = (tab: 'geral' | 'prestadores' | 'abastecimento') => {
@@ -159,13 +160,14 @@ const App: React.FC = () => {
       const meta = session.user.user_metadata;
       
       const operator: Operator = {
+        id: session.user.id,
         name: profile?.name || meta?.name || "Operador",
         warName: profile?.war_name || meta?.war_name || "MILITAR",
         cpf: profile?.cpf || meta?.cpf || "000.000.000-00",
         email: profile?.email || session.user.email || "",
         rank: profile?.rank || meta?.rank || "Soldado",
         profilePhoto: profile?.profile_photo,
-        allowedScreens: profile?.allowed_screens || ['dashboard', 'fuel', 'face-checkin'],
+        allowedScreens: profile?.allowed_screens || ['dashboard', 'fuel', 'face-checkin', 'swaps'],
         isAdmin: profile?.is_admin || false
       };
 
@@ -179,7 +181,7 @@ const App: React.FC = () => {
 
       if (operator.email === 'mtabi.adm@gmail.com') {
         operator.isAdmin = true;
-        operator.allowedScreens = ['dashboard', 'providers', 'face-checkin', 'fuel', 'reports', 'settings'];
+        operator.allowedScreens = ['dashboard', 'providers', 'face-checkin', 'fuel', 'reports', 'settings', 'swaps'];
       }
 
       setCurrentUser(operator);
@@ -457,6 +459,9 @@ const App: React.FC = () => {
           {currentUser.allowedScreens?.includes('fuel') && (
             <NavItem icon={Fuel} label="Abastecimento" target="fuel" active={view === 'fuel'} />
           )}
+          {currentUser.allowedScreens?.includes('swaps') && (
+            <NavItem icon={RefreshCw} label="Troca de Serviço" target="swaps" active={view === 'swaps'} />
+          )}
           {currentUser.allowedScreens?.includes('settings') && (
             <NavItem icon={SettingsIcon} label="Configurações" target="settings" active={view === 'settings'} />
           )}
@@ -566,6 +571,12 @@ const App: React.FC = () => {
             currentUser={currentUser} 
             onUpdateProfile={handleUpdateProfile} 
             onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
+            setNotification={(msg: string, type: 'success' | 'error') => setNotification({ message: msg, type })}
+          />
+        )}
+        {view === 'swaps' && currentUser && (
+          <ServiceSwapManager 
+            currentUser={currentUser}
             setNotification={(msg: string, type: 'success' | 'error') => setNotification({ message: msg, type })}
           />
         )}

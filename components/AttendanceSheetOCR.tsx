@@ -240,7 +240,7 @@ const AttendanceSheetOCR: React.FC<Props> = ({ providerId, providerName, existin
               {step === 'upload' ? 'Digitalizar Folha' : 'Conferência de Dados'}
             </h3>
           </div>
-          <button onClick={() => { stopWebcam(); onCancel(); }} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-full">
+          <button onClick={() => { onCancel(); }} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-full">
             <X size={20} />
           </button>
         </div>
