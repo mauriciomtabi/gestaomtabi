@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ServiceSwap, Operator } from '../types';
 import {
   X, Printer, Filter, Calendar, CheckCircle2, XCircle, Clock,
@@ -56,16 +56,34 @@ const ServiceSwapReport: React.FC<Props> = ({ swaps, currentUser, onClose }) => 
   const today = new Date().toISOString().slice(0, 10);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo,   setDateTo]   = useState(today);
-  const [statusFilter, setStatusFilter] = useState('todos');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+  const statusDropdownRef = React.useRef<HTMLDivElement>(null);
 
-  const filtered = useMemo(() => {
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target as Node)) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const dateFiltered = useMemo(() => {
     return swaps.filter(s => {
-      if (statusFilter !== 'todos' && s.status !== statusFilter) return false;
       if (dateFrom && s.data < dateFrom) return false;
       if (dateTo   && s.data > dateTo)   return false;
       return true;
+    });
+  }, [swaps, dateFrom, dateTo]);
+
+  const filtered = useMemo(() => {
+    return dateFiltered.filter(s => {
+      if (statusFilter.length > 0 && !statusFilter.includes(s.status)) return false;
+      return true;
     }).sort((a, b) => b.data.localeCompare(a.data));
-  }, [swaps, statusFilter, dateFrom, dateTo]);
+  }, [dateFiltered, statusFilter]);
 
   const handlePrint = () => window.print();
 
@@ -114,18 +132,69 @@ const ServiceSwapReport: React.FC<Props> = ({ swaps, currentUser, onClose }) => 
                 className="bg-transparent text-xs font-bold text-slate-700 outline-none"
               />
             </div>
-            {/* Status */}
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
-              <Filter size={13} className="text-slate-400 shrink-0" />
-              <select
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
-                className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer"
+            {/* Status Multiselect */}
+            <div className="relative" ref={statusDropdownRef}>
+              <button
+                type="button"
+                onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
               >
-                {ALL_STATUSES.map(s => (
-                  <option key={s.value} value={s.value}>{s.label}</option>
-                ))}
-              </select>
+                <Filter size={13} className="text-slate-400 shrink-0" />
+                <span>
+                  {statusFilter.length === 0
+                    ? 'Todos os Status'
+                    : statusFilter.length === 1
+                    ? STATUS_LABELS[statusFilter[0]]
+                    : `${statusFilter.length} Status Selecionados`}
+                </span>
+                <ChevronRight
+                  size={12}
+                  className={`text-slate-400 transition-transform ${isStatusDropdownOpen ? 'rotate-90' : ''}`}
+                />
+              </button>
+
+              {isStatusDropdownOpen && (
+                <div className="absolute left-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-[6000] p-3 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-1">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtrar Status</span>
+                    {statusFilter.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setStatusFilter([])}
+                        className="text-[9px] font-black text-blue-600 hover:text-blue-800 uppercase tracking-wider"
+                      >
+                        Limpar
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                    {ALL_STATUSES.filter(s => s.value !== 'todos').map(opt => {
+                      const isChecked = statusFilter.includes(opt.value);
+                      return (
+                        <label
+                          key={opt.value}
+                          className="flex items-center gap-2.5 px-2.5 py-2 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors text-xs font-bold text-slate-700"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setStatusFilter(statusFilter.filter(v => v !== opt.value));
+                              } else {
+                                setStatusFilter([...statusFilter, opt.value]);
+                              }
+                            }}
+                            className="w-3.5 h-3.5 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                          />
+                          <span>{opt.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -151,6 +220,7 @@ const ServiceSwapReport: React.FC<Props> = ({ swaps, currentUser, onClose }) => 
           <div className="w-full max-w-6xl">
             <ReportDocument
               filtered={filtered}
+              dateFiltered={dateFiltered}
               statusFilter={statusFilter}
               dateFrom={dateFrom}
               dateTo={dateTo}
@@ -166,6 +236,7 @@ const ServiceSwapReport: React.FC<Props> = ({ swaps, currentUser, onClose }) => 
       <div className="hidden print:block">
         <ReportDocument
           filtered={filtered}
+          dateFiltered={dateFiltered}
           statusFilter={statusFilter}
           dateFrom={dateFrom}
           dateTo={dateTo}
@@ -181,7 +252,8 @@ const ServiceSwapReport: React.FC<Props> = ({ swaps, currentUser, onClose }) => 
 /* ─── Inner document component ─────────────────────── */
 interface DocProps {
   filtered: EnrichedSwap[];
-  statusFilter: string;
+  dateFiltered: EnrichedSwap[];
+  statusFilter: string[];
   dateFrom: string;
   dateTo: string;
   fmtDate: (d: string) => string;
@@ -190,16 +262,16 @@ interface DocProps {
 }
 
 const ReportDocument: React.FC<DocProps> = ({
-  filtered, statusFilter, dateFrom, dateTo, fmtDate, emitDate, currentUser,
+  filtered, dateFiltered, statusFilter, dateFrom, dateTo, fmtDate, emitDate, currentUser,
 }) => {
   const counts = {
-    total:    filtered.length,
-    aprovado: filtered.filter(s => s.status === 'aprovado').length,
-    pendente: filtered.filter(s => s.status === 'pendente').length,
-    reprovado: filtered.filter(s => s.status === 'reprovado').length,
-    aguardando: filtered.filter(s => s.status === 'aguardando_substituto').length,
-    recusado: filtered.filter(s => s.status === 'recusado_substituto').length,
-    cancelado: filtered.filter(s => s.status === 'cancelado').length,
+    total:    dateFiltered.length,
+    aprovado: dateFiltered.filter(s => s.status === 'aprovado').length,
+    pendente: dateFiltered.filter(s => s.status === 'pendente').length,
+    reprovado: dateFiltered.filter(s => s.status === 'reprovado').length,
+    aguardando: dateFiltered.filter(s => s.status === 'aguardando_substituto').length,
+    recusado: dateFiltered.filter(s => s.status === 'recusado_substituto').length,
+    cancelado: dateFiltered.filter(s => s.status === 'cancelado').length,
   };
 
   return (
@@ -227,9 +299,13 @@ const ReportDocument: React.FC<DocProps> = ({
             </div>
             {/* Filter summary */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-              {statusFilter !== 'todos' && (
+              {statusFilter.length > 0 ? (
                 <span style={{ background: 'rgba(255,255,255,0.15)', color: 'white', borderRadius: 8, padding: '3px 10px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>
-                  Status: {STATUS_LABELS[statusFilter]}
+                  Status: {statusFilter.map(s => STATUS_LABELS[s] || s).join(', ')}
+                </span>
+              ) : (
+                <span style={{ background: 'rgba(255,255,255,0.15)', color: 'white', borderRadius: 8, padding: '3px 10px', fontSize: 10, fontWeight: 700 }}>
+                  Todos os Status
                 </span>
               )}
               {dateFrom && (
@@ -242,7 +318,7 @@ const ReportDocument: React.FC<DocProps> = ({
                   Até: {fmtDate(dateTo)}
                 </span>
               )}
-              {statusFilter === 'todos' && !dateFrom && (
+              {statusFilter.length === 0 && !dateFrom && (
                 <span style={{ background: 'rgba(255,255,255,0.15)', color: 'white', borderRadius: 8, padding: '3px 10px', fontSize: 10, fontWeight: 700 }}>
                   Todos os registros
                 </span>
