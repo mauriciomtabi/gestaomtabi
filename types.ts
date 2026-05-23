@@ -124,7 +124,7 @@ export interface ServiceSwap {
   data: string; // YYYY-MM-DD
   horarioInicio: string; // HH:mm
   horarioFim: string; // HH:mm
-  status: 'pendente' | 'aprovado' | 'reprovado';
+  status: 'pendente' | 'aprovado' | 'reprovado' | 'cancelado';
   aprovadorId?: string;
   observacao?: string;
   dataAprovacao?: string;

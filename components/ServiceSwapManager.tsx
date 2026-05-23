@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { ServiceSwap, Operator } from '../types';
-import { getServiceSwaps, createServiceSwap, evaluateServiceSwap, getAllProfiles } from '../services/supabaseService';
+import { getServiceSwaps, createServiceSwap, evaluateServiceSwap, getAllProfiles, cancelServiceSwap } from '../services/supabaseService';
 import {
   Calendar,
   Clock,
@@ -36,6 +36,7 @@ const STATUS_LABELS: Record<string, string> = {
   pendente: 'Pendente',
   aprovado: 'Aprovado',
   reprovado: 'Reprovado',
+  cancelado: 'Cancelado',
 };
 
 const funcaoBadgeClass = (funcao: string) => {
@@ -53,6 +54,7 @@ const statusBadgeClass = (status: string) => {
     case 'pendente':  return 'bg-amber-50 text-amber-700 border border-amber-200';
     case 'aprovado':  return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
     case 'reprovado': return 'bg-red-50 text-red-700 border border-red-200';
+    case 'cancelado': return 'bg-slate-100 text-slate-500 border border-slate-200';
     default:          return 'bg-slate-50 text-slate-600';
   }
 };
@@ -199,6 +201,19 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
     }
   };
 
+  const handleCancel = async (swapId: string) => {
+    if (!window.confirm('Tem certeza que deseja cancelar esta solicitação de troca?')) return;
+    try {
+      const result = await cancelServiceSwap(swapId);
+      if (result) {
+        setNotification('Solicitação de troca cancelada com sucesso!', 'success');
+        await loadData();
+      } else throw new Error('Erro ao cancelar a troca.');
+    } catch (err: any) {
+      setNotification(err.message || 'Erro ao cancelar a solicitação.', 'error');
+    }
+  };
+
   /* ─────────────── RENDER ─────────────── */
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20 md:pb-0">
@@ -338,7 +353,7 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Escalado</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Substituto</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Avaliação</th>
-                  {currentUser.isAdmin && (
+                  {(currentUser.isAdmin || filteredSwaps.some(s => s.escaladoId === currentUser.id && s.status === 'pendente')) && (
                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
                   )}
                 </tr>
@@ -395,22 +410,34 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                           <span className="text-[10px] text-slate-300 font-bold italic">—</span>
                         )}
                       </td>
-                      {currentUser.isAdmin && (
+                      {(currentUser.isAdmin || filteredSwaps.some(s => s.escaladoId === currentUser.id && s.status === 'pendente')) && (
                         <td className="px-6 py-4">
                           {swap.status === 'pendente' && (
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => setEvaluationModal({ isOpen: true, swap, action: 'aprovado', observation: '' })}
-                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1"
-                              >
-                                <Check size={12} /> Aprovar
-                              </button>
-                              <button
-                                onClick={() => setEvaluationModal({ isOpen: true, swap, action: 'reprovado', observation: '' })}
-                                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1"
-                              >
-                                <X size={12} /> Reprovar
-                              </button>
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                              {currentUser.isAdmin && (
+                                <>
+                                  <button
+                                    onClick={() => setEvaluationModal({ isOpen: true, swap, action: 'aprovado', observation: '' })}
+                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1"
+                                  >
+                                    <Check size={12} /> Aprovar
+                                  </button>
+                                  <button
+                                    onClick={() => setEvaluationModal({ isOpen: true, swap, action: 'reprovado', observation: '' })}
+                                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1"
+                                  >
+                                    <X size={12} /> Reprovar
+                                  </button>
+                                </>
+                              )}
+                              {swap.escaladoId === currentUser.id && (
+                                <button
+                                  onClick={() => handleCancel(swap.id)}
+                                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1"
+                                >
+                                  <XCircle size={12} /> Cancelar
+                                </button>
+                              )}
                             </div>
                           )}
                         </td>
@@ -470,20 +497,32 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                     </div>
                   )}
 
-                  {currentUser.isAdmin && swap.status === 'pendente' && (
-                    <div className="flex gap-2 pt-1">
-                      <button
-                        onClick={() => setEvaluationModal({ isOpen: true, swap, action: 'aprovado', observation: '' })}
-                        className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                      >
-                        <Check size={13} /> Aprovar
-                      </button>
-                      <button
-                        onClick={() => setEvaluationModal({ isOpen: true, swap, action: 'reprovado', observation: '' })}
-                        className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                      >
-                        <X size={13} /> Reprovar
-                      </button>
+                  {swap.status === 'pendente' && (currentUser.isAdmin || swap.escaladoId === currentUser.id) && (
+                    <div className="flex flex-col gap-2 pt-1">
+                      {currentUser.isAdmin && (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setEvaluationModal({ isOpen: true, swap, action: 'aprovado', observation: '' })}
+                            className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                          >
+                            <Check size={13} /> Aprovar
+                          </button>
+                          <button
+                            onClick={() => setEvaluationModal({ isOpen: true, swap, action: 'reprovado', observation: '' })}
+                            className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                          >
+                            <X size={13} /> Reprovar
+                          </button>
+                        </div>
+                      )}
+                      {swap.escaladoId === currentUser.id && (
+                        <button
+                          onClick={() => handleCancel(swap.id)}
+                          className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                        >
+                          <XCircle size={13} /> Cancelar Solicitação
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

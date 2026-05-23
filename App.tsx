@@ -426,7 +426,7 @@ const App: React.FC = () => {
     <button 
       onClick={onClick || (() => setView(target))}
       title={label}
-      className={`flex flex-col md:flex-row items-center gap-1 md:gap-3 px-3 py-2 md:px-4 md:py-2.5 rounded-xl transition-all w-full text-[10px] md:text-sm font-bold ${active ? 'bg-blue-600 md:bg-blue-800 text-white shadow-lg md:shadow-inner scale-110 md:scale-100' : 'text-blue-200 hover:text-white hover:bg-blue-800/50'}`}
+      className={`flex flex-col md:flex-row items-center justify-center md:justify-start gap-1 md:gap-3 px-2 py-2 md:px-4 md:py-2.5 rounded-xl transition-all flex-1 md:w-full shrink-0 text-[10px] md:text-sm font-bold ${active ? 'bg-blue-600 md:bg-blue-800 text-white shadow-lg md:shadow-inner scale-105 md:scale-100' : 'text-blue-200 hover:text-white hover:bg-blue-800/50'}`}
     >
       <Icon size={20} className="md:w-[18px] md:h-[18px]" />
       <span className="hidden md:inline">{label}</span>
@@ -435,7 +435,7 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen overflow-hidden bg-slate-50 flex flex-col md:flex-row font-sans text-slate-900 animate-in fade-in zoom-in-95 duration-700">
-      <nav className="bg-blue-950 text-white w-full md:w-64 p-2 md:p-4 fixed bottom-0 md:relative z-[100] md:h-full flex md:flex-col items-center md:items-start justify-around md:justify-start gap-1 md:gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] md:shadow-xl shrink-0 overflow-y-auto no-scrollbar">
+      <nav className="bg-blue-950 text-white w-full md:w-64 p-2 md:p-4 fixed bottom-0 md:relative z-[100] md:h-full flex md:flex-col items-center md:items-start justify-around md:justify-start gap-1 md:gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] md:shadow-xl shrink-0 overflow-x-auto md:overflow-y-auto no-scrollbar">
         <div className="hidden md:flex flex-col mb-8 w-full px-2 gap-4">
           <div className="flex items-center gap-4">
             <img src="https://i.postimg.cc/T1nny2hc/Brasao-cbmrs.png" alt="Logo Gestão CBM" className="w-14 h-14 object-contain" />
@@ -446,7 +446,7 @@ const App: React.FC = () => {
           </div>
         </div>
         
-        <div className="flex md:flex-col gap-1 md:gap-2 w-full max-sm md:max-w-none">
+        <div className="flex md:flex-col gap-1 md:gap-2 w-full md:max-w-none">
           {currentUser.allowedScreens?.includes('dashboard') && (
             <NavItem icon={LayoutDashboard} label="Painel" target="dashboard" active={view === 'dashboard'} onClick={() => navigateToDashboard('geral')} />
           )}

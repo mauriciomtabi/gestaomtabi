@@ -909,3 +909,23 @@ export const evaluateServiceSwap = async (
     throw err;
   }
 };
+
+export const cancelServiceSwap = async (swapId: string): Promise<ServiceSwap | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('service_swaps')
+      .update({
+        status: 'cancelado'
+      })
+      .eq('id', swapId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data ? mapServiceSwapFromDB(data) : null;
+  } catch (err) {
+    console.error("Erro ao cancelar troca de serviço:", err);
+    throw err;
+  }
+};
+
