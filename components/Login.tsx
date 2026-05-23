@@ -155,6 +155,13 @@ const Login: React.FC<Props> = ({ onLogin }) => {
     
     if (!signupData.name || !signupData.warName || !signupData.email || !finalRank || signupData.password.length < 6 || !passwordsMatch) return;
 
+    const hasLetters = /[a-zA-Z]/.test(signupData.password);
+    const hasNumbers = /[0-9]/.test(signupData.password);
+    if (!hasLetters || !hasNumbers) {
+      setAuthError("A senha precisa conter letras e números.");
+      return;
+    }
+
     if (!signupData.email.endsWith('@cbm.rs.gov.br') && signupData.email !== 'mtabi.adm@gmail.com') {
       setAuthError("Acesso negado: O cadastro é restrito para e-mails institucionais (@cbm.rs.gov.br).");
       return;
@@ -470,6 +477,11 @@ const Login: React.FC<Props> = ({ onLogin }) => {
                       </button>
                     </div>
                   </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 ml-1 text-slate-500">
+                  <AlertCircle size={10} className="shrink-0 text-blue-400" />
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">A senha precisa conter letras e números.</span>
                 </div>
 
                 <button 
