@@ -325,7 +325,7 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
             <CheckCircle2 size={18} />
             <span className={activeTab === 'aprovar' ? 'inline' : 'hidden md:inline group-hover:inline'}>Aprovações</span>
             {pendingCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow">
+              <span className="ml-1.5 flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white shadow shrink-0">
                 {pendingCount}
               </span>
             )}
@@ -408,7 +408,7 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Escalado</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Substituto</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Avaliação</th>
-                  {(currentUser.isAdmin || filteredSwaps.some(s => s.escaladoId === currentUser.id && s.status === 'pendente')) && (
+                  {(currentUser.isAdmin || filteredSwaps.some(s => s.escaladoId === currentUser.id && ['pendente', 'aprovado'].includes(s.status))) && (
                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
                   )}
                 </tr>
@@ -484,7 +484,8 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                                 </button>
                               </>
                             )}
-                            {['pendente', 'aprovado'].includes(swap.status) && (swap.escaladoId === currentUser.id || currentUser.isAdmin) && (
+                            {((['pendente', 'aprovado'].includes(swap.status) && (swap.escaladoId === currentUser.id || currentUser.isAdmin)) ||
+                              (swap.status === 'reprovado' && currentUser.isAdmin)) && (
                               <button
                                 onClick={() => setCancelSwapId(swap.id)}
                                 className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1"
@@ -550,7 +551,8 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                     </div>
                   )}
 
-                  {['pendente', 'aprovado'].includes(swap.status) && (currentUser.isAdmin || swap.escaladoId === currentUser.id) && (
+                  {((['pendente', 'aprovado'].includes(swap.status) && (swap.escaladoId === currentUser.id || currentUser.isAdmin)) ||
+                    (swap.status === 'reprovado' && currentUser.isAdmin)) && (
                     <div className="flex flex-col gap-2 pt-1">
                       {swap.status === 'pendente' && currentUser.isAdmin && (
                         <div className="flex gap-2">
@@ -568,7 +570,8 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                           </button>
                         </div>
                       )}
-                      {(swap.escaladoId === currentUser.id || currentUser.isAdmin) && (
+                      {((['pendente', 'aprovado'].includes(swap.status) && (swap.escaladoId === currentUser.id || currentUser.isAdmin)) ||
+                        (swap.status === 'reprovado' && currentUser.isAdmin)) && (
                         <button
                           onClick={() => setCancelSwapId(swap.id)}
                           className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-1.5"

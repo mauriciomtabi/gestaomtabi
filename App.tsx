@@ -185,6 +185,15 @@ const App: React.FC = () => {
       }
 
       setCurrentUser(operator);
+      
+      // Se a tela padrão 'dashboard' não for permitida para este operador, redireciona para a primeira tela permitida
+      if (operator.allowedScreens && operator.allowedScreens.length > 0) {
+        if (!operator.allowedScreens.includes('dashboard')) {
+          const firstAllowed = operator.allowedScreens[0] as any;
+          setView(firstAllowed);
+        }
+      }
+
       await fetchData();
       
       clearInterval(interval);
@@ -581,7 +590,7 @@ const App: React.FC = () => {
           />
         )}
         {view === 'help' && (
-          <HelpCenter />
+          <HelpCenter currentUser={currentUser} />
         )}
       </main>
 

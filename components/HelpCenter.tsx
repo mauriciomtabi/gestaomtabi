@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import {  Search, Book, Users, ScanFace, Fuel, FileText, AlertCircle, CheckCircle2, ChevronDown, MonitorPlay, Sparkles, ThumbsUp , BookOpen, Smartphone } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, Book, Users, ScanFace, Fuel, FileText, AlertCircle, CheckCircle2, ChevronDown, MonitorPlay, Sparkles, ThumbsUp, BookOpen, Smartphone, ArrowLeftRight } from 'lucide-react';
+import { Operator } from '../types';
 
 type Topic = {
   id: string;
@@ -8,6 +9,7 @@ type Topic = {
   icon: React.ElementType;
   content: React.ReactNode;
   tags: string[];
+  allowedScreen?: string;
 };
 
 const Screenshot: React.FC<{ src: string; caption: string; blurFace?: boolean }> = ({ src, caption, blurFace }) => (
@@ -35,6 +37,7 @@ const HELP_DATA: Topic[] = [
     category: 'Visão Geral',
     title: 'Painel de Controle (Dashboard)',
     icon: MonitorPlay,
+    allowedScreen: 'dashboard',
     tags: ['painel', 'dashboard', 'início', 'gráficos', 'resumo', 'abastecimento', 'combustível', 'indicadores', 'abas'],
     content: (
       <div className="space-y-6">
@@ -61,7 +64,7 @@ const HELP_DATA: Topic[] = [
             </h3>
             <p className="text-sm text-slate-600 mb-4">
                Gráficos de comparecimento semanal, evolução histórica de horas e indicadores de desempenho da força de trabalho comunitária.
-            </p>
+             </p>
             <Screenshot src="/docs/PAINEL - PRESTADORES.png" caption="Aba Prestadores — Monitoramento estatístico e histórico" />
           </div>
 
@@ -84,6 +87,7 @@ const HELP_DATA: Topic[] = [
     category: 'Prestadores',
     title: '1. Gestão e Cadastro',
     icon: Users,
+    allowedScreen: 'providers',
     tags: ['prestador', 'cadastro', 'novo', 'listar', 'processo', 'edição', 'horas', 'encaminhamento', 'identidade', 'documento', 'folha'],
     content: (
       <div className="space-y-4">
@@ -110,6 +114,7 @@ const HELP_DATA: Topic[] = [
     category: 'Prestadores',
     title: '2. Lançar Frequência (OCR)',
     icon: Sparkles,
+    allowedScreen: 'providers',
     tags: ['digitalizar', 'folha', 'inteligência', 'frequência', 'horas', 'ponto', 'foto', 'ocr', 'leitura'],
     content: (
       <div className="space-y-4">
@@ -133,6 +138,7 @@ const HELP_DATA: Topic[] = [
     category: 'Prestadores',
     title: '3. Check-in Facial e Perímetro',
     icon: ScanFace,
+    allowedScreen: 'face-checkin',
     tags: ['biometria', 'checkin', 'rosto', 'facial', 'câmera', 'enrolment', 'cadastrar', 'celular', 'militar', 'registro', 'marca d\'água', 'perímetro', 'gps'],
     content: (
       <div className="space-y-4">
@@ -159,6 +165,7 @@ const HELP_DATA: Topic[] = [
     category: 'Prestadores',
     title: '4. Justificativas de Falta',
     icon: AlertCircle,
+    allowedScreen: 'providers',
     tags: ['falta', 'atestado', 'justificativa', 'ausência', 'médico', 'documento'],
     content: (
       <div className="space-y-4">
@@ -181,6 +188,7 @@ const HELP_DATA: Topic[] = [
     category: 'Prestadores',
     title: '5. Histórico e Auditoria',
     icon: FileText,
+    allowedScreen: 'providers',
     tags: ['histórico', 'log', 'auditoria', 'quem fez', 'alteração', 'lançamento', 'timeline'],
     content: (
       <div className="space-y-4">
@@ -201,6 +209,7 @@ const HELP_DATA: Topic[] = [
     category: 'Gestão de Viaturas',
     title: '1. Combustíveis e Frota',
     icon: Fuel,
+    allowedScreen: 'fuel',
     tags: ['abastecimento', 'viatura', 'gasolina', 'combustível', 'kml', 'notas', 'cupons', 'bomba', 'frota'],
     content: (
       <div className="space-y-4">
@@ -227,6 +236,7 @@ const HELP_DATA: Topic[] = [
     category: 'Gestão de Viaturas',
     title: '2. Gerenciar Postos',
     icon: MonitorPlay,
+    allowedScreen: 'fuel',
     tags: ['posto', 'nome', 'gasolina', 'combustível', 'gerenciar', 'configurar'],
     content: (
       <div className="space-y-4">
@@ -247,6 +257,7 @@ const HELP_DATA: Topic[] = [
     category: 'Gestão de Viaturas',
     title: '3. Digitalizar Cupons',
     icon: Sparkles,
+    allowedScreen: 'fuel',
     tags: ['ocr', 'cupom', 'nota', 'fiscal', 'digitalizar', 'foto', 'leitura'],
     content: (
       <div className="space-y-4">
@@ -263,6 +274,7 @@ const HELP_DATA: Topic[] = [
     category: 'Prestadores',
     title: '6. Emissão de Ofícios',
     icon: FileText,
+    allowedScreen: 'providers',
     tags: ['relatório', 'ofício', 'juiz', 'imprimir', 'papel', 'processos', 'horas cumpridas', 'pdf', 'número', 'responsável'],
     content: (
       <div className="space-y-4">
@@ -282,10 +294,61 @@ const HELP_DATA: Topic[] = [
     )
   },
   {
+    id: 'troca-servico',
+    category: 'Escalas de Serviço',
+    title: 'Troca de Serviço (Permutas)',
+    icon: ArrowLeftRight,
+    allowedScreen: 'swaps',
+    tags: ['troca', 'serviço', 'escala', 'permuta', 'substituto', 'plantão', 'aprovar', 'reprovar', 'cancelar', 'militar'],
+    content: (
+      <div className="space-y-6">
+        <p className="text-slate-600 leading-relaxed">
+          O módulo de <strong>Troca de Serviço</strong> permite aos militares registrar permutas de escalas de serviço e aos administradores avaliar e gerenciar essas solicitações com total transparência e auditoria.
+        </p>
+
+        <div className="space-y-8 mt-6">
+          <div className="border border-slate-200 rounded-3xl p-6 bg-white shadow-sm hover:shadow-md transition-all">
+            <h3 className="text-lg font-black text-slate-800 mb-2 flex items-center gap-2">
+              <span className="bg-slate-900 text-white w-6 h-6 flex items-center justify-center rounded-lg text-xs">1</span>
+              Como Solicitar uma Troca
+            </h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Clique no botão <strong>"Nova Solicitação"</strong>. No formulário, o seu nome aparecerá automaticamente como "Escalado (Você)". Selecione o <strong>Substituto</strong> digitando as iniciais para autocompletar com sugestões em tempo real, escolha a <strong>Função</strong> (CG, COV, Linha ou COBOM), defina a <strong>Data do Plantão</strong> e os <strong>Horários de início e fim</strong>, e clique em "Enviar Solicitação".
+            </p>
+            <Screenshot src="/docs/TROCA_SERVICO - NOVA_SOLICITACAO.png" caption="Formulário de Nova Permuta — Registro dinâmico de troca com busca autocompletável" />
+          </div>
+
+          <div className="border border-slate-200 rounded-3xl p-6 bg-white shadow-sm hover:shadow-md transition-all">
+            <h3 className="text-lg font-black text-blue-800 mb-2 flex items-center gap-2">
+              <span className="bg-blue-600 text-white w-6 h-6 flex items-center justify-center rounded-lg text-xs">2</span>
+              Acompanhamento e Cancelamento
+            </h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Na aba <strong>"Minhas Solicitações"</strong>, você acompanha o status de seus pedidos (Pendente, Aprovado, Reprovado ou Cancelado). O titular da escala e os administradores podem cancelar um registro ativo (Pendente ou Aprovado) a qualquer momento clicando no botão <strong>"Cancelar"</strong> na coluna de Ações ou nos cards mobile. O sistema exibirá uma janela de confirmação nativa.
+            </p>
+            <Screenshot src="/docs/TROCA_SERVICO - MINHAS_SOLICITACOES.png" caption="Minhas Solicitações — Acompanhamento e cancelamento padrão com modal nativo" />
+          </div>
+
+          <div className="border border-slate-200 rounded-3xl p-6 bg-white shadow-sm hover:shadow-md transition-all">
+            <h3 className="text-lg font-black text-amber-800 mb-2 flex items-center gap-2">
+              <span className="bg-amber-600 text-white w-6 h-6 flex items-center justify-center rounded-lg text-xs">3</span>
+              Aprovação de Permutas (Administrador)
+            </h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Os administradores recebem um indicador vermelho com o número de pendências. Na aba <strong>"Aprovações"</strong>, eles avaliam os pedidos com opções rápidas de "Aprovar" ou "Reprovar" e registram observações oficiais. Em caso de cancelamento posterior, quem cancelou a permuta é registrado sob a coluna "Avaliação".
+            </p>
+            <Screenshot src="/docs/TROCA_SERVICO - APROVACOES.png" caption="Aprovações — Painel administrativo para avaliação e auditoria" />
+          </div>
+        </div>
+      </div>
+    )
+  },
+  {
     id: 'configuracoes',
     category: 'Sistema',
     title: 'Configurações e Controle',
     icon: Smartphone,
+    allowedScreen: 'settings',
     tags: ['perfil', 'usuários', 'militares', 'perímetro', 'quartel', 'gps', 'segurança'],
     content: (
       <div className="space-y-6">
@@ -317,28 +380,48 @@ const HELP_DATA: Topic[] = [
   },
 ];
 
-const HelpCenter: React.FC = () => {
+interface Props {
+  currentUser?: Operator;
+}
+
+const HelpCenter: React.FC<Props> = ({ currentUser }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTopicId, setActiveTopicId] = useState<string>(HELP_DATA[0].id);
+  const [activeTopicId, setActiveTopicId] = useState<string | null>(null);
   const [showMobileTopics, setShowMobileTopics] = useState(true);
   const [feedbackGiven, setFeedbackGiven] = useState<Record<string, 'yes' | 'no'>>({});
 
+  const visibleHelpData = useMemo(() => {
+    if (!currentUser || !currentUser.allowedScreens) return HELP_DATA;
+    return HELP_DATA.filter(topic => 
+      !topic.allowedScreen || currentUser.allowedScreens.includes(topic.allowedScreen)
+    );
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (visibleHelpData.length > 0 && !activeTopicId) {
+      setActiveTopicId(visibleHelpData[0].id);
+    } else if (activeTopicId && !visibleHelpData.some(t => t.id === activeTopicId)) {
+      setActiveTopicId(visibleHelpData[0]?.id || null);
+    }
+  }, [visibleHelpData, activeTopicId]);
+
   const filteredTopics = useMemo(() => {
-    if (!searchTerm.trim()) return HELP_DATA;
+    if (!searchTerm.trim()) return visibleHelpData;
     const lowerSearch = searchTerm.toLowerCase();
-    return HELP_DATA.filter(topic => {
+    return visibleHelpData.filter(topic => {
       const matchTitle = topic.title.toLowerCase().includes(lowerSearch);
       const matchCategory = topic.category.toLowerCase().includes(lowerSearch);
       const matchTags = topic.tags.some(tag => tag.toLowerCase().includes(lowerSearch));
       return matchTitle || matchCategory || matchTags;
     });
-  }, [searchTerm]);
+  }, [searchTerm, visibleHelpData]);
 
   const activeTopic = useMemo(() => {
-    const found = HELP_DATA.find(t => t.id === activeTopicId);
+    if (!activeTopicId) return visibleHelpData[0] || null;
+    const found = visibleHelpData.find(t => t.id === activeTopicId);
     if (found && filteredTopics.find(t => t.id === activeTopicId)) return found;
     return filteredTopics[0] || null;
-  }, [activeTopicId, filteredTopics]);
+  }, [activeTopicId, filteredTopics, visibleHelpData]);
 
   const groupedTopics = useMemo(() => {
     const groups: { [key: string]: Topic[] } = {};
@@ -397,7 +480,9 @@ const HelpCenter: React.FC = () => {
                     <button
                       key={topic.id}
                       onClick={() => {
-                        setActiveTopicId(topic.id);
+                        if (topic.id) {
+                          setActiveTopicId(topic.id);
+                        }
                         setShowMobileTopics(false);
                       }}
                       className={`w-full text-left flex items-start gap-3 p-3 rounded-xl transition-all ${

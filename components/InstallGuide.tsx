@@ -158,7 +158,7 @@ const InstallGuide: React.FC<Props> = ({ onClose }) => {
                 </li>
                 <li className="flex gap-3 text-sm font-medium text-slate-600">
                   <div className="shrink-0 w-6 h-6 bg-white rounded-lg flex items-center justify-center shadow-sm border border-slate-200"><Monitor size={14} className="text-blue-600" /></div>
-                  <p>Selecione a opção <span className="font-bold text-slate-800">"Instalar Aplicativo"</span> ou "Adicionar à tela inicial".</p>
+                  <p>Selecione a opção <span className="font-bold text-slate-800">"Adicionar à Tela Inicial"</span> ou "Instalar aplicativo".</p>
                 </li>
                 <li className="flex gap-3 text-sm font-medium text-slate-600">
                   <div className="shrink-0 w-6 h-6 bg-white rounded-lg flex items-center justify-center shadow-sm border border-slate-200"><CheckCircle2 size={14} className="text-emerald-600" /></div>
