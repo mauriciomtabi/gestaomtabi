@@ -338,6 +338,7 @@ const UserAccessControl: React.FC = () => {
     { id: 'providers', label: 'Prestadores' },
     { id: 'face-checkin', label: 'Check-in Facial' },
     { id: 'fuel', label: 'Abastecimento' },
+    { id: 'swaps', label: 'Troca de Serviço' },
     { id: 'reports', label: 'Ofícios' },
     { id: 'settings', label: 'Configurações (Admin)' }
   ];

@@ -1,30 +1,61 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { ServiceSwap, Operator } from '../types';
 import { getServiceSwaps, createServiceSwap, evaluateServiceSwap, getAllProfiles } from '../services/supabaseService';
-import { 
-  Calendar, 
-  Clock, 
-  User, 
-  Plus, 
-  Search, 
-  Filter, 
-  CheckCircle2, 
-  XCircle, 
-  X, 
-  Loader2, 
-  Check, 
-  MessageSquare, 
-  AlertCircle, 
-  ArrowUpDown, 
-  UserCheck, 
-  HelpCircle,
-  FileText
+import {
+  Calendar,
+  Clock,
+  User,
+  Plus,
+  Search,
+  Filter,
+  CheckCircle2,
+  XCircle,
+  X,
+  Loader2,
+  Check,
+  MessageSquare,
+  ArrowUpDown,
+  UserCheck,
+  FileText,
+  ArrowLeftRight,
+  LayoutDashboard,
+  ChevronRight,
 } from 'lucide-react';
 
 interface Props {
   currentUser: Operator;
   setNotification: (msg: string, type: 'success' | 'error') => void;
 }
+
+const FUNCOES = ['CG', 'COV', 'Linha', 'COBOM'] as const;
+type Funcao = typeof FUNCOES[number];
+
+const STATUS_LABELS: Record<string, string> = {
+  todos: 'Todos',
+  pendente: 'Pendente',
+  aprovado: 'Aprovado',
+  reprovado: 'Reprovado',
+};
+
+const funcaoBadgeClass = (funcao: string) => {
+  switch (funcao) {
+    case 'CG':    return 'bg-red-100 text-red-700 border border-red-200';
+    case 'COV':   return 'bg-blue-100 text-blue-700 border border-blue-200';
+    case 'Linha': return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+    case 'COBOM': return 'bg-purple-100 text-purple-700 border border-purple-200';
+    default:      return 'bg-slate-100 text-slate-700';
+  }
+};
+
+const statusBadgeClass = (status: string) => {
+  switch (status) {
+    case 'pendente':  return 'bg-amber-50 text-amber-700 border border-amber-200';
+    case 'aprovado':  return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+    case 'reprovado': return 'bg-red-50 text-red-700 border border-red-200';
+    default:          return 'bg-slate-50 text-slate-600';
+  }
+};
 
 const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) => {
   const [swaps, setSwaps] = useState<ServiceSwap[]>([]);
@@ -33,169 +64,116 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
   const [saving, setSaving] = useState(false);
   const [evaluating, setEvaluating] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
-  // Modal de Avaliação (Aprovar/Reprovar)
+
   const [evaluationModal, setEvaluationModal] = useState<{
     isOpen: boolean;
-    swap: ServiceSwap | null;
+    swap: (ServiceSwap & { escaladoName?: string; substitutoName?: string }) | null;
     action: 'aprovado' | 'reprovado';
     observation: string;
-  }>({
-    isOpen: false,
-    swap: null,
-    action: 'aprovado',
-    observation: ''
-  });
+  }>({ isOpen: false, swap: null, action: 'aprovado', observation: '' });
 
-  // Filtros e Busca
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'todos' | 'pendente' | 'aprovado' | 'reprovado'>('todos');
   const [activeTab, setActiveTab] = useState<'todas' | 'minhas' | 'aprovar'>('todas');
 
-  // Form State
   const [formData, setFormData] = useState({
     substitutoId: '',
-    funcao: 'Linha' as 'CG' | 'COV' | 'Linha' | 'COBOM',
+    funcao: 'Linha' as Funcao,
     data: '',
     horarioInicio: '08:00',
-    horarioFim: '08:00'
+    horarioFim: '08:00',
   });
 
-  // Carregar dados iniciais
   const loadData = async () => {
     setLoading(true);
     try {
-      const [swapsData, profilesData] = await Promise.all([
-        getServiceSwaps(),
-        getAllProfiles()
-      ]);
+      const [swapsData, profilesData] = await Promise.all([getServiceSwaps(), getAllProfiles()]);
       setSwaps(swapsData);
       setProfiles(profilesData);
     } catch (err) {
-      console.error("Erro ao carregar dados de trocas:", err);
-      setNotification("Erro ao carregar registros do servidor.", "error");
+      console.error('Erro ao carregar dados de trocas:', err);
+      setNotification('Erro ao carregar registros do servidor.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
-  // Mapear perfis para acesso rápido por ID
-  const profilesMap = useMemo(() => {
-    return profiles.reduce((acc, p) => {
-      if (p.id) acc[p.id] = p;
-      return acc;
-    }, {} as Record<string, Operator>);
-  }, [profiles]);
+  const profilesMap = useMemo(() =>
+    profiles.reduce((acc, p) => { if (p.id) acc[p.id] = p; return acc; }, {} as Record<string, Operator>),
+  [profiles]);
 
-  // Lista de substitutos elegíveis (todos exceto o escalado)
-  const eligibleSubstitutes = useMemo(() => {
-    return profiles.filter(p => p.id !== currentUser.id);
-  }, [profiles, currentUser]);
+  const eligibleSubstitutes = useMemo(() =>
+    profiles.filter(p => p.id !== currentUser.id),
+  [profiles, currentUser]);
 
-  // Resolver nomes de exibição nos registros
-  const enrichedSwaps = useMemo(() => {
-    return swaps.map(s => {
-      const escalado = profilesMap[s.escaladoId];
+  const enrichedSwaps = useMemo(() =>
+    swaps.map(s => {
+      const escalado   = profilesMap[s.escaladoId];
       const substituto = profilesMap[s.substitutoId];
-      const aprovador = s.aprovadorId ? profilesMap[s.aprovadorId] : null;
-
+      const aprovador  = s.aprovadorId ? profilesMap[s.aprovadorId] : null;
       return {
         ...s,
-        escaladoName: escalado ? `${escalado.rank} ${escalado.warName}` : 'Militar Removido',
+        escaladoName:   escalado   ? `${escalado.rank} ${escalado.warName}`   : 'Militar Removido',
         substitutoName: substituto ? `${substituto.rank} ${substituto.warName}` : 'Militar Removido',
-        aprovadorName: aprovador ? `${aprovador.rank} ${aprovador.warName}` : undefined
+        aprovadorName:  aprovador  ? `${aprovador.rank} ${aprovador.warName}`  : undefined,
       };
-    });
-  }, [swaps, profilesMap]);
+    }),
+  [swaps, profilesMap]);
 
-  // Filtrar e pesquisar permutas
+  const pendingCount = swaps.filter(s => s.status === 'pendente').length;
+
   const filteredSwaps = useMemo(() => {
     return enrichedSwaps.filter(s => {
-      // 1. Filtro de Tab
-      if (activeTab === 'minhas' && s.escaladoId !== currentUser.id && s.substitutoId !== currentUser.id) {
-        return false;
-      }
-      if (activeTab === 'aprovar' && s.status !== 'pendente') {
-        return false;
-      }
-
-      // 2. Filtro de Status
-      if (statusFilter !== 'todos' && s.status !== statusFilter) {
-        return false;
-      }
-
-      // 3. Filtro de Busca (Nomes, Função, Observação)
+      if (activeTab === 'minhas' && s.escaladoId !== currentUser.id && s.substitutoId !== currentUser.id) return false;
+      if (activeTab === 'aprovar' && s.status !== 'pendente') return false;
+      if (statusFilter !== 'todos' && s.status !== statusFilter) return false;
       if (searchTerm.trim() !== '') {
-        const query = searchTerm.toLowerCase();
-        const escaladoMatch = s.escaladoName?.toLowerCase().includes(query);
-        const substitutoMatch = s.substitutoName?.toLowerCase().includes(query);
-        const funcaoMatch = s.funcao.toLowerCase().includes(query);
-        const obsMatch = s.observacao?.toLowerCase().includes(query);
-        const dateMatch = s.data.includes(query);
-        
-        return escaladoMatch || substitutoMatch || funcaoMatch || obsMatch || dateMatch;
+        const q = searchTerm.toLowerCase();
+        return (
+          s.escaladoName?.toLowerCase().includes(q) ||
+          s.substitutoName?.toLowerCase().includes(q) ||
+          s.funcao.toLowerCase().includes(q) ||
+          s.observacao?.toLowerCase().includes(q) ||
+          s.data.includes(q)
+        );
       }
-
       return true;
     });
   }, [enrichedSwaps, activeTab, statusFilter, searchTerm, currentUser.id]);
 
-  // Enviar nova troca de serviço
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser.id) {
-      setNotification("Erro: Sessão do usuário inválida.", "error");
-      return;
-    }
-    if (!formData.substitutoId) {
-      setNotification("Por favor, selecione o substituto.", "error");
-      return;
-    }
-    if (!formData.data) {
-      setNotification("Por favor, preencha a data da troca.", "error");
-      return;
-    }
+    if (!currentUser.id) { setNotification('Sessão inválida.', 'error'); return; }
+    if (!formData.substitutoId) { setNotification('Selecione o substituto.', 'error'); return; }
+    if (!formData.data) { setNotification('Preencha a data da troca.', 'error'); return; }
 
     setSaving(true);
     try {
-      const newSwap: Partial<ServiceSwap> = {
-        escaladoId: currentUser.id,
-        substitutoId: formData.substitutoId,
-        funcao: formData.funcao,
-        data: formData.data,
+      const result = await createServiceSwap({
+        escaladoId:    currentUser.id,
+        substitutoId:  formData.substitutoId,
+        funcao:        formData.funcao,
+        data:          formData.data,
         horarioInicio: formData.horarioInicio,
-        horarioFim: formData.horarioFim,
-        status: 'pendente'
-      };
+        horarioFim:    formData.horarioFim,
+        status:        'pendente',
+      } as Partial<ServiceSwap>);
 
-      const result = await createServiceSwap(newSwap);
       if (result) {
-        setNotification("Solicitação de troca registrada com sucesso!", "success");
+        setNotification('Solicitação registrada com sucesso!', 'success');
         setIsModalOpen(false);
-        setFormData({
-          substitutoId: '',
-          funcao: 'Linha',
-          data: '',
-          horarioInicio: '08:00',
-          horarioFim: '08:00'
-        });
+        setFormData({ substitutoId: '', funcao: 'Linha', data: '', horarioInicio: '08:00', horarioFim: '08:00' });
         await loadData();
-      } else {
-        throw new Error("Erro no retorno da criação do registro.");
-      }
+      } else throw new Error('Erro no retorno da criação.');
     } catch (err: any) {
-      console.error("Erro ao registrar troca de serviço:", err);
-      setNotification(err.message || "Erro ao salvar a solicitação.", "error");
+      setNotification(err.message || 'Erro ao salvar a solicitação.', 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  // Avaliar (Aprovar / Reprovar) a troca de serviço
   const handleEvaluate = async () => {
     if (!evaluationModal.swap || !currentUser.id) return;
     setEvaluating(true);
@@ -204,379 +182,455 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
         evaluationModal.swap.id,
         evaluationModal.action,
         currentUser.id,
-        evaluationModal.observation
+        evaluationModal.observation,
       );
-
       if (result) {
         setNotification(
-          `Troca de serviço ${evaluationModal.action === 'aprovado' ? 'aprovada' : 'reprovada'} com sucesso!`,
-          "success"
+          `Troca ${evaluationModal.action === 'aprovado' ? 'aprovada' : 'reprovada'} com sucesso!`,
+          'success',
         );
         setEvaluationModal({ isOpen: false, swap: null, action: 'aprovado', observation: '' });
         await loadData();
-      } else {
-        throw new Error("Erro ao atualizar avaliação.");
-      }
+      } else throw new Error('Erro ao atualizar avaliação.');
     } catch (err: any) {
-      console.error("Erro ao avaliar troca de serviço:", err);
-      setNotification(err.message || "Erro ao avaliar a solicitação.", "error");
+      setNotification(err.message || 'Erro ao avaliar a solicitação.', 'error');
     } finally {
       setEvaluating(false);
     }
   };
 
+  /* ─────────────── RENDER ─────────────── */
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight uppercase">
-            Troca de <span className="text-red-600">Serviço</span>
-          </h1>
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-wider mt-1">
-            Gestão de permutas e substituições de escalas de serviço
-          </p>
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20 md:pb-0">
+
+      {/* ── HEADER ── */}
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <div className="bg-blue-600 p-3 rounded-2xl shadow-lg shadow-blue-600/30">
+            <ArrowLeftRight size={24} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Troca de Serviço</h1>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Registro e aprovação de permutas de escala.</p>
+          </div>
         </div>
-        
         <button
           onClick={() => setIsModalOpen(true)}
-          className="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 font-black text-sm active:scale-95"
         >
-          <Plus size={16} /> Solicitar Troca
+          <Plus size={18} />
+          Nova Solicitação
         </button>
+      </header>
+
+      {/* ── MAIN TABS ── */}
+      <div className="flex px-2 md:px-0 gap-2 border-b-2 border-slate-200 pb-4 overflow-x-auto no-scrollbar scroll-smooth">
+        {[
+          { id: 'todas',  label: 'Todas as Trocas',    icon: FileText },
+          { id: 'minhas', label: 'Minhas Solicitações', icon: User },
+        ].map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => { setActiveTab(id as any); setStatusFilter('todos'); }}
+            className={`group flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${
+              activeTab === id
+                ? 'bg-slate-900 text-white shadow-lg scale-100'
+                : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'
+            }`}
+          >
+            <Icon size={18} />
+            <span className={activeTab === id ? 'inline' : 'hidden md:inline group-hover:inline'}>{label}</span>
+          </button>
+        ))}
+
+        {currentUser.isAdmin && (
+          <button
+            onClick={() => { setActiveTab('aprovar'); setStatusFilter('pendente'); }}
+            className={`group relative flex items-center gap-2 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all whitespace-nowrap ${
+              activeTab === 'aprovar'
+                ? 'bg-amber-600 text-white shadow-lg shadow-amber-200 scale-100'
+                : 'bg-slate-100 text-slate-500 hover:bg-slate-200 scale-95'
+            }`}
+          >
+            <CheckCircle2 size={18} />
+            <span className={activeTab === 'aprovar' ? 'inline' : 'hidden md:inline group-hover:inline'}>Aprovações</span>
+            {pendingCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow">
+                {pendingCount}
+              </span>
+            )}
+          </button>
+        )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm justify-between">
-        <div className="flex gap-1.5 p-1 bg-slate-100 rounded-xl max-w-md w-full sm:w-auto">
-          <button
-            onClick={() => { setActiveTab('todas'); setStatusFilter('todos'); }}
-            className={`flex-1 sm:flex-initial py-2 px-4 rounded-lg text-[10px] font-black uppercase transition-all duration-200 ${activeTab === 'todas' ? 'bg-white text-blue-950 shadow-sm' : 'text-slate-500 hover:text-slate-950'}`}
-          >
-            Todas as Trocas
-          </button>
-          <button
-            onClick={() => { setActiveTab('minhas'); setStatusFilter('todos'); }}
-            className={`flex-1 sm:flex-initial py-2 px-4 rounded-lg text-[10px] font-black uppercase transition-all duration-200 ${activeTab === 'minhas' ? 'bg-white text-blue-950 shadow-sm' : 'text-slate-500 hover:text-slate-950'}`}
-          >
-            Minhas Solicitações
-          </button>
-          {currentUser.isAdmin && (
-            <button
-              onClick={() => { setActiveTab('aprovar'); setStatusFilter('pendente'); }}
-              className={`flex-1 sm:flex-initial py-2 px-4 rounded-lg text-[10px] font-black uppercase transition-all duration-200 relative ${activeTab === 'aprovar' ? 'bg-white text-blue-950 shadow-sm' : 'text-slate-500 hover:text-slate-950'}`}
+      {/* ── FILTERS CARD ── */}
+      <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 items-start md:items-center">
+        {/* Search */}
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Buscar por escalado, substituto, função ou data..."
+            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all text-sm font-medium"
+          />
+        </div>
+
+        {/* Status Filter (hidden on "aprovar" tab) */}
+        {activeTab !== 'aprovar' && (
+          <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-2xl border border-slate-100 w-full md:w-auto">
+            <Filter size={14} className="text-slate-400 shrink-0" />
+            <span className="hidden sm:inline text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1">Status:</span>
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value as any)}
+              className="bg-transparent border-0 text-xs font-bold text-slate-600 outline-none cursor-pointer"
             >
-              Aprovações
-              {swaps.filter(s => s.status === 'pendente').length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[8px] font-bold text-white">
-                  {swaps.filter(s => s.status === 'pendente').length}
-                </span>
-              )}
-            </button>
-          )}
-        </div>
-
-        {/* Filtros rápidos */}
-        <div className="flex flex-wrap items-center gap-2">
-          {activeTab !== 'aprovar' && (
-            <div className="flex bg-slate-50 border border-slate-150 p-0.5 rounded-lg text-[9px] font-black uppercase">
-              {(['todos', 'pendente', 'aprovado', 'reprovado'] as const).map(st => (
-                <button
-                  key={st}
-                  onClick={() => setStatusFilter(st)}
-                  className={`px-3 py-1.5 rounded-md transition-all ${statusFilter === st ? 'bg-white text-slate-800 shadow-sm border border-slate-100' : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                  {st === 'todos' ? 'Todos' : st === 'pendente' ? 'Pendente' : st === 'aprovado' ? 'Aprovado' : 'Reprovado'}
-                </button>
+              {Object.entries(STATUS_LABELS).map(([val, label]) => (
+                <option key={val} value={val}>{label}</option>
               ))}
-            </div>
-          )}
-        </div>
+            </select>
+          </div>
+        )}
+
+        {/* Clear filters */}
+        {(searchTerm !== '' || statusFilter !== 'todos') && (
+          <button
+            onClick={() => { setSearchTerm(''); setStatusFilter('todos'); }}
+            className="text-[10px] font-black text-blue-600 hover:text-blue-800 uppercase px-2 shrink-0"
+          >
+            Limpar
+          </button>
+        )}
       </div>
 
-      {/* Busca e Barra de Ferramentas */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Pesquisar por escalado, substituto, função, data ou observação..."
-          className="w-full bg-white border border-slate-150 rounded-2xl pl-12 pr-4 py-3.5 text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-bold text-sm shadow-sm"
-        />
-      </div>
-
-      {/* Grid de Solicitações */}
+      {/* ── LIST ── */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm space-y-4">
+        <div className="flex flex-col items-center justify-center py-24 bg-white rounded-3xl border border-slate-100 shadow-sm gap-4">
           <Loader2 className="animate-spin text-blue-600" size={36} />
-          <p className="text-slate-400 text-xs font-black uppercase tracking-wider">Carregando Trocas de Serviço...</p>
+          <p className="text-slate-400 text-xs font-black uppercase tracking-wider">Carregando registros...</p>
         </div>
       ) : filteredSwaps.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 bg-white rounded-3xl border border-slate-100 shadow-sm text-center px-4">
-          <div className="bg-slate-100 p-4 rounded-full text-slate-400 mb-4">
-            <FileText size={32} />
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm text-center px-6">
+          <div className="bg-slate-100 p-5 rounded-full text-slate-300 mb-4">
+            <ArrowLeftRight size={36} />
           </div>
-          <h3 className="text-slate-800 font-black text-sm uppercase">Nenhuma troca de serviço encontrada</h3>
-          <p className="text-slate-400 text-xs mt-1 max-w-md font-medium">
-            Não há registros que correspondam aos filtros selecionados. Tente ajustar os termos de busca ou clique em "Solicitar Troca" para criar um novo registro.
+          <h3 className="text-slate-700 font-black text-sm uppercase mb-1">Nenhuma troca encontrada</h3>
+          <p className="text-slate-400 text-xs max-w-sm font-medium">
+            {activeTab === 'minhas'
+              ? 'Você ainda não possui solicitações de troca de serviço.'
+              : activeTab === 'aprovar'
+              ? 'Não há trocas aguardando aprovação no momento.'
+              : 'Nenhum registro corresponde aos filtros selecionados.'}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {filteredSwaps.map((swap) => {
-            const isEscalado = swap.escaladoId === currentUser.id;
-            const isSubstituto = swap.substitutoId === currentUser.id;
-            
-            return (
-              <div 
-                key={swap.id}
-                className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-6"
-              >
-                {/* Lado Esquerdo: Status e Info da Escala */}
-                <div className="flex items-start gap-4 flex-1">
-                  <div className="mt-1">
-                    {swap.status === 'pendente' && (
-                      <span className="inline-flex items-center justify-center p-2.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 animate-pulse">
-                        <Clock size={20} />
-                      </span>
-                    )}
-                    {swap.status === 'aprovado' && (
-                      <span className="inline-flex items-center justify-center p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100">
-                        <CheckCircle2 size={20} />
-                      </span>
-                    )}
-                    {swap.status === 'reprovado' && (
-                      <span className="inline-flex items-center justify-center p-2.5 rounded-xl bg-red-50 text-red-600 border border-red-100">
-                        <XCircle size={20} />
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${
-                        swap.funcao === 'CG' ? 'bg-red-100 text-red-700' :
-                        swap.funcao === 'COV' ? 'bg-blue-100 text-blue-700' :
-                        swap.funcao === 'Linha' ? 'bg-emerald-100 text-emerald-700' :
-                        'bg-purple-100 text-purple-700'
-                      }`}>
-                        {swap.funcao}
-                      </span>
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                        • {new Date(swap.data + 'T00:00:00').toLocaleDateString('pt-BR')} ({swap.horarioInicio}h - {swap.horarioFim}h)
-                      </span>
-                    </div>
-
-                    <div className="mt-1 flex flex-col sm:flex-row sm:items-center gap-x-4 gap-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-black text-slate-400 uppercase">Original (Escalado):</span>
-                        <span className={`text-xs font-bold ${isEscalado ? 'text-blue-600 underline decoration-2' : 'text-slate-800'}`}>
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+          {/* Desktop Table */}
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/70 border-b border-slate-100">
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Função</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data / Horário</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Escalado</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Substituto</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Avaliação</th>
+                  {currentUser.isAdmin && (
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Ações</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filteredSwaps.map(swap => {
+                  const isEscalado   = swap.escaladoId   === currentUser.id;
+                  const isSubstituto = swap.substitutoId === currentUser.id;
+                  return (
+                    <tr key={swap.id} className="hover:bg-slate-50/50 transition-all group">
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${statusBadgeClass(swap.status)}`}>
+                          {swap.status === 'pendente'  && <Clock size={11} />}
+                          {swap.status === 'aprovado'  && <CheckCircle2 size={11} />}
+                          {swap.status === 'reprovado' && <XCircle size={11} />}
+                          {STATUS_LABELS[swap.status]}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${funcaoBadgeClass(swap.funcao)}`}>
+                          {swap.funcao}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="block text-xs font-bold text-slate-800">
+                          {new Date(swap.data + 'T00:00:00').toLocaleDateString('pt-BR')}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-bold">
+                          {swap.horarioInicio}h → {swap.horarioFim}h
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-xs font-bold ${isEscalado ? 'text-blue-600' : 'text-slate-700'}`}>
                           {swap.escaladoName}
                         </span>
-                      </div>
-                      <div className="hidden sm:block text-slate-300">|</div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-black text-slate-400 uppercase">Substituto:</span>
-                        <span className={`text-xs font-bold ${isSubstituto ? 'text-blue-600 underline decoration-2' : 'text-slate-800'}`}>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-xs font-bold ${isSubstituto ? 'text-blue-600' : 'text-slate-700'}`}>
                           {swap.substitutoName}
                         </span>
-                      </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {swap.aprovadorName ? (
+                          <div className="text-[10px] text-slate-500 font-bold space-y-0.5">
+                            <p className="flex items-center gap-1"><UserCheck size={11} className="text-slate-400" /> {swap.aprovadorName}</p>
+                            {swap.observacao && (
+                              <p className="flex items-start gap-1 italic text-slate-400">
+                                <MessageSquare size={10} className="shrink-0 mt-0.5" />
+                                {swap.observacao}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-slate-300 font-bold italic">—</span>
+                        )}
+                      </td>
+                      {currentUser.isAdmin && (
+                        <td className="px-6 py-4">
+                          {swap.status === 'pendente' && (
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => setEvaluationModal({ isOpen: true, swap, action: 'aprovado', observation: '' })}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1"
+                              >
+                                <Check size={12} /> Aprovar
+                              </button>
+                              <button
+                                onClick={() => setEvaluationModal({ isOpen: true, swap, action: 'reprovado', observation: '' })}
+                                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1"
+                              >
+                                <X size={12} /> Reprovar
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Cards */}
+          <div className="lg:hidden divide-y divide-slate-100">
+            {filteredSwaps.map(swap => {
+              const isEscalado   = swap.escaladoId   === currentUser.id;
+              const isSubstituto = swap.substitutoId === currentUser.id;
+              return (
+                <div key={swap.id} className="p-5 space-y-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${statusBadgeClass(swap.status)}`}>
+                      {swap.status === 'pendente'  && <Clock size={11} />}
+                      {swap.status === 'aprovado'  && <CheckCircle2 size={11} />}
+                      {swap.status === 'reprovado' && <XCircle size={11} />}
+                      {STATUS_LABELS[swap.status]}
+                    </span>
+                    <span className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${funcaoBadgeClass(swap.funcao)}`}>
+                      {swap.funcao}
+                    </span>
+                    <span className="text-xs font-bold text-slate-500">
+                      {new Date(swap.data + 'T00:00:00').toLocaleDateString('pt-BR')} · {swap.horarioInicio}h→{swap.horarioFim}h
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Escalado</p>
+                      <p className={`font-bold truncate ${isEscalado ? 'text-blue-600' : 'text-slate-800'}`}>{swap.escaladoName}</p>
                     </div>
-
-                    {/* Observação / Detalhes da Avaliação */}
-                    {(swap.observacao || swap.aprovadorName) && (
-                      <div className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                        {swap.aprovadorName && (
-                          <p className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
-                            <UserCheck size={12} />
-                            Avaliado por: <span className="text-slate-700">{swap.aprovadorName}</span> em {swap.dataAprovacao ? new Date(swap.dataAprovacao).toLocaleDateString('pt-BR') : ''}
-                          </p>
-                        )}
-                        {swap.observacao && (
-                          <p className="text-xs text-slate-600 font-medium italic flex items-start gap-1">
-                            <MessageSquare size={12} className="shrink-0 mt-0.5 text-slate-400" />
-                            "{swap.observacao}"
-                          </p>
-                        )}
-                      </div>
-                    )}
+                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Substituto</p>
+                      <p className={`font-bold truncate ${isSubstituto ? 'text-blue-600' : 'text-slate-800'}`}>{swap.substitutoName}</p>
+                    </div>
                   </div>
+
+                  {(swap.aprovadorName || swap.observacao) && (
+                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1">
+                      {swap.aprovadorName && (
+                        <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
+                          <UserCheck size={11} className="text-slate-400" /> {swap.aprovadorName}
+                        </p>
+                      )}
+                      {swap.observacao && (
+                        <p className="text-[10px] text-slate-400 italic flex items-start gap-1">
+                          <MessageSquare size={10} className="shrink-0 mt-0.5" /> {swap.observacao}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {currentUser.isAdmin && swap.status === 'pendente' && (
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => setEvaluationModal({ isOpen: true, swap, action: 'aprovado', observation: '' })}
+                        className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                      >
+                        <Check size={13} /> Aprovar
+                      </button>
+                      <button
+                        onClick={() => setEvaluationModal({ isOpen: true, swap, action: 'reprovado', observation: '' })}
+                        className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                      >
+                        <X size={13} /> Reprovar
+                      </button>
+                    </div>
+                  )}
                 </div>
+              );
+            })}
+          </div>
 
-                {/* Lado Direito: Ações */}
-                {currentUser.isAdmin && swap.status === 'pendente' && (
-                  <div className="flex items-center gap-2 border-t pt-4 md:border-t-0 md:pt-0 shrink-0 self-end md:self-center">
-                    <button
-                      onClick={() => setEvaluationModal({
-                        isOpen: true,
-                        swap,
-                        action: 'aprovado',
-                        observation: ''
-                      })}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1"
-                    >
-                      <Check size={14} /> Aprovar
-                    </button>
-                    <button
-                      onClick={() => setEvaluationModal({
-                        isOpen: true,
-                        swap,
-                        action: 'reprovado',
-                        observation: ''
-                      })}
-                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-black text-[10px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1"
-                    >
-                      <X size={14} /> Reprovar
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          {/* Footer count */}
+          <div className="px-6 py-3 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              {filteredSwaps.length} registro{filteredSwaps.length !== 1 ? 's' : ''}
+            </p>
+          </div>
         </div>
       )}
 
-      {/* Modal de Cadastro de Troca de Serviço */}
+      {/* ════════════════════════════════════════
+          MODAL — Nova Solicitação de Troca
+      ════════════════════════════════════════ */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1100] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden border border-slate-100 shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-            {/* Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="font-black text-slate-900 text-lg uppercase">Nova Troca de Serviço</h3>
-                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mt-0.5">Preencha os dados do plantão a permutar</p>
+          <div className="bg-white rounded-3xl w-full max-w-lg overflow-hidden border border-slate-100 shadow-2xl flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-600 p-2.5 rounded-xl shadow-md shadow-blue-600/20">
+                  <ArrowLeftRight size={18} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 text-base uppercase">Nova Troca de Serviço</h3>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mt-0.5">Preencha os dados da permuta</p>
+                </div>
               </div>
-              <button 
+              <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4">
-              {/* Escalado (Estático) */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Escalado (Você)</label>
-                <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-500 font-bold text-sm flex items-center gap-2">
-                  <User size={16} />
-                  <span>{currentUser.rank} {currentUser.warName}</span>
-                </div>
-              </div>
+            {/* Modal Body */}
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+              <div className="p-6 space-y-5">
 
-              {/* Substituto (Select) */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Substituto</label>
-                <div className="relative">
-                  <select
-                    required
-                    value={formData.substitutoId}
-                    onChange={(e) => setFormData({ ...formData, substitutoId: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none font-bold text-sm appearance-none"
-                  >
-                    <option value="" disabled>Selecione o substituto...</option>
-                    {eligibleSubstitutes.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.rank} {p.warName} ({p.name})
-                      </option>
-                    ))}
-                  </select>
-                  <ArrowUpDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                {/* Escalado (read-only) */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Escalado (Você)</label>
+                  <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-500 font-bold text-sm flex items-center gap-2">
+                    <User size={15} className="text-slate-400" />
+                    <span>{currentUser.rank} {currentUser.warName}</span>
+                  </div>
                 </div>
-              </div>
 
-              {/* Função */}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1 block">Função</label>
-                <div className="grid grid-cols-4 gap-2">
-                  {(['CG', 'COV', 'Linha', 'COBOM'] as const).map((fun) => (
-                    <button
-                      key={fun}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, funcao: fun })}
-                      className={`py-3 rounded-xl font-black text-xs uppercase transition-all border ${
-                        formData.funcao === fun 
-                          ? 'bg-blue-600 border-blue-500 text-white shadow-md' 
-                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                      }`}
+                {/* Substituto */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Substituto *</label>
+                  <div className="relative">
+                    <select
+                      required
+                      value={formData.substitutoId}
+                      onChange={e => setFormData({ ...formData, substitutoId: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none font-bold text-sm appearance-none"
                     >
-                      {fun}
-                    </button>
+                      <option value="" disabled>Selecione o substituto...</option>
+                      {eligibleSubstitutes.map(p => (
+                        <option key={p.id} value={p.id}>{p.rank} {p.warName} ({p.name})</option>
+                      ))}
+                    </select>
+                    <ArrowUpDown size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Função */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Função *</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {FUNCOES.map(fun => (
+                      <button
+                        key={fun}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, funcao: fun })}
+                        className={`py-3 rounded-xl font-black text-xs uppercase transition-all border ${
+                          formData.funcao === fun
+                            ? 'bg-blue-600 border-blue-500 text-white shadow-md shadow-blue-200'
+                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300'
+                        }`}
+                      >
+                        {fun}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Data */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Data do Plantão *</label>
+                  <div className="relative">
+                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15} />
+                    <input
+                      type="date"
+                      required
+                      value={formData.data}
+                      onChange={e => setFormData({ ...formData, data: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none font-bold text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Horários */}
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: 'Horário de Início', key: 'horarioInicio' },
+                    { label: 'Horário de Fim',    key: 'horarioFim'    },
+                  ].map(({ label, key }) => (
+                    <div key={key} className="space-y-1.5">
+                      <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">{label} *</label>
+                      <div className="relative">
+                        <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15} />
+                        <input
+                          type="time"
+                          required
+                          value={formData[key as keyof typeof formData] as string}
+                          onChange={e => setFormData({ ...formData, [key]: e.target.value })}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none font-bold text-sm"
+                        />
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
 
-              {/* Data (Calendário e Digitação) */}
-              <div className="space-y-1">
-                <div className="flex justify-between items-center ml-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Data do Plantão</label>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">Selecione ou digite no calendário</span>
-                </div>
-                <div className="relative">
-                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                  <input
-                    type="date"
-                    required
-                    value={formData.data}
-                    onChange={(e) => setFormData({ ...formData, data: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none font-bold text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Horário Início e Fim */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Horário de Início</label>
-                  <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type="time"
-                      required
-                      value={formData.horarioInicio}
-                      onChange={(e) => setFormData({ ...formData, horarioInicio: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none font-bold text-sm"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Horário de Fim</label>
-                  <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <input
-                      type="time"
-                      required
-                      value={formData.horarioFim}
-                      onChange={(e) => setFormData({ ...formData, horarioFim: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none font-bold text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer Ações */}
-              <div className="pt-6 border-t border-slate-100 flex items-center justify-end gap-3">
+              {/* Modal Footer */}
+              <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-98"
+                  className="px-5 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-sm"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md active:scale-98 flex items-center gap-2"
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md shadow-blue-200 active:scale-95 flex items-center gap-2 disabled:opacity-60"
                 >
-                  {saving ? (
-                    <>
-                      <Loader2 className="animate-spin" size={16} /> Gravando...
-                    </>
-                  ) : (
-                    "Enviar Solicitação"
-                  )}
+                  {saving ? <><Loader2 className="animate-spin" size={15} /> Enviando...</> : 'Enviar Solicitação'}
                 </button>
               </div>
             </form>
@@ -584,89 +638,86 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
         </div>
       )}
 
-      {/* Modal de Avaliação de Troca de Serviço */}
-      {evaluationModal.isOpen && (
+      {/* ════════════════════════════════════════
+          MODAL — Avaliação (Aprovar / Reprovar)
+      ════════════════════════════════════════ */}
+      {evaluationModal.isOpen && evaluationModal.swap && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[1100] flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden border border-slate-100 shadow-2xl flex flex-col animate-in zoom-in-95 duration-200">
-            {/* Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="font-black text-slate-900 text-lg uppercase flex items-center gap-1.5">
-                  {evaluationModal.action === 'aprovado' ? (
-                    <span className="text-emerald-600 flex items-center gap-1.5"><CheckCircle2 size={20} /> Aprovar Troca</span>
-                  ) : (
-                    <span className="text-red-600 flex items-center gap-1.5"><XCircle size={20} /> Reprovar Troca</span>
-                  )}
-                </h3>
-                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mt-0.5">Confirmação de decisão administrativa</p>
+            {/* Modal Header */}
+            <div className={`flex items-center justify-between p-6 border-b ${evaluationModal.action === 'aprovado' ? 'border-emerald-100 bg-emerald-50/40' : 'border-red-100 bg-red-50/40'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-xl ${evaluationModal.action === 'aprovado' ? 'bg-emerald-600 shadow-emerald-200' : 'bg-red-600 shadow-red-200'} shadow-md`}>
+                  {evaluationModal.action === 'aprovado' ? <Check size={18} className="text-white" /> : <X size={18} className="text-white" />}
+                </div>
+                <div>
+                  <h3 className={`font-black text-base uppercase ${evaluationModal.action === 'aprovado' ? 'text-emerald-800' : 'text-red-800'}`}>
+                    {evaluationModal.action === 'aprovado' ? 'Aprovar Troca' : 'Reprovar Troca'}
+                  </h3>
+                  <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mt-0.5">Confirmação administrativa</p>
+                </div>
               </div>
-              <button 
+              <button
                 onClick={() => setEvaluationModal({ isOpen: false, swap: null, action: 'aprovado', observation: '' })}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
+                className="p-2 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-white/60 transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Content */}
+            {/* Modal Body */}
             <div className="p-6 space-y-4">
-              <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-xs space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-bold uppercase">Original (Escalado):</span>
-                  <span className="text-slate-800 font-bold">{evaluationModal.swap?.escaladoName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-bold uppercase">Substituto:</span>
-                  <span className="text-slate-800 font-bold">{evaluationModal.swap?.substitutoName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-bold uppercase">Data & Hora:</span>
-                  <span className="text-slate-800 font-bold">
-                    {evaluationModal.swap ? new Date(evaluationModal.swap.data + 'T00:00:00').toLocaleDateString('pt-BR') : ''} das {evaluationModal.swap?.horarioInicio}h às {evaluationModal.swap?.horarioFim}h
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400 font-bold uppercase">Função:</span>
-                  <span className="text-slate-800 font-bold">{evaluationModal.swap?.funcao}</span>
-                </div>
+              {/* Summary card */}
+              <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 space-y-2.5">
+                {[
+                  { label: 'Escalado',   value: evaluationModal.swap.escaladoName },
+                  { label: 'Substituto', value: evaluationModal.swap.substitutoName },
+                  { label: 'Função',     value: evaluationModal.swap.funcao },
+                  { label: 'Data',       value: new Date(evaluationModal.swap.data + 'T00:00:00').toLocaleDateString('pt-BR') },
+                  { label: 'Horário',    value: `${evaluationModal.swap.horarioInicio}h → ${evaluationModal.swap.horarioFim}h` },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-center justify-between gap-4">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{label}</span>
+                    <span className="text-xs font-bold text-slate-800 text-right">{value}</span>
+                  </div>
+                ))}
               </div>
 
-              {/* Observação / Justificativa */}
+              {/* Observação */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Observação / Justificativa (Opcional)</label>
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Observação (Opcional)</label>
                 <textarea
                   value={evaluationModal.observation}
-                  onChange={(e) => setEvaluationModal({ ...evaluationModal, observation: e.target.value })}
-                  placeholder="Escreva alguma observação administrativa sobre esta decisão..."
+                  onChange={e => setEvaluationModal({ ...evaluationModal, observation: e.target.value })}
+                  placeholder="Escreva uma observação sobre esta decisão..."
                   rows={3}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all outline-none font-bold text-sm resize-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none font-medium text-sm resize-none"
                 />
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setEvaluationModal({ isOpen: false, swap: null, action: 'aprovado', observation: '' })}
-                className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-98 shadow-sm"
+                className="px-5 py-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-sm"
               >
-                Voltar
+                Cancelar
               </button>
               <button
                 onClick={handleEvaluate}
                 disabled={evaluating}
-                className={`px-5 py-2.5 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md active:scale-98 flex items-center gap-2 ${
-                  evaluationModal.action === 'aprovado' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'
+                className={`px-6 py-3 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center gap-2 disabled:opacity-60 ${
+                  evaluationModal.action === 'aprovado'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
+                    : 'bg-red-600 hover:bg-red-700 shadow-red-200'
                 }`}
               >
-                {evaluating ? (
-                  <>
-                    <Loader2 className="animate-spin" size={16} /> Processando...
-                  </>
-                ) : (
-                  evaluationModal.action === 'aprovado' ? "Confirmar Aprovação" : "Confirmar Reprovação"
-                )}
+                {evaluating
+                  ? <><Loader2 className="animate-spin" size={15} /> Processando...</>
+                  : evaluationModal.action === 'aprovado' ? 'Confirmar Aprovação' : 'Confirmar Reprovação'
+                }
               </button>
             </div>
           </div>
