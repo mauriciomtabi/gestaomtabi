@@ -475,7 +475,7 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
         data:          formData.data,
         horarioInicio: formData.horarioInicio,
         horarioFim:    formData.horarioFim,
-        status:        'pendente',
+        status:        'aguardando_substituto',
       } as Partial<ServiceSwap>);
 
       // 2. Se a devolução foi informada, criar a troca invertida (B -> A) já preenchida. Caso contrário, criar a linha em branco para preenchimento posterior.
@@ -487,7 +487,7 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
           data:          formData.dataPagamento,
           horarioInicio: formData.horarioInicioPagamento,
           horarioFim:    formData.horarioFimPagamento,
-          status:        'pendente', // Aceita automaticamente, aguardando aprovação administrativa!
+          status:        'aguardando_substituto',
         } as Partial<ServiceSwap>);
       } else {
         await createServiceSwap({
@@ -497,7 +497,7 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
           data:          '1970-01-01', // Data de controle para "A definir" (Pagar depois)
           horarioInicio: '00:00',
           horarioFim:    '00:00',
-          status:        'pendente', // Aceita automaticamente, aguardando aprovação administrativa!
+          status:        'aguardando_substituto',
         } as any);
       }
 
@@ -629,8 +629,26 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
   const confirmAccept = async () => {
     if (!acceptModal.swap) return;
     try {
-      const result = await acceptServiceSwap(acceptModal.swap.id);
+      const originalSwap = acceptModal.swap;
+      const result = await acceptServiceSwap(originalSwap.id);
       if (result) {
+        // Encontrar a troca de devolução casada (B -> A) e aceitar também!
+        const linkedSwap = swaps.find(s => 
+          s.id !== originalSwap.id &&
+          s.escaladoId === originalSwap.substitutoId &&
+          s.substitutoId === originalSwap.escaladoId &&
+          s.funcao === originalSwap.funcao &&
+          s.status === 'aguardando_substituto' &&
+          Math.abs(new Date(s.createdAt).getTime() - new Date(originalSwap.createdAt).getTime()) < 15000
+        );
+        if (linkedSwap) {
+          try {
+            await acceptServiceSwap(linkedSwap.id);
+          } catch (err) {
+            console.warn("Erro RLS ao aceitar perna casada (tolerado):", err);
+          }
+        }
+
         setNotification('Você aceitou a troca de serviço com sucesso!', 'success');
         setAcceptModal({ isOpen: false, swap: null });
         await loadData();
@@ -656,11 +674,15 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
             s.escaladoId === originalSwap.substitutoId &&
             s.substitutoId === originalSwap.escaladoId &&
             s.funcao === originalSwap.funcao &&
-            s.status === 'pendente' &&
+            ['aguardando_substituto', 'pendente'].includes(s.status) &&
             Math.abs(new Date(s.createdAt).getTime() - new Date(originalSwap.createdAt).getTime()) < 15000
           );
           if (linkedSwap) {
-            await rejectServiceSwap(linkedSwap.id, `Recusada devido à recusa da troca principal: ${rejectModal.reason}`);
+            try {
+              await rejectServiceSwap(linkedSwap.id, `Recusada devido à recusa da troca principal: ${rejectModal.reason}`);
+            } catch (err) {
+              console.warn("Erro RLS ao recusar perna casada (tolerado):", err);
+            }
           }
         }
         setNotification('Solicitação de troca recusada com sucesso.', 'success');
@@ -1020,6 +1042,23 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
 
                   {/* Card Actions (Aprovação / Cancelamento) */}
                   <div className="flex items-center gap-2">
+                    {u.status === 'aguardando_substituto' && u.ida.substitutoId === currentUser.id && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleAccept(u.ida)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1 shadow-sm shadow-emerald-500/10"
+                        >
+                          <Check size={12} /> Aceitar Troca
+                        </button>
+                        <button
+                          onClick={() => setRejectModal({ isOpen: true, swapId: u.ida.id, reason: '' })}
+                          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-black text-[9px] uppercase tracking-wider transition-all active:scale-95 flex items-center gap-1 shadow-sm shadow-red-500/10"
+                        >
+                          <X size={12} /> Recusar Troca
+                        </button>
+                      </div>
+                    )}
+
                     {u.status === 'pendente' && currentUser.isAdmin && (
                       <div className="flex items-center gap-1">
                         <button
