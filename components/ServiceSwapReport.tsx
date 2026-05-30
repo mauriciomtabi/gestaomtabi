@@ -93,7 +93,7 @@ const ServiceSwapReport: React.FC<Props> = ({ swaps, currentUser, onClose }) => 
   const handlePrint = () => window.print();
 
   const fmtDate = (d: string) =>
-    d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : 'A definir';
+    d && d !== '1970-01-01' ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : 'A definir';
 
   const emitDate = new Date().toLocaleString('pt-BR');
 
@@ -420,7 +420,7 @@ const ReportDocument: React.FC<DocProps> = ({
                       {fmtDate(swap.data)}
                     </span>
                     <span style={{ display: 'block', fontSize: 9, color: '#94a3b8', fontWeight: 600, marginTop: 2 }}>
-                      {swap.horarioInicio}h → {swap.horarioFim}h
+                      {swap.data === '1970-01-01' ? 'Horário a definir' : `${swap.horarioInicio}h → ${swap.horarioFim}h`}
                     </span>
                   </td>
 

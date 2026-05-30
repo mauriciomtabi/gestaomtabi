@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ServiceSwap, Operator } from '../types';
 import { getServiceSwaps, createServiceSwap, evaluateServiceSwap, getAllProfiles, cancelServiceSwap, acceptServiceSwap, rejectServiceSwap, updateServiceSwapPayment, updateServiceSwapDetails } from '../services/supabaseService';
 import ServiceSwapReport from './ServiceSwapReport';
@@ -137,6 +137,8 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
   });
 
   const [savingPayment, setSavingPayment] = useState(false);
+  const isSavingRef = useRef(false);
+  const [showPendingPaybacksOnly, setShowPendingPaybacksOnly] = useState(false);
 
   const [escaladoSearch, setEscaladoSearch] = useState(currentUser.id ? `${currentUser.rank} ${currentUser.warName} (${currentUser.name})` : '');
   const [isEscaladoDropdownOpen, setIsEscaladoDropdownOpen] = useState(false);
@@ -273,8 +275,9 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
     setIsDropdownOpen(false);
   };
 
-  const enrichedSwaps = useMemo(() =>
-    swaps.map(s => {
+  const enrichedSwaps = useMemo(() => {
+    // 1. Mapeamento básico
+    const mapped = swaps.map(s => {
       const escalado   = profilesMap[s.escaladoId];
       const substituto = profilesMap[s.substitutoId];
       const aprovador  = s.aprovadorId ? profilesMap[s.aprovadorId] : null;
@@ -283,11 +286,56 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
         escaladoName:   escalado   ? `${escalado.rank} ${escalado.warName}`   : 'Militar Removido',
         substitutoName: substituto ? `${substituto.rank} ${substituto.warName}` : 'Militar Removido',
         aprovadorName:  aprovador  ? `${aprovador.rank} ${aprovador.warName}`  : undefined,
+        pairType:       'solo' as 'solo' | 'ida' | 'volta',
+        pairId:         null as string | null
       };
-    }),
-  [swaps, profilesMap]);
+    });
+
+    // 2. Procurar pares para ligar visualmente por proximidade de tempo (createdAt com diferença < 15 segundos)
+    for (let i = 0; i < mapped.length; i++) {
+      const s1 = mapped[i];
+      if (s1.pairType !== 'solo') continue;
+
+      const s2 = mapped.find((item, idx) => 
+        idx !== i &&
+        item.pairType === 'solo' &&
+        item.funcao === s1.funcao &&
+        item.escaladoId === s1.substitutoId &&
+        item.substitutoId === s1.escaladoId &&
+        Math.abs(new Date(item.createdAt).getTime() - new Date(s1.createdAt).getTime()) < 15000
+      );
+
+      if (s2) {
+        let s1IsIda = true;
+        if (s1.data === '1970-01-01') {
+          s1IsIda = false;
+        } else if (s2.data === '1970-01-01') {
+          s1IsIda = true;
+        } else {
+          s1IsIda = s1.data <= s2.data;
+        }
+
+        if (s1IsIda) {
+          s1.pairType = 'ida';
+          s2.pairType = 'volta';
+        } else {
+          s1.pairType = 'volta';
+          s2.pairType = 'ida';
+        }
+
+        s1.pairId = s2.id;
+        s2.pairId = s1.id;
+      }
+    }
+
+    return mapped;
+  }, [swaps, profilesMap]);
 
   const pendingCount = swaps.filter(s => s.status === 'pendente').length;
+
+  const totalPendingPaybacksCount = useMemo(() => {
+    return swaps.filter(s => s.data === '1970-01-01' && s.status !== 'reprovado' && s.status !== 'cancelado').length;
+  }, [swaps]);
 
   const mySubstitutionsPendingCount = useMemo(() => {
     return swaps.filter(s => s.substitutoId === currentUser.id && s.status === 'aguardando_substituto').length;
@@ -295,6 +343,7 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
 
   const filteredSwaps = useMemo(() => {
     return enrichedSwaps.filter(s => {
+      if (showPendingPaybacksOnly && s.data !== '1970-01-01') return false;
       if (activeTab === 'minhas' && s.escaladoId !== currentUser.id && s.substitutoId !== currentUser.id) return false;
       if (activeTab === 'aprovar' && s.status !== 'pendente') return false;
       if (statusFilter.length > 0 && !statusFilter.includes(s.status)) return false;
@@ -310,10 +359,11 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
       }
       return true;
     });
-  }, [enrichedSwaps, activeTab, statusFilter, searchTerm, currentUser.id]);
+  }, [enrichedSwaps, activeTab, statusFilter, searchTerm, currentUser.id, showPendingPaybacksOnly]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSavingRef.current) return;
     if (!currentUser.id) { setNotification('Sessão inválida.', 'error'); return; }
     if (!formData.escaladoId) { setNotification('Selecione o escalado.', 'error'); return; }
     if (!formData.substitutoId) { setNotification('Selecione o substituto.', 'error'); return; }
@@ -325,9 +375,10 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
       if (!formData.horarioFimPagamento) { setNotification('Preencha o horário de fim da devolução.', 'error'); return; }
     }
 
+    isSavingRef.current = true;
     setSaving(true);
     try {
-      // 1. Criar a troca original (A -> B)
+      // 1. Criar a troca original (A -> B) - agora já pendente direto, aceita pelas duas partes que já combinaram previamente!
       const result = await createServiceSwap({
         escaladoId:    formData.escaladoId,
         substitutoId:  formData.substitutoId,
@@ -335,7 +386,7 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
         data:          formData.data,
         horarioInicio: formData.horarioInicio,
         horarioFim:    formData.horarioFim,
-        status:        'aguardando_substituto',
+        status:        'pendente',
       } as Partial<ServiceSwap>);
 
       // 2. Se a devolução foi informada, criar a troca invertida (B -> A) já preenchida. Caso contrário, criar a linha em branco para preenchimento posterior.
@@ -354,15 +405,15 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
           escaladoId:    formData.substitutoId, // Invertido!
           substitutoId:  formData.escaladoId,   // Invertido!
           funcao:        formData.funcao,
-          data:          null as any,
-          horarioInicio: null as any,
-          horarioFim:    null as any,
+          data:          '1970-01-01', // Data de controle para "A definir" (Pagar depois)
+          horarioInicio: '00:00',
+          horarioFim:    '00:00',
           status:        'pendente', // Aceita automaticamente, aguardando aprovação administrativa!
         } as any);
       }
 
       if (result) {
-        setNotification('Solicitação enviada para aceite do substituto!', 'success');
+        setNotification('Solicitação enviada para aprovação do administrador!', 'success');
         setIsModalOpen(false);
         setFormData({
           escaladoId: currentUser.id || '',
@@ -383,6 +434,7 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
     } catch (err: any) {
       setNotification(err.message || 'Erro ao salvar a solicitação.', 'error');
     } finally {
+      isSavingRef.current = false;
       setSaving(false);
     }
   };
@@ -398,13 +450,15 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
         evaluationModal.observation,
       );
       if (result) {
-        // Encontrar a troca de devolução casada (B -> A) que está pendente de aprovação
+        // Encontrar a troca de devolução casada (B -> A) que está pendente de aprovação por proximidade temporal
         const originalSwap = evaluationModal.swap;
         const linkedSwap = swaps.find(s => 
+          s.id !== originalSwap.id &&
           s.escaladoId === originalSwap.substitutoId &&
           s.substitutoId === originalSwap.escaladoId &&
           s.funcao === originalSwap.funcao &&
-          s.status === 'pendente'
+          s.status === 'pendente' &&
+          Math.abs(new Date(s.createdAt).getTime() - new Date(originalSwap.createdAt).getTime()) < 15000
         );
         if (linkedSwap) {
           await evaluateServiceSwap(
@@ -446,10 +500,12 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
         if (originalSwap) {
           // Encontrar a troca de devolução casada (B -> A) e cancelar também!
           const linkedSwap = swaps.find(s => 
+            s.id !== originalSwap.id &&
             s.escaladoId === originalSwap.substitutoId &&
             s.substitutoId === originalSwap.escaladoId &&
             s.funcao === originalSwap.funcao &&
-            ['aguardando_substituto', 'pendente', 'aprovado'].includes(s.status)
+            ['aguardando_substituto', 'pendente', 'aprovado'].includes(s.status) &&
+            Math.abs(new Date(s.createdAt).getTime() - new Date(originalSwap.createdAt).getTime()) < 15000
           );
           if (linkedSwap) {
             await cancelServiceSwap(
@@ -500,10 +556,12 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
         if (originalSwap) {
           // Encontrar a troca de devolução casada (B -> A) e recusar também!
           const linkedSwap = swaps.find(s => 
+            s.id !== originalSwap.id &&
             s.escaladoId === originalSwap.substitutoId &&
             s.substitutoId === originalSwap.escaladoId &&
             s.funcao === originalSwap.funcao &&
-            s.status === 'pendente'
+            s.status === 'pendente' &&
+            Math.abs(new Date(s.createdAt).getTime() - new Date(originalSwap.createdAt).getTime()) < 15000
           );
           if (linkedSwap) {
             await rejectServiceSwap(linkedSwap.id, `Recusada devido à recusa da troca principal: ${rejectModal.reason}`);
@@ -536,34 +594,46 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
 
     setSavingPayment(true);
     try {
-      // Procurar pela linha de devolução pré-cadastrada vazia (que tem o escalado e substituto invertidos, mesma função e sem data)
-      const existingReturnSwap = swaps.find(s => 
-        s.escaladoId === paymentModal.swap.substitutoId &&
-        s.substitutoId === paymentModal.swap.escaladoId &&
-        s.funcao === paymentModal.swap.funcao &&
-        !s.data
-      );
-
       let result;
-      if (existingReturnSwap) {
-        // Se já existe a linha em branco, apenas atualizamos a data e os horários nela!
+      if (paymentModal.swap.data === '1970-01-01') {
+        // Se o próprio swap clicado for a linha em branco, atualizamos ele diretamente!
         result = await updateServiceSwapDetails(
-          existingReturnSwap.id,
+          paymentModal.swap.id,
           paymentModal.dataPagamento,
           paymentModal.horarioInicioPagamento,
           paymentModal.horarioFimPagamento
         );
       } else {
-        // Fallback: cria uma nova linha caso não exista a linha pré-cadastrada
-        result = await createServiceSwap({
-          escaladoId:    paymentModal.swap.substitutoId, // Invertido!
-          substitutoId:  paymentModal.swap.escaladoId,   // Invertido!
-          funcao:        paymentModal.swap.funcao,
-          data:          paymentModal.dataPagamento,
-          horarioInicio: paymentModal.horarioInicioPagamento,
-          horarioFim:    paymentModal.horarioFimPagamento,
-          status:        'aguardando_substituto',
-        } as Partial<ServiceSwap>);
+        // Procurar pela linha de devolução pré-cadastrada vazia por proximidade temporal
+        const existingReturnSwap = swaps.find(s => 
+          s.id !== paymentModal.swap.id &&
+          s.escaladoId === paymentModal.swap.substitutoId &&
+          s.substitutoId === paymentModal.swap.escaladoId &&
+          s.funcao === paymentModal.swap.funcao &&
+          s.data === '1970-01-01' &&
+          Math.abs(new Date(s.createdAt).getTime() - new Date(paymentModal.swap.createdAt).getTime()) < 15000
+        );
+
+        if (existingReturnSwap) {
+          // Se já existe a linha em branco, apenas atualizamos a data e os horários nela!
+          result = await updateServiceSwapDetails(
+            existingReturnSwap.id,
+            paymentModal.dataPagamento,
+            paymentModal.horarioInicioPagamento,
+            paymentModal.horarioFimPagamento
+          );
+        } else {
+          // Fallback: cria uma nova linha caso não exista a linha pré-cadastrada
+          result = await createServiceSwap({
+            escaladoId:    paymentModal.swap.substitutoId, // Invertido!
+            substitutoId:  paymentModal.swap.escaladoId,   // Invertido!
+            funcao:        paymentModal.swap.funcao,
+            data:          paymentModal.dataPagamento,
+            horarioInicio: paymentModal.horarioInicioPagamento,
+            horarioFim:    paymentModal.horarioFimPagamento,
+            status:        'pendente',
+          } as Partial<ServiceSwap>);
+        }
       }
 
       if (result) {
@@ -677,6 +747,20 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
             className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-400 outline-none transition-all text-sm font-medium"
           />
         </div>
+
+        {/* Toggle Filtro A Pagar */}
+        <button
+          type="button"
+          onClick={() => setShowPendingPaybacksOnly(!showPendingPaybacksOnly)}
+          className={`flex items-center gap-2 px-4 py-3 rounded-2xl border transition-all text-xs font-black uppercase tracking-wider shrink-0 w-full md:w-auto justify-center ${
+            showPendingPaybacksOnly
+              ? 'bg-amber-600 border-amber-600 text-white shadow-lg shadow-amber-200'
+              : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
+          }`}
+        >
+          <Clock size={14} className={showPendingPaybacksOnly ? 'text-white' : 'text-amber-600'} />
+          <span>A Pagar ({totalPendingPaybacksCount})</span>
+        </button>
 
         {/* Status Multiselect (hidden on "aprovar" tab) */}
         {activeTab !== 'aprovar' && (
@@ -802,8 +886,17 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                   const isEscalado   = swap.escaladoId   === currentUser.id;
                   const isSubstituto = swap.substitutoId === currentUser.id;
                   return (
-                    <tr key={swap.id} className="hover:bg-slate-50/50 transition-all group">
-                      <td className="px-6 py-4">
+                    <tr 
+                      key={swap.id} 
+                      className={`hover:bg-slate-50/60 transition-all group ${
+                        swap.pairType === 'ida' ? 'bg-blue-500/[0.06] hover:bg-blue-500/[0.1]' : 
+                        swap.pairType === 'volta' ? 'bg-purple-500/[0.06] hover:bg-purple-500/[0.1]' : ''
+                      }`}
+                    >
+                      <td className={`px-6 py-4 ${
+                        swap.pairType === 'ida' ? 'border-l-4 border-l-blue-500' : 
+                        swap.pairType === 'volta' ? 'border-l-4 border-l-purple-500' : ''
+                      }`}>
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${statusBadgeClass(swap.status)}`}>
                           {(swap.status === 'pendente' || swap.status === 'aguardando_substituto') && <Clock size={11} />}
                           {swap.status === 'aprovado'  && <CheckCircle2 size={11} />}
@@ -813,17 +906,37 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${funcaoBadgeClass(swap.funcao)}`}>
-                          {swap.funcao}
-                        </span>
+                        <div className="flex flex-col gap-1 items-start">
+                          <span className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${funcaoBadgeClass(swap.funcao)}`}>
+                            {swap.funcao}
+                          </span>
+                          {swap.pairType === 'ida' && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase bg-blue-100 text-blue-700 border border-blue-200">
+                              📤 Ida (Troca)
+                            </span>
+                          )}
+                          {swap.pairType === 'volta' && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase bg-purple-100 text-purple-700 border border-purple-200">
+                              📥 Volta
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="block text-xs font-bold text-slate-800">
-                          {swap.data ? new Date(swap.data + 'T00:00:00').toLocaleDateString('pt-BR') : 'A definir'}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-bold">
-                          {swap.horarioInicio && swap.horarioFim ? `${swap.horarioInicio}h → ${swap.horarioFim}h` : 'Horário a definir'}
-                        </span>
+                        {swap.data === '1970-01-01' ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 rounded-lg text-[9px] font-black uppercase tracking-wider animate-pulse">
+                            ⚠️ A Pagar (Definir)
+                          </span>
+                        ) : (
+                          <>
+                            <span className="block text-xs font-bold text-slate-800">
+                              {swap.data ? new Date(swap.data + 'T00:00:00').toLocaleDateString('pt-BR') : 'A definir'}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-bold">
+                              {swap.horarioInicio && swap.horarioFim ? `${swap.horarioInicio}h → ${swap.horarioFim}h` : 'Horário a definir'}
+                            </span>
+                          </>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`text-xs font-bold ${isEscalado ? 'text-blue-600' : 'text-slate-700'}`}>
@@ -911,7 +1024,7 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                                 </button>
                               </>
                             )}
-                            {['pendente', 'aprovado'].includes(swap.status) && (swap.escaladoId === currentUser.id || currentUser.isAdmin) && (
+                            {['pendente', 'aprovado'].includes(swap.status) && (swap.escaladoId === currentUser.id || swap.substitutoId === currentUser.id || currentUser.isAdmin) && (
                               <button
                                 onClick={() => setPaymentModal({
                                   isOpen: true,
@@ -950,20 +1063,44 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
               const isEscalado   = swap.escaladoId   === currentUser.id;
               const isSubstituto = swap.substitutoId === currentUser.id;
               return (
-                <div key={swap.id} className="p-5 space-y-3">
+                <div 
+                  key={swap.id} 
+                  className={`p-5 space-y-3 border-l-4 transition-all ${
+                    swap.pairType === 'ida' ? 'border-l-blue-500 bg-blue-500/[0.04]' : 
+                    swap.pairType === 'volta' ? 'border-l-purple-500 bg-purple-500/[0.04]' : 'border-l-transparent bg-transparent'
+                  }`}
+                >
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${statusBadgeClass(swap.status)}`}>
-                      {(swap.status === 'pendente' || swap.status === 'aguardando_substituto') && <Clock size={11} />}
-                      {swap.status === 'aprovado'  && <CheckCircle2 size={11} />}
-                      {(swap.status === 'reprovado' || swap.status === 'recusado_substituto') && <XCircle size={11} />}
-                      {swap.status === 'cancelado' && <XCircle size={11} />}
-                      {STATUS_LABELS[swap.status]}
-                    </span>
-                    <span className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${funcaoBadgeClass(swap.funcao)}`}>
-                      {swap.funcao}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${statusBadgeClass(swap.status)}`}>
+                        {(swap.status === 'pendente' || swap.status === 'aguardando_substituto') && <Clock size={11} />}
+                        {swap.status === 'aprovado'  && <CheckCircle2 size={11} />}
+                        {(swap.status === 'reprovado' || swap.status === 'recusado_substituto') && <XCircle size={11} />}
+                        {swap.status === 'cancelado' && <XCircle size={11} />}
+                        {STATUS_LABELS[swap.status]}
+                      </span>
+                      <span className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-black uppercase ${funcaoBadgeClass(swap.funcao)}`}>
+                        {swap.funcao}
+                      </span>
+                      {swap.pairType === 'ida' && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase bg-blue-100 text-blue-700 border border-blue-200">
+                          📤 Ida (Troca)
+                        </span>
+                      )}
+                      {swap.pairType === 'volta' && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase bg-purple-100 text-purple-700 border border-purple-200">
+                          📥 Volta
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs font-bold text-slate-500">
-                      {swap.data ? new Date(swap.data + 'T00:00:00').toLocaleDateString('pt-BR') : 'A definir'} · {swap.horarioInicio && swap.horarioFim ? `${swap.horarioInicio}h→${swap.horarioFim}h` : 'Horário a definir'}
+                      {swap.data === '1970-01-01' ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 rounded-md text-[8px] font-black uppercase tracking-wider animate-pulse">
+                          ⚠️ A Pagar
+                        </span>
+                      ) : (
+                        `${swap.data ? new Date(swap.data + 'T00:00:00').toLocaleDateString('pt-BR') : 'A definir'} · ${swap.horarioInicio && swap.horarioFim ? `${swap.horarioInicio}h→${swap.horarioFim}h` : 'Horário a definir'}`
+                      )}
                     </span>
                   </div>
 
@@ -1046,7 +1183,7 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                           </button>
                         </div>
                       )}
-                      {['pendente', 'aprovado'].includes(swap.status) && (swap.escaladoId === currentUser.id || currentUser.isAdmin) && (
+                      {['pendente', 'aprovado'].includes(swap.status) && (swap.escaladoId === currentUser.id || swap.substitutoId === currentUser.id || currentUser.isAdmin) && (
                         <button
                           onClick={() => setPaymentModal({
                             isOpen: true,
