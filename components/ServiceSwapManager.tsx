@@ -1184,14 +1184,10 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                         )}
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4">
                         <div>
-                          <span className="block text-[9px] font-black uppercase text-purple-600 bg-purple-50 border border-purple-200/30 px-2 py-0.5 rounded-md inline-block mb-1 tracking-wider">ESCALADO (TRABALHA)</span>
+                          <span className="block text-[9px] font-black uppercase text-purple-600 bg-purple-50 border border-purple-200/30 px-2 py-0.5 rounded-md inline-block mb-1 tracking-wider">SUBSTITUTO</span>
                           <span className="text-xs font-bold text-slate-700 block">{u.volta.escaladoName}</span>
-                        </div>
-                        <div>
-                          <span className="block text-[9px] font-black uppercase text-fuchsia-600 bg-fuchsia-50 border border-fuchsia-200/30 px-2 py-0.5 rounded-md inline-block mb-1 tracking-wider">SUBSTITUTO (FOLGA)</span>
-                          <span className="text-xs font-bold text-slate-700 block">{u.volta.substitutoName}</span>
                         </div>
                       </div>
 
