@@ -127,6 +127,33 @@ export const extractAttendanceFromFile = async (base64Data: string, mimeType: st
   }
 };
 
+export const parseHoursStringToNumber = (hoursStr: string | number | undefined | null): number => {
+  if (hoursStr === undefined || hoursStr === null) return 0;
+  if (typeof hoursStr === 'number') return hoursStr;
+  
+  let str = String(hoursStr).trim().toLowerCase();
+  if (!str) return 0;
+  
+  // Formatos com "h" (ex: "47h6min", "47h 6min", "47h")
+  const hourMinRegex = /(\d+)\s*h\s*(\d+)?\s*(min)?/;
+  const match = str.match(hourMinRegex);
+  if (match) {
+    const hours = parseInt(match[1], 10) || 0;
+    const minutes = match[2] ? (parseInt(match[2], 10) || 0) : 0;
+    return hours + (minutes / 60);
+  }
+  
+  if (str.includes('h')) {
+    const cleanStr = str.replace(/[^\d.,]/g, '');
+    const normStr = cleanStr.replace(',', '.');
+    return parseFloat(normStr) || 0;
+  }
+  
+  // Caso de número decimal com vírgula ou ponto (ex: "47,6" ou "47.6")
+  const normStr = str.replace(',', '.');
+  return parseFloat(normStr) || 0;
+};
+
 export const extractReferralData = async (base64Data: string, mimeType: string) => {
   const prompt = `
     Analise esta 'Folha de Encaminhamento' do Poder Judiciário / Vara de Execuções Criminais.
@@ -142,6 +169,8 @@ export const extractReferralData = async (base64Data: string, mimeType: string) 
        - Se encontrar 'Xh semanais por Y meses', calcule o total: X * 4 * Y.
        - Exemplo: '4h semanais por 6 meses' -> Total de 96 horas.
        - Se houver apenas um número total de horas (ex: '150 horas totais'), use esse número.
+       - Se houver formato de horas e minutos como '47h6min', retorne essa string exatamente (ex: "47h6min").
+       - Se houver formato decimal brasileiro (ex: '47,6'), retorne a string correspondente (ex: "47,6").
        - Retorne o resultado final no campo 'totalHours'.
     
     7. Data do Encaminhamento (formato ISO YYYY-MM-DD).
@@ -171,8 +200,8 @@ export const extractReferralData = async (base64Data: string, mimeType: string) 
             address: { type: Type.STRING },
             assignedEntity: { type: Type.STRING },
             totalHours: {
-              type: Type.NUMBER,
-              description: "Cálculo resultante do período (Horas semanais * 4 * Meses) or total fixo."
+              type: Type.STRING,
+              description: "Cálculo resultante do período, total fixo, formato decimal ou formato de horas/minutos (ex: '47h6min', '47,6', '150')."
             },
             referralDate: { type: Type.STRING },
             receiptDate: { type: Type.STRING },
@@ -187,7 +216,11 @@ export const extractReferralData = async (base64Data: string, mimeType: string) 
     const jsonStr = response.text?.trim();
     if (!jsonStr) throw new Error("IA não retornou dados do encaminhamento.");
 
-    return JSON.parse(jsonStr);
+    const data = JSON.parse(jsonStr);
+    if (data.totalHours !== undefined) {
+      data.totalHours = parseHoursStringToNumber(data.totalHours);
+    }
+    return data;
   } catch (err: any) {
     console.error('[Gemini Referral] Erro:', err);
     throw err;

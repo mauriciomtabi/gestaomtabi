@@ -180,49 +180,77 @@ const mapAttendanceToDB = (a: AttendanceRecord) => {
   return dbData;
 };
 
-const mapFuelSupplyFromDB = (f: any): FuelSupply => ({
-  id: f.id,
-  date: f.date,
-  location: f.location,
-  cnpj: f.cnpj,
-  fuelType: f.fuel_type,
-  liters: f.liters,
-  pricePerLiter: f.price_per_liter,
-  totalValue: f.total_value,
-  driver: f.driver,
-  plate: f.plate,
-  km: f.km,
-  attendant: f.attendant,
-  protocol: f.protocol,
-  attachmentData: f.attachment_data,
-  attachmentType: f.attachment_type,
-  ticketLogData: f.ticket_log_data,
-  ticketLogType: f.ticket_log_type,
-  createdAt: f.created_at,
-  history: (f.fuel_audit_logs || [])
-    .map(mapAuditLogFromDB)
-    .sort((a: AuditLog, b: AuditLog) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-});
+const mapFuelSupplyFromDB = (f: any): FuelSupply => {
+  let entryType: 'abastecimento' | 'manutencao' = 'abastecimento';
+  let items: any[] = [];
+  let protocol = f.protocol || '';
 
-const mapFuelSupplyToDB = (f: FuelSupply) => ({
-  id: f.id && isUUID(f.id) ? f.id : generateUUID(),
-  date: f.date,
-  location: f.location,
-  cnpj: f.cnpj,
-  fuel_type: f.fuelType,
-  liters: Number(f.liters) || 0,
-  price_per_liter: Number(f.pricePerLiter) || 0,
-  total_value: Number(f.totalValue) || 0,
-  driver: f.driver,
-  plate: f.plate,
-  km: Number(f.km) || 0,
-  attendant: f.attendant,
-  protocol: f.protocol,
-  attachment_data: f.attachmentData,
-  attachment_type: f.attachmentType,
-  ticket_log_data: f.ticketLogData,
-  ticket_log_type: f.ticketLogType
-});
+  if (protocol.startsWith('__maintenance__:')) {
+    entryType = 'manutencao';
+    const itemsPart = protocol.split('__items__:');
+    if (itemsPart.length > 1) {
+      try {
+        items = JSON.parse(itemsPart[1]);
+      } catch (e) {
+        console.error("Erro ao fazer parse dos itens de manutencao:", e);
+      }
+    }
+    protocol = itemsPart[0].replace('__maintenance__:', '');
+  }
+
+  return {
+    id: f.id,
+    date: f.date,
+    location: f.location,
+    cnpj: f.cnpj,
+    fuelType: f.fuel_type,
+    liters: f.liters,
+    pricePerLiter: f.price_per_liter,
+    totalValue: f.total_value,
+    driver: f.driver,
+    plate: f.plate,
+    km: f.km,
+    attendant: f.attendant,
+    protocol: protocol,
+    entryType: entryType,
+    items: items,
+    attachmentData: f.attachment_data,
+    attachmentType: f.attachment_type,
+    ticketLogData: f.ticket_log_data,
+    ticketLogType: f.ticket_log_type,
+    createdAt: f.created_at,
+    history: (f.fuel_audit_logs || [])
+      .map(mapAuditLogFromDB)
+      .sort((a: AuditLog, b: AuditLog) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+  };
+};
+
+const mapFuelSupplyToDB = (f: FuelSupply) => {
+  let protocolValue = f.protocol || '';
+  if (f.entryType === 'manutencao' && f.items && f.items.length > 0) {
+    protocolValue = `__maintenance__:${f.protocol || ''}__items__:${JSON.stringify(f.items)}`;
+  }
+  
+  return {
+    id: f.id && isUUID(f.id) ? f.id : generateUUID(),
+    date: f.date,
+    location: f.location,
+    cnpj: f.cnpj,
+    fuel_type: f.fuelType,
+    liters: Number(f.liters) || 0,
+    price_per_liter: Number(f.pricePerLiter) || 0,
+    total_value: Number(f.totalValue) || 0,
+    driver: f.driver,
+    plate: f.plate,
+    km: Number(f.km) || 0,
+    attendant: f.attendant,
+    protocol: protocolValue,
+    attachment_data: f.attachmentData,
+    attachment_type: f.attachmentType,
+    ticket_log_data: f.ticketLogData,
+    ticket_log_type: f.ticketLogType
+  };
+};
 
 const mapVehicleFromDB = (v: any): Vehicle => ({
   id: v.id,

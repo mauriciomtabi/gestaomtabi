@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { FuelSupply, AuditLog, Vehicle, StationNickname } from '../types';
 import { getFuelSupplies, saveFuelSupply, deleteFuelSupply, saveFuelAuditLog, saveVehicle, deleteVehicle, saveStationNickname } from '../services/supabaseService';
-import { Plus, Search, Filter, Calendar, MapPin, Fuel, User, Car, Hash, DollarSign, Eye, Trash2, X, Save, Loader2, Camera, FileText, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2, History, Edit3, Clock, Download, ZoomIn, ZoomOut, RotateCcw, Upload, Image as ImageIcon, Tag, LayoutDashboard } from 'lucide-react';
+import { Plus, Search, Filter, Calendar, MapPin, Fuel, User, Car, Hash, DollarSign, Eye, Trash2, X, Save, Loader2, Camera, FileText, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2, History, Edit3, Clock, Download, ZoomIn, ZoomOut, RotateCcw, Upload, Image as ImageIcon, Tag, LayoutDashboard, Wrench } from 'lucide-react';
 import { normalizeFuelType, getStationDisplayName } from '../utils/fuelUtils';
 import FuelReceiptOCR from './FuelReceiptOCR';
 import FuelReport from './FuelReport';
@@ -38,6 +38,11 @@ const FuelSupplyManager: React.FC<Props> = ({ currentUser, vehicles, fuelSupplie
   const [confirmDeleteVehicleId, setConfirmDeleteVehicleId] = useState<string | null>(null);
 
   const [nicknameFormData, setNicknameFormData] = useState({ originalName: '', nickname: '' });
+  
+  // States para o editor de itens de manutenção
+  const [newItemDesc, setNewItemDesc] = useState('');
+  const [newItemQty, setNewItemQty] = useState<number>(1);
+  const [newItemPrice, setNewItemPrice] = useState<number>(0);
 
   const nicknameMap = useMemo(() => {
     return stationNicknames.reduce((acc, curr) => {
@@ -196,7 +201,9 @@ const FuelSupplyManager: React.FC<Props> = ({ currentUser, vehicles, fuelSupplie
     plate: '',
     km: 0,
     attendant: '',
-    protocol: ''
+    protocol: '',
+    entryType: 'abastecimento',
+    items: []
   };
 
   const [formData, setFormData] = useState<Partial<FuelSupply>>(initialFormData);
@@ -266,6 +273,8 @@ const FuelSupplyManager: React.FC<Props> = ({ currentUser, vehicles, fuelSupplie
     setEditingId(supply.id);
     setFormData({
       ...supply,
+      entryType: supply.entryType || 'abastecimento',
+      items: supply.items || [],
       // Garantir que a data esteja no formato correto para o input datetime-local
       date: supply.date.slice(0, 16)
     });
@@ -299,11 +308,11 @@ const FuelSupplyManager: React.FC<Props> = ({ currentUser, vehicles, fuelSupplie
       }
     }
 
-    setSaving(true);
+     setSaving(true);
     try {
       const supplyToSave = { 
         ...formData, 
-        fuelType: normalizeFuelType(formData.fuelType || ''),
+        fuelType: formData.entryType === 'manutencao' ? 'VÁRIOS ITENS' : normalizeFuelType(formData.fuelType || ''),
         id: editingId || 'temp-' + Date.now() 
       } as FuelSupply;
 
@@ -323,6 +332,9 @@ const FuelSupplyManager: React.FC<Props> = ({ currentUser, vehicles, fuelSupplie
       await fetchSupplies();
       
       setFormData(initialFormData);
+      setNewItemDesc('');
+      setNewItemQty(1);
+      setNewItemPrice(0);
       setEditingId(null);
       setIsModalOpen(false);
       
@@ -718,6 +730,50 @@ const FuelSupplyManager: React.FC<Props> = ({ currentUser, vehicles, fuelSupplie
             <div className="flex-1 overflow-y-auto">
               {activeTab === 'form' ? (
                 <form onSubmit={handleSave} className="p-6 md:p-8 space-y-8">
+                  {/* Seletor de Tipo de Registro */}
+                  <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50 w-full max-w-md mx-auto mb-6 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData({
+                          ...formData,
+                          entryType: 'abastecimento',
+                          fuelType: formData.fuelType === 'VÁRIOS ITENS' ? '' : formData.fuelType,
+                          liters: formData.liters === 0 ? 0 : formData.liters,
+                          pricePerLiter: formData.pricePerLiter === 0 ? 0 : formData.pricePerLiter
+                        });
+                      }}
+                      className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                        formData.entryType !== 'manutencao'
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      <Fuel size={14} />
+                      Abastecimento
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData({
+                          ...formData,
+                          entryType: 'manutencao',
+                          fuelType: 'VÁRIOS ITENS',
+                          liters: 0,
+                          pricePerLiter: 0
+                        });
+                      }}
+                      className={`flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                        formData.entryType === 'manutencao'
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      <Wrench size={14} />
+                      Manutenção / Revisão
+                    </button>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-4 md:col-span-2">
                       <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-2">
@@ -747,26 +803,26 @@ const FuelSupplyManager: React.FC<Props> = ({ currentUser, vehicles, fuelSupplie
                     <div className="space-y-4">
                       <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
-                        Combustível
+                        {formData.entryType === 'manutencao' ? 'Resumo Financeiro' : 'Combustível'}
                       </h4>
                       <div className="space-y-4">
                         <div>
                           <label className={labelClasses}>Tipo</label>
-                          <input type="text" required value={formData.fuelType} onChange={e => setFormData({...formData, fuelType: e.target.value})} className={inputClasses} placeholder="Ex: Gasolina Comum" />
+                          <input type="text" required disabled={formData.entryType === 'manutencao'} value={formData.fuelType} onChange={e => setFormData({...formData, fuelType: e.target.value})} className={inputClasses + (formData.entryType === 'manutencao' ? " opacity-70 bg-slate-100" : "")} placeholder="Ex: Gasolina Comum" />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className={labelClasses}>Litros</label>
-                            <input type="number" step="0.001" required value={formData.liters} onChange={e => setFormData({...formData, liters: parseFloat(e.target.value)})} className={inputClasses} />
+                            <label className={labelClasses}>{formData.entryType === 'manutencao' ? 'L/Itens' : 'Litros'}</label>
+                            <input type="number" step="0.001" required disabled={formData.entryType === 'manutencao'} value={formData.liters} onChange={e => setFormData({...formData, liters: parseFloat(e.target.value) || 0})} className={inputClasses + (formData.entryType === 'manutencao' ? " opacity-70 bg-slate-100" : "")} />
                           </div>
                           <div>
                             <label className={labelClasses}>Preço/L</label>
-                            <input type="number" step="0.01" required value={formData.pricePerLiter} onChange={e => setFormData({...formData, pricePerLiter: parseFloat(e.target.value)})} className={inputClasses} />
+                            <input type="number" step="0.01" required disabled={formData.entryType === 'manutencao'} value={formData.pricePerLiter} onChange={e => setFormData({...formData, pricePerLiter: parseFloat(e.target.value) || 0})} className={inputClasses + (formData.entryType === 'manutencao' ? " opacity-70 bg-slate-100" : "")} />
                           </div>
                         </div>
                         <div>
                           <label className={labelClasses}>Valor Total (R$)</label>
-                          <input type="number" step="0.01" required value={formData.totalValue} onChange={e => setFormData({...formData, totalValue: parseFloat(e.target.value)})} className={inputClasses + " font-black text-blue-700 bg-blue-50"} />
+                          <input type="number" step="0.01" required disabled={formData.entryType === 'manutencao'} value={formData.totalValue} onChange={e => setFormData({...formData, totalValue: parseFloat(e.target.value) || 0})} className={inputClasses + " font-black text-blue-700 bg-blue-50" + (formData.entryType === 'manutencao' ? " opacity-70 cursor-not-allowed" : "")} />
                         </div>
                       </div>
                     </div>
@@ -873,6 +929,154 @@ const FuelSupplyManager: React.FC<Props> = ({ currentUser, vehicles, fuelSupplie
                       </div>
                     </div>
                   </div>
+
+                  {formData.entryType === 'manutencao' && (
+                    <div className="space-y-4 md:col-span-3 bg-slate-50/50 p-6 rounded-[2rem] border border-slate-200 shadow-inner">
+                      <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse"></div>
+                        Peças / Lubrificantes / Filtros / Serviços Adquiridos
+                      </h4>
+                      
+                      {/* Tabela de Itens */}
+                      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-200">
+                              <th className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-wider">Item / Descrição</th>
+                              <th className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-wider text-center w-[120px]">Qtd</th>
+                              <th className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-wider text-right w-[150px]">Vlr. Unitário</th>
+                              <th className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-wider text-right w-[150px]">Vlr. Total</th>
+                              <th className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-wider text-center w-[80px]">Ações</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {(!formData.items || formData.items.length === 0) ? (
+                              <tr>
+                                <td colSpan={5} className="px-4 py-8 text-center text-xs font-bold text-slate-400 italic">
+                                  Nenhum item adicionado ainda. Insira os itens abaixo.
+                                </td>
+                              </tr>
+                            ) : (
+                              formData.items.map((item, idx) => (
+                                <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                  <td className="px-4 py-3 text-xs font-bold text-slate-700 uppercase">{item.description}</td>
+                                  <td className="px-4 py-3 text-xs text-slate-600 text-center font-bold">
+                                    {item.quantity.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 3 })}
+                                  </td>
+                                  <td className="px-4 py-3 text-xs text-slate-600 text-right font-medium">
+                                    R$ {item.unitValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="px-4 py-3 text-xs font-black text-slate-900 text-right">
+                                    R$ {item.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const updatedItems = (formData.items || []).filter((_, i) => i !== idx);
+                                        const total = updatedItems.reduce((sum, it) => sum + (Number(it.totalValue) || 0), 0);
+                                        setFormData({
+                                          ...formData,
+                                          items: updatedItems,
+                                          totalValue: total
+                                        });
+                                      }}
+                                      className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                      title="Remover Item"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                            
+                            {/* Linha de Inputs para adicionar novo item */}
+                            <tr className="bg-blue-50/20 border-t border-slate-200">
+                              <td className="p-3">
+                                <input
+                                  type="text"
+                                  placeholder="Ex: Filtro Óleo"
+                                  value={newItemDesc}
+                                  onChange={e => setNewItemDesc(e.target.value)}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold uppercase placeholder:text-slate-400 outline-none focus:border-blue-400"
+                                />
+                              </td>
+                              <td className="p-3">
+                                <input
+                                  type="number"
+                                  step="any"
+                                  placeholder="1.0"
+                                  value={newItemQty}
+                                  onChange={e => setNewItemQty(parseFloat(e.target.value) || 0)}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center outline-none focus:border-blue-400"
+                                />
+                              </td>
+                              <td className="p-3">
+                                <input
+                                  type="number"
+                                  step="any"
+                                  placeholder="0.00"
+                                  value={newItemPrice === 0 ? '' : newItemPrice}
+                                  onChange={e => setNewItemPrice(parseFloat(e.target.value) || 0)}
+                                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-right outline-none focus:border-blue-400"
+                                />
+                              </td>
+                              <td className="p-3 text-right text-xs font-black text-blue-600">
+                                R$ {((newItemQty || 0) * (newItemPrice || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="p-3 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!newItemDesc.trim()) {
+                                      alert("Por favor, informe a descrição do item.");
+                                      return;
+                                    }
+                                    if (newItemQty <= 0) {
+                                      alert("A quantidade deve ser maior que zero.");
+                                      return;
+                                    }
+                                    if (newItemPrice <= 0) {
+                                      alert("O preço unitário deve ser maior que zero.");
+                                      return;
+                                    }
+                                    
+                                    const qty = Number(newItemQty);
+                                    const price = Number(newItemPrice);
+                                    const newItem = {
+                                      description: newItemDesc.trim().toUpperCase(),
+                                      quantity: qty,
+                                      unitValue: price,
+                                      totalValue: qty * price
+                                    };
+                                    
+                                    const updatedItems = [...(formData.items || []), newItem];
+                                    const total = updatedItems.reduce((sum, it) => sum + (Number(it.totalValue) || 0), 0);
+                                    
+                                    setFormData({
+                                      ...formData,
+                                      items: updatedItems,
+                                      totalValue: total
+                                    });
+                                    
+                                    // Reset inputs
+                                    setNewItemDesc('');
+                                    setNewItemQty(1);
+                                    setNewItemPrice(0);
+                                  }}
+                                  className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md transition-all hover:scale-105 cursor-pointer flex items-center justify-center mx-auto"
+                                  title="Adicionar Item"
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-4 md:col-span-3">
                     <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] flex items-center gap-2">

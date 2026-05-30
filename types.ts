@@ -71,6 +71,13 @@ export interface StationNickname {
   nickname: string;
 }
 
+export interface MaintenanceItem {
+  description: string;
+  quantity: number;
+  unitValue: number;
+  totalValue: number;
+}
+
 export interface FuelSupply {
   id: string;
   date: string; // ISO format YYYY-MM-DDTHH:mm
@@ -85,6 +92,8 @@ export interface FuelSupply {
   km: number;
   attendant: string;
   protocol: string;
+  entryType?: 'abastecimento' | 'manutencao';
+  items?: MaintenanceItem[];
   attachmentData?: string; // Base64 da nota
   attachmentType?: string;
   ticketLogData?: string; // Base64 do ticket log

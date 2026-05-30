@@ -554,6 +554,7 @@ const ProviderModal: React.FC<Props> = ({ provider, onClose, onSubmit }) => {
                 <div className="relative">
                   <input 
                     type="number" 
+                    step="any"
                     name="totalHoursToFulfill" 
                     value={formData.totalHoursToFulfill} 
                     onChange={handleChange} 

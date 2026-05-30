@@ -85,8 +85,53 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
     }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }, [supplies, dateRange]);
 
-  const totalLiters = filteredSupplies.reduce((sum, s) => sum + s.liters, 0);
-  const totalValue = filteredSupplies.reduce((sum, s) => sum + s.totalValue, 0);
+  const expandedRows = useMemo(() => {
+    const rows: {
+      id: string;
+      date: string;
+      plate: string;
+      location: string;
+      driver: string;
+      liters: number;
+      fuelType: string;
+      pricePerLiter: number;
+      totalValue: number;
+    }[] = [];
+
+    for (const s of filteredSupplies) {
+      if (s.entryType === 'manutencao' && s.items && s.items.length > 0) {
+        for (const item of s.items) {
+          rows.push({
+            id: `${s.id}-${item.description}`,
+            date: s.date,
+            plate: s.plate,
+            location: s.location,
+            driver: s.driver,
+            liters: item.quantity,
+            fuelType: item.description,
+            pricePerLiter: item.unitValue,
+            totalValue: item.totalValue
+          });
+        }
+      } else {
+        rows.push({
+          id: s.id,
+          date: s.date,
+          plate: s.plate,
+          location: s.location,
+          driver: s.driver,
+          liters: s.liters,
+          fuelType: s.fuelType,
+          pricePerLiter: s.pricePerLiter,
+          totalValue: s.totalValue
+        });
+      }
+    }
+    return rows;
+  }, [filteredSupplies]);
+
+  const totalLiters = expandedRows.reduce((sum, r) => sum + r.liters, 0);
+  const totalValue = expandedRows.reduce((sum, r) => sum + r.totalValue, 0);
 
   const formatPlate = (plate: string) => {
     if (!plate) return '';
@@ -274,8 +319,8 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
                 </tr>
               </thead>
               <tbody>
-                {filteredSupplies.map((s, idx) => {
-                  const supplyDate = new Date(s.date);
+                {expandedRows.map((r, idx) => {
+                  const supplyDate = new Date(r.date);
                   
                   const getShortenedFuelType = (type: string) => {
                     if (!type) return '';
@@ -288,40 +333,40 @@ const FuelReport: React.FC<Props> = ({ supplies, vehicles, stationNicknames }) =
                   };
                   
                   return (
-                    <tr key={s.id || idx}>
+                    <tr key={r.id || idx}>
                       <td style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '4px 4px 12px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
                         {opmName}
                       </td>
                       <td className="font-bold" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '4px 4px 12px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
-                        {formatPlate(s.plate)}
+                        {formatPlate(r.plate)}
                       </td>
                       <td style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '4px 4px 12px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
                         {supplyDate.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric'})}
                       </td>
                       <td className="uppercase" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '4px 4px 12px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
-                        {getStationDisplayName(s.location, nicknameMap)}
+                        {getStationDisplayName(r.location, nicknameMap)}
                       </td>
                       <td className="uppercase font-bold text-[11px]" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '4px 4px 12px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
-                        {s.driver}
+                        {r.driver}
                       </td>
                       <td className="font-bold whitespace-nowrap" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '4px 4px 12px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
-                        {s.liters.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {r.liters.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                       <td className="uppercase" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '4px 4px 12px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
-                        {getShortenedFuelType(s.fuelType)}
+                        {getShortenedFuelType(r.fuelType)}
                       </td>
                       <td className="whitespace-nowrap" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '4px 4px 12px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
-                        R$ {s.pricePerLiter.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        R$ {r.pricePerLiter.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                       <td className="font-bold whitespace-nowrap" style={{ borderBottom: '1px solid black', borderRight: '1px solid black', textAlign: 'center', padding: '4px 4px 12px 4px', lineHeight: '1', verticalAlign: 'middle' }}>
-                        R$ {s.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        R$ {r.totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                     </tr>
                   );
                 })}
                 
                 {/* Espaços em branco para manter a estética de tabela Excel caso haja poucos itens */}
-                {Array.from({ length: Math.max(0, 10 - filteredSupplies.length) }).map((_, i) => (
+                {Array.from({ length: Math.max(0, 10 - expandedRows.length) }).map((_, i) => (
                   <tr key={`empty-${i}`} style={{ height: '28px' }}>
                     <td style={{ borderBottom: '1px solid black', borderRight: '1px solid black' }}></td>
                     <td style={{ borderBottom: '1px solid black', borderRight: '1px solid black' }}></td>

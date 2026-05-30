@@ -1,7 +1,7 @@
 import React, { useState, useRef, SyntheticEvent } from 'react';
 import ReactCrop, { Crop, PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
-import { X, Camera, Upload, Loader2, CheckCircle2, AlertCircle, FileText, Cpu, Receipt, ArrowRight, SkipForward } from 'lucide-react';
+import { X, Camera, Upload, Loader2, CheckCircle2, AlertCircle, FileText, Cpu, Receipt, ArrowRight, SkipForward, Wrench, Fuel } from 'lucide-react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { FuelSupply } from '../types';
 
@@ -14,6 +14,7 @@ type CaptureStep = 'select' | 'capture' | 'review' | 'processing' | 'next_prompt
 type DocType = 'nf' | 'ticket';
 
 const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
+  const [entryType, setEntryType] = useState<'abastecimento' | 'manutencao'>('abastecimento');
   const [step, setStep] = useState<CaptureStep>('select');
   const [currentDocType, setCurrentDocType] = useState<DocType | null>(null);
   const [captureMethod, setCaptureMethod] = useState<'camera' | 'upload' | null>(null);
@@ -172,27 +173,98 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
         
         const ai = new GoogleGenAI({ apiKey });
         
-        const prompt = `Analise esta nota fiscal de abastecimento e extraia os seguintes dados em formato JSON. 
-        IMPORTANTE: Extraia a data e hora EXATAMENTE como constam na nota.
-        
-        - data: Data e hora do abastecimento (formato ISO local YYYY-MM-DDTHH:mm, ignore fuso horário)
-        - local: Nome do posto ou estabelecimento
-        - cnpj: CNPJ do estabelecimento
-        - fuelType: Tipo de combustível (ex: Gasolina Comum, Diesel S10)
-        - liters: Quantidade de litros (número)
-        - pricePerLiter: Preço por litro (número)
-        - totalValue: Valor total pago (número)
-        - driver: Nome do motorista (se disponível)
-        - plate: Placa do veículo. REGRAS CRÍTICAS PARA PLACA:
-          1. O formato brasileiro é 3 LETRAS seguidas de 4 NÚMEROS (ABC1234) ou o padrão Mercosul (ABC1D23).
-          2. Os 3 PRIMEIROS caracteres são SEMPRE LETRAS. Nunca confunda '0' com 'O' ou '1' com 'I' nestas posições.
-          3. No padrão Mercosul, o 5º caractere é SEMPRE uma LETRA.
-          4. Verifique cuidadosamente se o que parece um '0' (zero) não é na verdade a letra 'O' nas posições de letras, e vice-versa.
-        - km: Quilometragem do veículo (número, se disponível)
-        - attendant: Nome do atendente (se disponível)
-        - protocol: Número do protocolo ou da nota fiscal (se disponível)
-        
-        Se algum dado não for encontrado, deixe como string vazia ou zero para números.`;
+        const prompt = entryType === 'manutencao'
+          ? `Analise esta nota fiscal de manutenção/revisão/troca de óleo e extraia os seguintes dados em formato JSON.
+          IMPORTANTE: Como se trata de uma manutenção/revisão, extraia a lista completa de peças, lubrificantes, filtros e serviços adquiridos.
+          Extraia a data e hora EXATAMENTE como constam na nota.
+          
+          - data: Data e hora da manutenção (formato ISO local YYYY-MM-DDTHH:mm, ignore fuso horário)
+          - local: Nome do estabelecimento/oficina/posto
+          - cnpj: CNPJ do estabelecimento
+          - driver: Nome do motorista (se disponível)
+          - plate: Placa do veículo. REGRAS CRÍTICAS PARA PLACA:
+            1. O formato brasileiro é 3 LETRAS seguidas de 4 NÚMEROS (ABC1234) ou o padrão Mercosul (ABC1D23).
+            2. Os 3 PRIMEIROS caracteres são SEMPRE LETRAS. Nunca confunda '0' com 'O' ou '1' com 'I' nestas posições.
+            3. No padrão Mercosul, o 5º caractere é SEMPRE uma LETRA.
+            4. Verifique cuidadosamente se o que parece um '0' (zero) não é na verdade a letra 'O' nas posições de letras, e vice-versa.
+          - km: Quilometragem do veículo (número, se disponível)
+          - attendant: Nome do atendente/mecânico (se disponível)
+          - protocol: Número do protocolo ou da nota fiscal (se disponível)
+          - totalValue: Valor total pago de todas as peças/serviços somados (número)
+          - items: Lista de peças, produtos ou serviços adquiridos. Cada item deve conter:
+            * description: Descrição/nome do produto ou serviço (ex: Filtro Óleo, Óleo 5w30, Filtro Ar)
+            * quantity: Quantidade adquirida (número, ex: 1, 11.5)
+            * unitValue: Valor unitário (número)
+            * totalValue: Valor total do item (número)
+          
+          Se algum dado não for encontrado, deixe como string vazia ou zero para números. A lista de items deve ser um array.`
+          : `Analise esta nota fiscal de abastecimento e extraia os seguintes dados em formato JSON. 
+          IMPORTANTE: Extraia a data e hora EXATAMENTE como constam na nota.
+          
+          - data: Data e hora do abastecimento (formato ISO local YYYY-MM-DDTHH:mm, ignore fuso horário)
+          - local: Nome do posto ou estabelecimento
+          - cnpj: CNPJ do estabelecimento
+          - fuelType: Tipo de combustível (ex: Gasolina Comum, Diesel S10)
+          - liters: Quantidade de litros (número)
+          - pricePerLiter: Preço por litro (número)
+          - totalValue: Valor total pago (número)
+          - driver: Nome do motorista (se disponível)
+          - plate: Placa do veículo. REGRAS CRÍTICAS PARA PLACA:
+            1. O formato brasileiro é 3 LETRAS seguidas de 4 NÚMEROS (ABC1234) ou o padrão Mercosul (ABC1D23).
+            2. Os 3 PRIMEIROS caracteres são SEMPRE LETRAS. Nunca confunda '0' com 'O' ou '1' com 'I' nestas posições.
+            3. No padrão Mercosul, o 5º caractere é SEMPRE uma LETRA.
+            4. Verifique cuidadosamente se o que parece um '0' (zero) não é na verdade a letra 'O' nas posições de letras, e vice-versa.
+          - km: Quilometragem do veículo (número, se disponível)
+          - attendant: Nome do atendente (se disponível)
+          - protocol: Número do protocolo ou da nota fiscal (se disponível)
+          
+          Se algum dado não for encontrado, deixe como string vazia ou zero para números.`;
+
+        const responseSchema = entryType === 'manutencao'
+          ? {
+              type: Type.OBJECT,
+              properties: {
+                data: { type: Type.STRING },
+                local: { type: Type.STRING },
+                cnpj: { type: Type.STRING },
+                driver: { type: Type.STRING },
+                plate: { type: Type.STRING },
+                km: { type: Type.NUMBER },
+                attendant: { type: Type.STRING },
+                protocol: { type: Type.STRING },
+                totalValue: { type: Type.NUMBER },
+                items: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      description: { type: Type.STRING },
+                      quantity: { type: Type.NUMBER },
+                      unitValue: { type: Type.NUMBER },
+                      totalValue: { type: Type.NUMBER }
+                    },
+                    required: ["description", "quantity", "unitValue", "totalValue"]
+                  }
+                }
+              }
+            }
+          : {
+              type: Type.OBJECT,
+              properties: {
+                data: { type: Type.STRING },
+                local: { type: Type.STRING },
+                cnpj: { type: Type.STRING },
+                fuelType: { type: Type.STRING },
+                liters: { type: Type.NUMBER },
+                pricePerLiter: { type: Type.NUMBER },
+                totalValue: { type: Type.NUMBER },
+                driver: { type: Type.STRING },
+                plate: { type: Type.STRING },
+                km: { type: Type.NUMBER },
+                attendant: { type: Type.STRING },
+                protocol: { type: Type.STRING }
+              }
+            };
 
         const response = await ai.models.generateContent({
           model: "gemini-3-flash-preview",
@@ -211,23 +283,7 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
           ],
           config: {
             responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.OBJECT,
-              properties: {
-                data: { type: Type.STRING },
-                local: { type: Type.STRING },
-                cnpj: { type: Type.STRING },
-                fuelType: { type: Type.STRING },
-                liters: { type: Type.NUMBER },
-                pricePerLiter: { type: Type.NUMBER },
-                totalValue: { type: Type.NUMBER },
-                driver: { type: Type.STRING },
-                plate: { type: Type.STRING },
-                km: { type: Type.NUMBER },
-                attendant: { type: Type.STRING },
-                protocol: { type: Type.STRING }
-              }
-            }
+            responseSchema: responseSchema
           }
         });
 
@@ -244,15 +300,17 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
         date: result.data || getLocalISOString(new Date()),
         location: result.local || '',
         cnpj: result.cnpj || '',
-        fuelType: result.fuelType || '',
-        liters: result.liters || 0,
-        pricePerLiter: result.pricePerLiter || 0,
+        fuelType: entryType === 'manutencao' ? 'VÁRIOS ITENS' : (result.fuelType || ''),
+        liters: entryType === 'manutencao' ? 0 : (result.liters || 0),
+        pricePerLiter: entryType === 'manutencao' ? 0 : (result.pricePerLiter || 0),
         totalValue: result.totalValue || 0,
         driver: result.driver || '',
         plate: result.plate || '',
         km: result.km || 0,
         attendant: result.attendant || '',
         protocol: result.protocol || '',
+        entryType: entryType,
+        items: entryType === 'manutencao' ? (result.items || []) : [],
         attachmentData: finalImages.nf || '',
         attachmentType: finalImages.nf ? 'image/jpeg' : '',
         ticketLogData: finalImages.ticket || '',
@@ -294,6 +352,34 @@ const FuelReceiptOCR: React.FC<Props> = ({ onExtracted, onCancel }) => {
               <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 mb-2 mx-auto">
                 <Receipt size={40} />
               </div>
+              
+              <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200/50 w-full max-w-sm mx-auto mb-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setEntryType('abastecimento')}
+                  className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                    entryType === 'abastecimento'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Fuel size={12} />
+                  Abastecimento
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEntryType('manutencao')}
+                  className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
+                    entryType === 'manutencao'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Wrench size={12} />
+                  Manutenção
+                </button>
+              </div>
+
               <div>
                 <h4 className="text-xl font-black text-slate-800 uppercase tracking-tight">Qual documento capturar?</h4>
                 <p className="text-slate-500 text-sm mt-2 font-medium">Recomendamos enviar ambos (Nota Fiscal e Ticket Log) para registro completo.</p>
