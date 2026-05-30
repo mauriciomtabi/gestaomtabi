@@ -567,9 +567,10 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
     }
     try {
       const originalSwap = swaps.find(s => s.id === cancelSwapId);
+      const reasonVal = cancelReason.trim() ? cancelReason.trim() : undefined;
       const result = await cancelServiceSwap(
         cancelSwapId,
-        currentUser.isAdmin ? cancelReason.trim() : undefined,
+        reasonVal,
         currentUser.isAdmin ? currentUser.id : undefined
       );
       if (result) {
@@ -586,7 +587,9 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
           if (linkedSwap) {
             await cancelServiceSwap(
               linkedSwap.id,
-              currentUser.isAdmin ? `Cancelada devido ao cancelamento da troca principal: ${cancelReason.trim()}` : 'Cancelada devido ao cancelamento da troca principal',
+              reasonVal 
+                ? `Cancelada devido ao cancelamento da troca principal: ${reasonVal}` 
+                : 'Cancelada devido ao cancelamento da troca principal',
               currentUser.isAdmin ? currentUser.id : undefined
             );
           }
@@ -1517,22 +1520,22 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
                 <p className="text-slate-500 text-sm mt-2 font-medium">
                   {currentUser.isAdmin
                     ? 'Por favor, informe a justificativa ou motivo para cancelar esta troca de serviço.'
-                    : 'Esta ação é irreversível e alterará permanentemente o status da troca de serviço para cancelado.'}
+                    : 'Por favor, informe opcionalmente o motivo para cancelar sua solicitação em aberto.'}
                 </p>
               </div>
 
-              {currentUser.isAdmin && (
-                <div className="space-y-1.5 text-left">
-                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">Motivo do Cancelamento *</label>
-                  <textarea
-                    value={cancelReason}
-                    onChange={e => setCancelReason(e.target.value)}
-                    placeholder="Escreva o motivo do cancelamento..."
-                    rows={3}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none font-medium text-sm resize-none"
-                  />
-                </div>
-              )}
+              <div className="space-y-1.5 text-left">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider ml-1">
+                  Motivo do Cancelamento {currentUser.isAdmin && '*'}
+                </label>
+                <textarea
+                  value={cancelReason}
+                  onChange={e => setCancelReason(e.target.value)}
+                  placeholder={currentUser.isAdmin ? "Escreva o motivo obrigatório do cancelamento..." : "Escreva o motivo do cancelamento (opcional)..."}
+                  rows={3}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all outline-none font-medium text-sm resize-none"
+                />
+              </div>
 
               <div className="flex gap-3 pt-4">
                 <button onClick={() => { setCancelSwapId(null); setCancelReason(''); }} className="flex-1 py-4 text-slate-500 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 rounded-2xl transition-all">Voltar</button>
