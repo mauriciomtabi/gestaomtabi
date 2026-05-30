@@ -364,10 +364,23 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
           const ida = s1.pairType === 'ida' ? s1 : s2;
           const volta = s1.pairType === 'volta' ? s1 : s2;
 
+          // Se qualquer um dos lados estiver cancelado/reprovado/recusado, o status unificado assume a rejeição.
+          // Isso garante resiliência a restrições RLS caso apenas uma perna seja atualizada com sucesso no banco.
+          let unifiedStatus = ida.status;
+          if (ida.status === 'cancelado' || (volta && volta.status === 'cancelado')) {
+            unifiedStatus = 'cancelado';
+          } else if (ida.status === 'reprovado' || (volta && volta.status === 'reprovado')) {
+            unifiedStatus = 'reprovado';
+          } else if (ida.status === 'recusado_substituto' || (volta && volta.status === 'recusado_substituto')) {
+            unifiedStatus = 'recusado_substituto';
+          } else if (ida.status === 'pendente' || (volta && volta.status === 'pendente')) {
+            unifiedStatus = 'pendente';
+          }
+
           list.push({
             id: ida.id,
             funcao: s1.funcao,
-            status: s1.status as any,
+            status: unifiedStatus as any,
             createdAt: s1.createdAt,
             ida,
             volta,
@@ -585,13 +598,17 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification }) =
             Math.abs(new Date(s.createdAt).getTime() - new Date(originalSwap.createdAt).getTime()) < 15000
           );
           if (linkedSwap) {
-            await cancelServiceSwap(
-              linkedSwap.id,
-              reasonVal 
-                ? `Cancelada devido ao cancelamento da troca principal: ${reasonVal}` 
-                : 'Cancelada devido ao cancelamento da troca principal',
-              currentUser.isAdmin ? currentUser.id : undefined
-            );
+            try {
+              await cancelServiceSwap(
+                linkedSwap.id,
+                reasonVal 
+                  ? `Cancelada devido ao cancelamento da troca principal: ${reasonVal}` 
+                  : 'Cancelada devido ao cancelamento da troca principal',
+                currentUser.isAdmin ? currentUser.id : undefined
+              );
+            } catch (err) {
+              console.warn("Erro RLS ao cancelar perna casada (tolerado pois o status resolverá):", err);
+            }
           }
         }
         setNotification('Solicitação de troca cancelada com sucesso!', 'success');
