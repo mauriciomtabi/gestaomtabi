@@ -172,7 +172,7 @@ const AttendanceSheetOCR: React.FC<Props> = ({ providerId, providerName, existin
         entryTime: r.entryTime,
         exitTime: r.exitTime,
         durationMinutes: calculateDuration(r.entryTime, r.exitTime),
-        attachmentData: preview,
+        attachmentData: finalImageBase64,
         attachmentType: 'image/jpeg'
       }));
       setExtractedName(result.extractedProviderName);
