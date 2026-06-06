@@ -1436,7 +1436,7 @@ const ProviderDetails: React.FC<Props> = ({ provider, attendance, onBack, onUpda
               Salvando Registros
             </h3>
             <p className="text-slate-400 font-bold text-[10px] uppercase tracking-wider max-w-xs leading-relaxed">
-              Sincronizando com o Supabase e enviando folha de frequência ao Cloudinary...
+              Processando as informações e salvando os registros de frequência...
             </p>
           </div>
         </div>
