@@ -33,44 +33,45 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   }
 });
 
-// Helper para converter Base64 em Blob para upload no Storage
-const base64ToBlob = (base64: string) => {
+// --- Funções de Storage (Cloudinary) ---
+export const uploadDocument = async (base64: string, path: string) => {
+  if (!base64 || !base64.startsWith('data:')) return base64;
+  
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dizhbrjdv';
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'cbm_gestao';
+  
   try {
-    const parts = base64.split(';base64,');
-    if (parts.length !== 2) return null;
-    const contentType = parts[0].split(':')[1];
-    const raw = window.atob(parts[1]);
-    const rawLength = raw.length;
-    const uInt8Array = new Uint8Array(rawLength);
-    for (let i = 0; i < rawLength; ++i) {
-      uInt8Array[i] = raw.charCodeAt(i);
+    const url = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+    
+    const formData = new URLSearchParams();
+    formData.append('file', base64);
+    formData.append('upload_preset', uploadPreset);
+    
+    if (path) {
+      const safeFilename = path.replace(/[^a-zA-Z0-9_\-]/g, '_');
+      formData.append('public_id', safeFilename);
+      formData.append('filename_override', safeFilename);
     }
-    return new Blob([uInt8Array], { type: contentType });
-  } catch (e) {
-    console.error("Erro ao converter base64 para blob:", e);
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.warn("Falha no upload para o Cloudinary:", errorData);
+      return null;
+    }
+    
+    const data = await response.json();
+    return data.secure_url;
+  } catch (error) {
+    console.error("Erro ao fazer upload para o Cloudinary:", error);
     return null;
   }
 };
 
-// --- Funções de Storage ---
-export const uploadDocument = async (base64: string, path: string) => {
-  if (!base64 || !base64.startsWith('data:')) return base64;
-  
-  const blob = base64ToBlob(base64);
-  if (!blob) return null;
-
-  const { data, error } = await supabase.storage
-    .from('psc_documents')
-    .upload(path, blob, { upsert: true });
-
-  if (error) {
-    console.warn("Falha no upload para o Storage.", error);
-    return null; // Retornar null em vez de base64 para evitar estourar o limite do DB
-  }
-  
-  const { data: { publicUrl } } = supabase.storage.from('psc_documents').getPublicUrl(data.path);
-  return publicUrl;
-};
 
 // --- Mapeadores de Dados (JS <-> DB) ---
 const mapAuditLogFromDB = (l: any): AuditLog => ({
@@ -298,14 +299,31 @@ export const getProviders = async () => {
 };
 
 export const createProvider = async (provider: Partial<Provider>) => {
+  const providerId = provider.id && isUUID(provider.id) ? provider.id : generateUUID();
   const providerForDb = {
     ...provider,
+    id: providerId,
     totalHoursToFulfill: provider.totalHoursToFulfill ?? 40,
     status: provider.status ?? 'active'
   };
-  const { identityDoc, referralDoc, history } = providerForDb;
+
+  // Upload all base64 files to Cloudinary before saving to database
+  if (providerForDb.identityDoc && providerForDb.identityDoc.startsWith('data:')) {
+    providerForDb.identityDoc = await uploadDocument(providerForDb.identityDoc, `providers/${providerId}/identity`);
+  }
+  if (providerForDb.referralDoc && providerForDb.referralDoc.startsWith('data:')) {
+    providerForDb.referralDoc = await uploadDocument(providerForDb.referralDoc, `providers/${providerId}/referral`);
+  }
+  if (providerForDb.profilePhoto && providerForDb.profilePhoto.startsWith('data:')) {
+    providerForDb.profilePhoto = await uploadDocument(providerForDb.profilePhoto, `providers/${providerId}/profile`);
+  }
+  if (providerForDb.returnAttachment && providerForDb.returnAttachment.startsWith('data:')) {
+    providerForDb.returnAttachment = await uploadDocument(providerForDb.returnAttachment, `providers/${providerId}/return`);
+  }
+
   const dbData = mapProviderToDB(providerForDb);
-  
+  dbData.id = providerId;
+
   const { data: newProvider, error } = await supabase
     .from('providers')
     .insert([dbData])
@@ -321,27 +339,31 @@ export const createProvider = async (provider: Partial<Provider>) => {
     throw new Error("Falha ao recuperar o registro recém-criado.");
   }
 
-  const updates: any = {};
-  if (identityDoc && identityDoc.startsWith('data:')) {
-    updates.identity_doc = await uploadDocument(identityDoc, `providers/${newProvider.id}/identity`);
-  }
-  if (referralDoc && referralDoc.startsWith('data:')) {
-    updates.referral_doc = await uploadDocument(referralDoc, `providers/${newProvider.id}/referral`);
-  }
-  
-  if (Object.keys(updates).length > 0) {
-    await supabase.from('providers').update(updates).eq('id', newProvider.id);
+  if (provider.history && provider.history.length > 0) {
+    await saveAuditLog(providerId, provider.history[0]);
   }
 
-  if (history && history.length > 0) {
-    await saveAuditLog(newProvider.id, history[0]);
-  }
-
-  return mapProviderFromDB({ ...newProvider, ...updates });
+  return mapProviderFromDB(newProvider);
 };
 
 export const updateProvider = async (id: string, provider: Partial<Provider>) => {
-  const dbData = mapProviderToDB(provider);
+  const providerForDb = { ...provider };
+
+  // Upload all base64 files to Cloudinary before saving to database
+  if (providerForDb.identityDoc && providerForDb.identityDoc.startsWith('data:')) {
+    providerForDb.identityDoc = await uploadDocument(providerForDb.identityDoc, `providers/${id}/identity`);
+  }
+  if (providerForDb.referralDoc && providerForDb.referralDoc.startsWith('data:')) {
+    providerForDb.referralDoc = await uploadDocument(providerForDb.referralDoc, `providers/${id}/referral`);
+  }
+  if (providerForDb.profilePhoto && providerForDb.profilePhoto.startsWith('data:')) {
+    providerForDb.profilePhoto = await uploadDocument(providerForDb.profilePhoto, `providers/${id}/profile`);
+  }
+  if (providerForDb.returnAttachment && providerForDb.returnAttachment.startsWith('data:')) {
+    providerForDb.returnAttachment = await uploadDocument(providerForDb.returnAttachment, `providers/${id}/return`);
+  }
+
+  const dbData = mapProviderToDB(providerForDb);
   
   const { error } = await supabase
     .from('providers')
@@ -717,27 +739,38 @@ export const saveGeoPerimeter = async (perimeter: GeoPerimeter): Promise<void> =
 };
 
 export const uploadProfilePhoto = async (userId: string, base64DataUrl: string): Promise<string> => {
-  // Convert base64 data URL to Blob
-  const res = await fetch(base64DataUrl);
-  const blob = await res.blob();
+  if (!base64DataUrl || !base64DataUrl.startsWith('data:')) return base64DataUrl;
   
-  const filePath = `${userId}/profile.jpg`;
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dizhbrjdv';
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'cbm_gestao';
   
-  const { error } = await supabase.storage
-    .from('profile-photos')
-    .upload(filePath, blob, {
-      contentType: 'image/jpeg',
-      upsert: true // overwrite existing file
+  try {
+    const url = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
+    const safeFilename = `operator_${userId}_profile_${Date.now()}`.replace(/[^a-zA-Z0-9_\-]/g, '_');
+    
+    const formData = new URLSearchParams();
+    formData.append('file', base64DataUrl);
+    formData.append('upload_preset', uploadPreset);
+    formData.append('public_id', safeFilename);
+    formData.append('filename_override', safeFilename);
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData
     });
     
-  if (error) throw error;
-  
-  const { data } = supabase.storage
-    .from('profile-photos')
-    .getPublicUrl(filePath);
-  
-  // Bust cache by appending timestamp
-  return `${data.publicUrl}?t=${Date.now()}`;
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Falha no upload da foto de perfil para o Cloudinary:", errorData);
+      throw new Error(errorData.error?.message || "Erro no upload da foto de perfil");
+    }
+    
+    const data = await response.json();
+    return data.secure_url;
+  } catch (error: any) {
+    console.error("Erro ao fazer upload da foto de perfil para o Cloudinary:", error);
+    throw error;
+  }
 };
 
 // --- Funções de Avaliação Mensal ---
