@@ -562,8 +562,8 @@ const ProviderDetails: React.FC<Props> = ({ provider, attendance, onBack, onUpda
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 pb-20 md:pb-6">
       {/* Cabeçalho Sticky - Apenas o botão Voltar fica fixo no topo */}
       <div className="sticky top-0 z-30 pointer-events-none -mx-4 px-4 md:-mx-8 md:px-8 -mt-4 md:-mt-8 pt-4 md:pt-8 flex items-center justify-between">
-        <div className="pointer-events-auto bg-slate-50/90 backdrop-blur-md pb-2 pr-4 rounded-br-2xl">
-          <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-bold text-sm bg-white px-4 py-2 rounded-xl border border-slate-100 shadow-sm w-fit">
+        <div className="pointer-events-auto">
+          <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors font-bold text-sm bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-md hover:shadow-lg active:scale-95 transition-all w-fit">
             <ArrowLeft size={18} />
             Voltar para Lista
           </button>
