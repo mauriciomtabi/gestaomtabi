@@ -304,12 +304,14 @@ export const AttendanceSheetPrint: React.FC<AttendanceSheetPrintProps> = ({
 interface AttendanceRecordDetailsModalProps {
   record: AttendanceRecord;
   provider: Provider;
+  evaluation?: MonthlyEvaluation | null;
   onClose: () => void;
 }
 
 export const AttendanceRecordDetailsModal: React.FC<AttendanceRecordDetailsModalProps> = ({
   record,
   provider,
+  evaluation,
   onClose
 }) => {
   const isJustification = record.type === 'justification';
@@ -326,8 +328,8 @@ export const AttendanceRecordDetailsModal: React.FC<AttendanceRecordDetailsModal
   }
 
   // Get operators
-  const entryOp = reasonObj.entryOperator || (isFace ? 'CB COBOM' : '1º SGT GONCZOROSKI');
-  const exitOp = reasonObj.exitOperator || (isFace ? 'CB COBOM' : '1º SGT GONCZOROSKI');
+  const entryOp = reasonObj.entryOperator || (isFace ? 'CB COBOM' : (evaluation?.evaluatedBy || '1º SGT GONCZOROSKI'));
+  const exitOp = reasonObj.exitOperator || (isFace ? 'CB COBOM' : (evaluation?.evaluatedBy || '1º SGT GONCZOROSKI'));
 
   // Locations
   let entryLoc = reasonObj.entry;
@@ -704,6 +706,7 @@ const BlankAttendanceSheet: React.FC<Props> = ({ provider, attendance = [], onCl
           <AttendanceRecordDetailsModal 
             record={selectedRecord}
             provider={provider}
+            evaluation={evaluation}
             onClose={() => setSelectedRecord(null)}
           />
         )}

@@ -465,7 +465,7 @@ const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
                 month={selectedMonthName}
                 year={selectedYear}
                 evaluation={pEvaluation}
-                onShowRecordDetails={(rec) => setAuditState({ record: rec, provider: p })}
+                onShowRecordDetails={(rec) => setAuditState({ record: rec, provider: p, evaluation: pEvaluation })}
               />
             </div>
           );
@@ -474,6 +474,7 @@ const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
           <AttendanceRecordDetailsModal 
             record={auditState.record}
             provider={auditState.provider}
+            evaluation={auditState.evaluation}
             onClose={() => setAuditState(null)}
           />
         )}
