@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Provider, AttendanceRecord, MonthlySummary, MonthlyEvaluation } from '../types';
 import { formatMinutesToHHMM, formatDateBR, getLatestVisit } from '../utils/timeUtils';
-import {  FileDown, Filter, Calendar as CalendarIcon, Loader2, AlertCircle , FileText } from 'lucide-react';
+import { FileDown, Filter, Calendar as CalendarIcon, Loader2, AlertCircle, FileText, X, Check, ThumbsUp, ThumbsDown, AlertTriangle, ShieldCheck, Star, MessageSquare, Save, Sparkles } from 'lucide-react';
 import { AttendanceSheetPrint, AttendanceRecordDetailsModal } from './BlankAttendanceSheet';
 
 interface Props {
   providers: Provider[];
   attendance: AttendanceRecord[];
+  currentUser?: string;
 }
 
 const months = [
@@ -24,13 +25,77 @@ const months = [
   { value: '12', label: 'Dezembro' },
 ];
 
-const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
+const ReportOfficial: React.FC<Props> = ({ providers, attendance, currentUser }) => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
   const [includeReturned, setIncludeReturned] = useState(false);
   const [evaluations, setEvaluations] = useState<MonthlyEvaluation[]>([]);
   const [loadingEvaluations, setLoadingEvaluations] = useState(false);
-  const [auditState, setAuditState] = useState<{ record: AttendanceRecord, provider: Provider } | null>(null);
+  const [auditState, setAuditState] = useState<{ record: AttendanceRecord, provider: Provider, evaluation?: MonthlyEvaluation | null } | null>(null);
+
+  const [pendingEvaluation, setPendingEvaluation] = useState<{
+    provider: Provider;
+    year: number;
+    month: number;
+  } | null>(null);
+
+  const [evalForm, setEvalForm] = useState({
+    hadAbsences: false,
+    goodBehavior: true,
+    disciplinaryIssues: false,
+    satisfactoryService: true,
+    observations: ''
+  });
+
+  const [evalSaving, setEvalSaving] = useState(false);
+
+  useEffect(() => {
+    if (pendingEvaluation) {
+      setEvalForm({
+        hadAbsences: false,
+        goodBehavior: true,
+        disciplinaryIssues: false,
+        satisfactoryService: true,
+        observations: ''
+      });
+    }
+  }, [pendingEvaluation]);
+
+  const handleSaveEvaluation = async () => {
+    if (!pendingEvaluation) return;
+    
+    try {
+      setEvalSaving(true);
+      const { saveMonthlyEvaluation } = await import('../services/supabaseService');
+      const evalData = {
+        providerId: pendingEvaluation.provider.id,
+        year: pendingEvaluation.year,
+        month: pendingEvaluation.month,
+        hadAbsences: evalForm.hadAbsences,
+        goodBehavior: evalForm.goodBehavior,
+        disciplinaryIssues: evalForm.disciplinaryIssues,
+        satisfactoryService: evalForm.satisfactoryService,
+        observations: evalForm.observations,
+        evaluatedBy: currentUser || 'MILITAR RESPONSÁVEL'
+      };
+      
+      const saved = await saveMonthlyEvaluation(evalData);
+      
+      if (saved) {
+        // Refetch evaluations for the current month/year to update in-place!
+        const { getAllMonthlyEvaluationsForMonth } = await import('../services/supabaseService');
+        const data = await getAllMonthlyEvaluationsForMonth(pendingEvaluation.year, pendingEvaluation.month);
+        setEvaluations(data);
+      }
+      
+      setPendingEvaluation(null);
+    } catch (err) {
+      console.error("Erro ao salvar avaliação:", err);
+      alert("Erro ao salvar a avaliação. Verifique sua conexão.");
+    } finally {
+      setEvalSaving(false);
+    }
+  };
 
   useEffect(() => {
     if (selectedYear !== 'Todos' && selectedMonth !== 'Todos') {
@@ -453,11 +518,30 @@ const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
             ev.month === parseInt(selectedMonth)
           ) || null;
 
+          const hasEvaluation = pEvaluation !== null;
+
           return (
-            <div key={p.id} style={{ pageBreakBefore: 'always', paddingTop: '1.5cm' }} className="print:pt-0">
-              <div className="no-print mb-4 p-3 bg-blue-50 border border-blue-100 rounded-2xl flex items-center gap-2 text-blue-800 text-xs font-bold uppercase tracking-wider">
+            <div 
+              key={p.id} 
+              style={{ pageBreakBefore: 'always', paddingTop: '1.5cm' }} 
+              className={`print:pt-0 ${!hasEvaluation ? 'border-2 border-dashed border-red-300 bg-red-50/10 p-6 rounded-[2.5rem] mb-8 shadow-xl shadow-red-50 print:border-0 print:p-0 print:m-0 print:shadow-none print:bg-transparent print:mb-0' : ''}`}
+            >
+              <div className={`no-print mb-4 p-3 rounded-2xl flex items-center gap-2 text-xs font-bold uppercase tracking-wider ${!hasEvaluation ? 'bg-red-50 border border-red-200 text-red-800 animate-pulse' : 'bg-blue-50 border border-blue-100 text-blue-800'}`}>
                 <FileText size={16} />
-                <span>Anexo: Folha de Frequência — {p.name}</span>
+                <span>
+                  {!hasEvaluation 
+                    ? `⚠️ Avaliação Mensal Pendente — Folha de Frequência: ${p.name}` 
+                    : `Anexo: Folha de Frequência — ${p.name}`
+                  }
+                </span>
+                {!hasEvaluation && (
+                  <button
+                    onClick={() => setPendingEvaluation({ provider: p, year: parseInt(selectedYear), month: parseInt(selectedMonth) })}
+                    className="ml-auto bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all shadow-md shadow-red-200 hover:shadow-lg flex items-center gap-1 active:scale-[0.98]"
+                  >
+                    Preencher Avaliação
+                  </button>
+                )}
               </div>
               <AttendanceSheetPrint 
                 provider={p}
@@ -477,6 +561,147 @@ const ReportOfficial: React.FC<Props> = ({ providers, attendance }) => {
             evaluation={auditState.evaluation}
             onClose={() => setAuditState(null)}
           />
+        )}
+
+        {pendingEvaluation && (
+          <div className="fixed inset-0 bg-slate-900/60 z-[120] flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col border border-white/20 relative animate-in zoom-in-95 duration-200">
+              
+              {/* Header */}
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-gradient-to-r from-emerald-50 to-white">
+                <div className="flex items-center gap-3">
+                  <div className="bg-emerald-600 p-2.5 rounded-xl text-white shadow-lg shadow-emerald-200">
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-800">Avaliação Mensal</h3>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                      {pendingEvaluation.provider.name.split(' ')[0]} — {months.find(m => parseInt(m.value) === pendingEvaluation.month)?.label} / {pendingEvaluation.year}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setPendingEvaluation(null)} 
+                  className="text-slate-400 hover:text-slate-600 transition-colors p-2 hover:bg-slate-100 rounded-full"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                {/* Question 1: Faltas */}
+                <div className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-xl ${evalForm.hadAbsences ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                      {evalForm.hadAbsences ? <AlertTriangle size={18} /> : <Check size={18} />}
+                    </div>
+                    <div>
+                      <p className="font-black text-slate-700 text-xs uppercase tracking-tight">Faltas no período?</p>
+                      <p className="text-[9px] text-slate-400 font-medium">O prestador teve ausências neste mês?</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setEvalForm({ ...evalForm, hadAbsences: !evalForm.hadAbsences })}
+                    className={`shrink-0 min-w-[56px] relative w-14 h-8 rounded-full transition-all duration-300 ${evalForm.hadAbsences ? 'bg-red-500' : 'bg-slate-200'}`}
+                  >
+                    <span className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${evalForm.hadAbsences ? 'left-7' : 'left-1'}`} />
+                  </button>
+                </div>
+
+                {/* Question 2: Bom comportamento */}
+                <div className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-xl ${evalForm.goodBehavior ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                      {evalForm.goodBehavior ? <ThumbsUp size={18} /> : <ThumbsDown size={18} />}
+                    </div>
+                    <div>
+                      <p className="font-black text-slate-700 text-xs uppercase tracking-tight">Apresentou bom comportamento?</p>
+                      <p className="text-[9px] text-slate-400 font-medium">Conduta e postura geral do prestador</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setEvalForm({ ...evalForm, goodBehavior: !evalForm.goodBehavior })}
+                    className={`shrink-0 min-w-[56px] relative w-14 h-8 rounded-full transition-all duration-300 ${evalForm.goodBehavior ? 'bg-emerald-500' : 'bg-red-500'}`}
+                  >
+                    <span className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${evalForm.goodBehavior ? 'left-7' : 'left-1'}`} />
+                  </button>
+                </div>
+
+                {/* Question 3: Atos indisciplinares */}
+                <div className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-xl ${evalForm.disciplinaryIssues ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                      {evalForm.disciplinaryIssues ? <AlertCircle size={18} /> : <ShieldCheck size={18} />}
+                    </div>
+                    <div>
+                      <p className="font-black text-slate-700 text-xs uppercase tracking-tight">Cometeu atos indisciplinares?</p>
+                      <p className="text-[9px] text-slate-400 font-medium">Infrações ou condutas inadequadas</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setEvalForm({ ...evalForm, disciplinaryIssues: !evalForm.disciplinaryIssues })}
+                    className={`shrink-0 min-w-[56px] relative w-14 h-8 rounded-full transition-all duration-300 ${evalForm.disciplinaryIssues ? 'bg-red-500' : 'bg-slate-200'}`}
+                  >
+                    <span className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${evalForm.disciplinaryIssues ? 'left-7' : 'left-1'}`} />
+                  </button>
+                </div>
+
+                {/* Question 4: Qualidade satisfatória */}
+                <div className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-all">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-xl ${evalForm.satisfactoryService ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                      {evalForm.satisfactoryService ? <Star size={18} /> : <ThumbsDown size={18} />}
+                    </div>
+                    <div>
+                      <p className="font-black text-slate-700 text-xs uppercase tracking-tight">Serviço satisfatório?</p>
+                      <p className="text-[9px] text-slate-400 font-medium">Desempenho geral nas tarefas atribuídas</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setEvalForm({ ...evalForm, satisfactoryService: !evalForm.satisfactoryService })}
+                    className={`shrink-0 min-w-[56px] relative w-14 h-8 rounded-full transition-all duration-300 ${evalForm.satisfactoryService ? 'bg-emerald-500' : 'bg-red-500'}`}
+                  >
+                    <span className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 ${evalForm.satisfactoryService ? 'left-7' : 'left-1'}`} />
+                  </button>
+                </div>
+
+                {/* Observations */}
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block flex items-center gap-1.5 ml-1">
+                    <MessageSquare size={12} /> Observações (opcional)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={evalForm.observations}
+                    onChange={e => setEvalForm({ ...evalForm, observations: e.target.value })}
+                    placeholder="Anotações adicionais sobre o desempenho do prestador..."
+                    className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-4 focus:ring-emerald-100 outline-none transition-all text-xs resize-none"
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-6 border-t border-slate-100 flex gap-3 bg-slate-50/50">
+                <button 
+                  type="button" 
+                  onClick={() => setPendingEvaluation(null)} 
+                  className="flex-1 py-3 text-xs text-slate-600 font-bold hover:bg-slate-100 rounded-2xl transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="button" 
+                  disabled={evalSaving}
+                  onClick={handleSaveEvaluation} 
+                  className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-700 shadow-lg shadow-emerald-100 transition-all active:scale-[0.98] disabled:opacity-50 text-xs"
+                >
+                  {evalSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Salvar Avaliação
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

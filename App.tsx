@@ -564,7 +564,11 @@ const App: React.FC = () => {
           />
         )}
         {view === 'reports' && (
-          <ReportOfficial providers={providers} attendance={attendance} />
+          <ReportOfficial 
+            providers={providers} 
+            attendance={attendance} 
+            currentUser={formattedMilitaryName}
+          />
         )}
         {view === 'fuel' && (
           <FuelSupplyManager 
