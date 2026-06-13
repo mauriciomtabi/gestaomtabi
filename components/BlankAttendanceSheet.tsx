@@ -204,16 +204,11 @@ export const AttendanceSheetPrint: React.FC<AttendanceSheetPrintProps> = ({
               const isFace = r.id && r.id.startsWith('face-');
               const badgeColor = isFace ? '#047857' : '#1d4ed8';
               const badgeBg = isFace ? '#ecfdf5' : '#eff6ff';
-              const label = isFace ? '[✓] VALIDADO POR' : '[✓] HOMOLOGADO POR';
+              const label = isFace ? `[✓] VALIDADO POR: ${opText}` : `[✓] HOMOLOGADO POR: ${opText}`;
 
               responsibleSig = (
-                <div className="flex flex-col items-center justify-center gap-0.5">
-                  <div style={{ fontSize: '6.5pt', color: badgeColor, fontWeight: 'bold', textTransform: 'uppercase', border: `1px dashed ${badgeColor}`, borderRadius: '4px', padding: '1px 4px', textAlign: 'center', lineHeight: '1.1', margin: '0 auto', width: 'fit-content', backgroundColor: badgeBg }}>
-                    {label}
-                  </div>
-                  <div style={{ fontSize: '6pt', color: '#475569', fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'center', marginTop: '2px', lineHeight: '1', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`MILITAR: ${opText}`}>
-                    MILITAR: {opText}
-                  </div>
+                <div style={{ fontSize: '6.2pt', color: badgeColor, fontWeight: 'bold', textTransform: 'uppercase', border: `1px dashed ${badgeColor}`, borderRadius: '4px', padding: '1px 4px', textAlign: 'center', lineHeight: '1.1', margin: '0 auto', width: 'fit-content', backgroundColor: badgeBg }}>
+                  {label}
                 </div>
               );
             }
