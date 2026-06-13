@@ -72,6 +72,51 @@ export const uploadDocument = async (base64: string, path: string) => {
   }
 };
 
+export const extractPublicIdFromUrl = (url: string): string | null => {
+  if (!url || !url.includes('cloudinary.com')) return null;
+  try {
+    const parts = url.split('/upload/');
+    if (parts.length < 2) return null;
+    
+    let path = parts[1];
+    // Remove o fragmento de versão (v + dígitos + /)
+    path = path.replace(/^v\d+\//, '');
+    
+    // Remove a extensão
+    const lastDot = path.lastIndexOf('.');
+    if (lastDot !== -1) {
+      path = path.substring(0, lastDot);
+    }
+    
+    return path;
+  } catch (e) {
+    return null;
+  }
+};
+
+export const deleteDocument = async (url: string) => {
+  if (!url || !url.includes('cloudinary.com')) return;
+  const publicId = extractPublicIdFromUrl(url);
+  if (!publicId) return;
+  
+  try {
+    // Dispara a exclusão de forma assíncrona (fire-and-forget)
+    supabase.functions.invoke('delete-cloudinary-image', {
+      body: { publicId }
+    }).then(({ data, error }) => {
+      if (error) {
+        console.warn("Erro ao deletar imagem do Cloudinary via Edge Function:", error);
+      } else {
+        console.log("Imagem deletada do Cloudinary:", publicId, data);
+      }
+    }).catch(err => {
+      console.error("Falha ao invocar Edge Function de exclusão:", err);
+    });
+  } catch (err) {
+    console.error("Erro na exclusão do documento:", err);
+  }
+};
+
 
 // --- Mapeadores de Dados (JS <-> DB) ---
 const mapAuditLogFromDB = (l: any): AuditLog => ({
@@ -349,18 +394,52 @@ export const createProvider = async (provider: Partial<Provider>) => {
 export const updateProvider = async (id: string, provider: Partial<Provider>) => {
   const providerForDb = { ...provider };
 
+  // Fetch old data to delete replaced assets from Cloudinary
+  let oldProvider: any = null;
+  try {
+    const { data } = await supabase
+      .from('providers')
+      .select('identity_doc, referral_doc, profile_photo, return_attachment')
+      .eq('id', id)
+      .single();
+    oldProvider = data;
+  } catch (e) {}
+
   // Upload all base64 files to Cloudinary before saving to database
   if (providerForDb.identityDoc && providerForDb.identityDoc.startsWith('data:')) {
     providerForDb.identityDoc = await uploadDocument(providerForDb.identityDoc, `providers/${id}/identity`);
+    if (oldProvider?.identity_doc && oldProvider.identity_doc !== providerForDb.identityDoc) {
+      deleteDocument(oldProvider.identity_doc);
+    }
+  } else if (!providerForDb.identityDoc && oldProvider?.identity_doc) {
+    deleteDocument(oldProvider.identity_doc);
   }
+
   if (providerForDb.referralDoc && providerForDb.referralDoc.startsWith('data:')) {
     providerForDb.referralDoc = await uploadDocument(providerForDb.referralDoc, `providers/${id}/referral`);
+    if (oldProvider?.referral_doc && oldProvider.referral_doc !== providerForDb.referralDoc) {
+      deleteDocument(oldProvider.referral_doc);
+    }
+  } else if (!providerForDb.referralDoc && oldProvider?.referral_doc) {
+    deleteDocument(oldProvider.referral_doc);
   }
+
   if (providerForDb.profilePhoto && providerForDb.profilePhoto.startsWith('data:')) {
     providerForDb.profilePhoto = await uploadDocument(providerForDb.profilePhoto, `providers/${id}/profile`);
+    if (oldProvider?.profile_photo && oldProvider.profile_photo !== providerForDb.profilePhoto) {
+      deleteDocument(oldProvider.profile_photo);
+    }
+  } else if (!providerForDb.profilePhoto && oldProvider?.profile_photo) {
+    deleteDocument(oldProvider.profile_photo);
   }
+
   if (providerForDb.returnAttachment && providerForDb.returnAttachment.startsWith('data:')) {
     providerForDb.returnAttachment = await uploadDocument(providerForDb.returnAttachment, `providers/${id}/return`);
+    if (oldProvider?.return_attachment && oldProvider.return_attachment !== providerForDb.returnAttachment) {
+      deleteDocument(oldProvider.return_attachment);
+    }
+  } else if (!providerForDb.returnAttachment && oldProvider?.return_attachment) {
+    deleteDocument(oldProvider.return_attachment);
   }
 
   const dbData = mapProviderToDB(providerForDb);
@@ -421,6 +500,14 @@ export const saveAttendance = async (records: AttendanceRecord[]) => {
 };
 
 export const deleteAttendance = async (id: string) => {
+  // Fetch attachment before deleting
+  try {
+    const { data } = await supabase.from('attendance').select('attachment_data').eq('id', id).single();
+    if (data?.attachment_data) {
+      deleteDocument(data.attachment_data);
+    }
+  } catch (e) {}
+
   const { error } = await supabase.from('attendance').delete().eq('id', id);
   if (error) throw error;
 };
@@ -445,18 +532,37 @@ export const saveFuelSupply = async (supply: FuelSupply) => {
   let attachmentUrl = supply.attachmentData;
   let ticketLogUrl = supply.ticketLogData;
   
+  // Fetch old data if it is an update to clean up replaced documents
+  let oldSupply: any = null;
+  if (supply.id) {
+    try {
+      const { data } = await supabase.from('fuel_supplies').select('attachment_data, ticket_log_data').eq('id', supply.id).single();
+      oldSupply = data;
+    } catch (e) {}
+  }
+
   if (supply.attachmentData && supply.attachmentData.startsWith('data:')) {
     const uploadedUrl = await uploadDocument(supply.attachmentData, `fuel_supplies/${supply.date.split('T')[0]}_${Date.now()}`);
     if (uploadedUrl && !uploadedUrl.startsWith('data:')) {
       attachmentUrl = uploadedUrl;
+      if (oldSupply?.attachment_data && oldSupply.attachment_data !== attachmentUrl) {
+        deleteDocument(oldSupply.attachment_data);
+      }
     }
+  } else if (!supply.attachmentData && oldSupply?.attachment_data) {
+    deleteDocument(oldSupply.attachment_data);
   }
 
   if (supply.ticketLogData && supply.ticketLogData.startsWith('data:')) {
     const uploadedUrl = await uploadDocument(supply.ticketLogData, `fuel_supplies/ticketlog_${supply.date.split('T')[0]}_${Date.now()}`);
     if (uploadedUrl && !uploadedUrl.startsWith('data:')) {
       ticketLogUrl = uploadedUrl;
+      if (oldSupply?.ticket_log_data && oldSupply.ticket_log_data !== ticketLogUrl) {
+        deleteDocument(oldSupply.ticket_log_data);
+      }
     }
+  } else if (!supply.ticketLogData && oldSupply?.ticket_log_data) {
+    deleteDocument(oldSupply.ticket_log_data);
   }
   
   const dbData = mapFuelSupplyToDB({ ...supply, attachmentData: attachmentUrl, ticketLogData: ticketLogUrl });
@@ -486,6 +592,17 @@ export const saveFuelAuditLog = async (fuelSupplyId: string, log: AuditLog) => {
 };
 
 export const deleteFuelSupply = async (id: string) => {
+  // Fetch attachment before deleting
+  try {
+    const { data } = await supabase.from('fuel_supplies').select('attachment_data, ticket_log_data').eq('id', id).single();
+    if (data?.attachment_data) {
+      deleteDocument(data.attachment_data);
+    }
+    if (data?.ticket_log_data) {
+      deleteDocument(data.ticket_log_data);
+    }
+  } catch (e) {}
+
   // Primeiro deletamos os logs de auditoria associados para evitar erro de chave estrangeira
   await supabase.from('fuel_audit_logs').delete().eq('fuel_supply_id', id);
   
@@ -519,12 +636,26 @@ export const saveVehicle = async (vehicle: Partial<Vehicle>) => {
   try {
     let photoUrl = vehicle.photo;
     
+    // Fetch old data to clean up replaced photo
+    let oldVehicle: any = null;
+    if (vehicle.id && isUUID(vehicle.id)) {
+      try {
+        const { data } = await supabase.from('vehicles').select('photo').eq('id', vehicle.id).single();
+        oldVehicle = data;
+      } catch (e) {}
+    }
+    
     // Se for uma nova foto em base64, fazemos o upload
     if (vehicle.photo && vehicle.photo.startsWith('data:')) {
       const uploadedUrl = await uploadDocument(vehicle.photo, `vehicles/${vehicle.plate}_${Date.now()}`);
       if (uploadedUrl && !uploadedUrl.startsWith('data:')) {
         photoUrl = uploadedUrl;
+        if (oldVehicle?.photo && oldVehicle.photo !== photoUrl) {
+          deleteDocument(oldVehicle.photo);
+        }
       }
+    } else if (!vehicle.photo && oldVehicle?.photo) {
+      deleteDocument(oldVehicle.photo);
     }
     
     const dbData = mapVehicleToDB({ ...vehicle, photo: photoUrl });
@@ -551,6 +682,13 @@ export const saveVehicle = async (vehicle: Partial<Vehicle>) => {
 };
 
 export const deleteVehicle = async (id: string) => {
+  try {
+    const { data } = await supabase.from('vehicles').select('photo').eq('id', id).single();
+    if (data?.photo) {
+      deleteDocument(data.photo);
+    }
+  } catch (e) {}
+
   try {
     const { error } = await supabase.from('vehicles').delete().eq('id', id);
     if (error) {

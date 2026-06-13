@@ -247,11 +247,18 @@ const App: React.FC = () => {
       if (!session) return;
 
       let photoUrl = updatedUser.profilePhoto || null;
+      const oldPhotoUrl = currentUser?.profilePhoto || null;
 
       // If photo is a base64 data URL, upload it to Supabase Storage
       if (photoUrl && photoUrl.startsWith('data:')) {
-        const { uploadProfilePhoto } = await import('./services/supabaseService');
+        const { uploadProfilePhoto, deleteDocument } = await import('./services/supabaseService');
         photoUrl = await uploadProfilePhoto(session.user.id, photoUrl);
+        if (oldPhotoUrl && oldPhotoUrl !== photoUrl) {
+          await deleteDocument(oldPhotoUrl);
+        }
+      } else if (!photoUrl && oldPhotoUrl) {
+        const { deleteDocument } = await import('./services/supabaseService');
+        await deleteDocument(oldPhotoUrl);
       }
 
       const { error } = await supabase.from('profiles').update({
