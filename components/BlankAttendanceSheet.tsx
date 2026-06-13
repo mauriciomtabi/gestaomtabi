@@ -412,7 +412,7 @@ export const AttendanceRecordDetailsModal: React.FC<AttendanceRecordDetailsModal
               <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl space-y-4">
                 <h5 className="text-[10px] font-black uppercase text-slate-500 tracking-widest border-b border-slate-200/60 pb-1.5 flex items-center gap-1.5">
                   <Clock size={12} />
-                  Horários e Operadores Responsáveis
+                  Horários e Militares Responsáveis
                 </h5>
 
                 {isJustification ? (
@@ -476,7 +476,7 @@ export const AttendanceRecordDetailsModal: React.FC<AttendanceRecordDetailsModal
                   <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-200 rounded-xl bg-white text-center gap-2 text-slate-400">
                     <AlertCircle size={24} className="text-slate-300" />
                     <div className="text-[10px] font-black uppercase tracking-wider">Sem Comprovante Biométrico</div>
-                    <div className="text-[9px] font-bold text-slate-400/80 leading-tight">Este registro foi homologado manualmente pelo operador responsável, dispensando foto facial.</div>
+                    <div className="text-[9px] font-bold text-slate-400/80 leading-tight">Este registro foi homologado manualmente pelo militar responsável, dispensando foto facial.</div>
                   </div>
                 )}
               </div>
