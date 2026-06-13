@@ -5,6 +5,13 @@ import { ArrowLeft, Printer, X, Clock, MapPin, User, ScanFace, Calendar, AlertCi
 import { formatDateBR, formatMinutesToHHMM } from '../utils/timeUtils';
 import GeoMapViewer from './GeoMapViewer';
 
+const getShortName = (name: string) => {
+  if (!name) return '';
+  const cleanParts = name.trim().split(/\s+/).filter(Boolean);
+  if (cleanParts.length <= 2) return name.toUpperCase();
+  return `${cleanParts[0]} ${cleanParts[cleanParts.length - 1]}`.toUpperCase();
+};
+
 interface AttendanceSheetPrintProps {
   provider: Provider;
   records: AttendanceRecord[];
@@ -135,6 +142,7 @@ export const AttendanceSheetPrint: React.FC<AttendanceSheetPrintProps> = ({
           {/* Linhas de registros preenchidos */}
           {displayRows.records.map((r) => {
             const isJustification = r.type === 'justification';
+            const providerNameShort = getShortName(provider.name);
             
             // Assinatura do prestador stamp
             let providerSig = null;
@@ -146,14 +154,14 @@ export const AttendanceSheetPrint: React.FC<AttendanceSheetPrintProps> = ({
               );
             } else if (r.id && r.id.startsWith('face-')) {
               providerSig = (
-                <div style={{ fontSize: '7pt', color: '#047857', fontWeight: 'bold', textTransform: 'uppercase', border: '1px dashed #047857', borderRadius: '4px', padding: '1px 4px', textAlign: 'center', lineHeight: '1.1', margin: '0 auto', width: 'fit-content', backgroundColor: '#ecfdf5' }}>
-                  [✓] BIOMETRIA FACIAL CONFIRMADA
+                <div style={{ fontSize: '6.2pt', color: '#047857', fontWeight: 'bold', textTransform: 'uppercase', border: '1px dashed #047857', borderRadius: '4px', padding: '1px 4px', textAlign: 'center', lineHeight: '1.1', margin: '0 auto', width: 'fit-content', backgroundColor: '#ecfdf5' }}>
+                  [✓] ASSINATURA BIOMÉTRICA: {providerNameShort}
                 </div>
               );
             } else {
               providerSig = (
-                <div style={{ fontSize: '7pt', color: '#1d4ed8', fontWeight: 'bold', textTransform: 'uppercase', border: '1px dashed #1d4ed8', borderRadius: '4px', padding: '1px 4px', textAlign: 'center', lineHeight: '1.1', margin: '0 auto', width: 'fit-content', backgroundColor: '#eff6ff' }}>
-                  [✓] REGISTRO HOMOLOGADO
+                <div style={{ fontSize: '6.2pt', color: '#1d4ed8', fontWeight: 'bold', textTransform: 'uppercase', border: '1px dashed #1d4ed8', borderRadius: '4px', padding: '1px 4px', textAlign: 'center', lineHeight: '1.1', margin: '0 auto', width: 'fit-content', backgroundColor: '#eff6ff' }}>
+                  [✓] PRESENÇA CONFIRMADA: {providerNameShort}
                 </div>
               );
             }
@@ -196,15 +204,15 @@ export const AttendanceSheetPrint: React.FC<AttendanceSheetPrintProps> = ({
               const isFace = r.id && r.id.startsWith('face-');
               const badgeColor = isFace ? '#047857' : '#1d4ed8';
               const badgeBg = isFace ? '#ecfdf5' : '#eff6ff';
-              const label = isFace ? 'AUT. BIOMÉTRICA' : 'HOMOLOGADO';
+              const label = isFace ? '[✓] VALIDADO POR' : '[✓] HOMOLOGADO POR';
 
               responsibleSig = (
                 <div className="flex flex-col items-center justify-center gap-0.5">
-                  <div style={{ fontSize: '7pt', color: badgeColor, fontWeight: 'bold', textTransform: 'uppercase', border: `1px dashed ${badgeColor}`, borderRadius: '4px', padding: '1px 4px', textAlign: 'center', lineHeight: '1.1', margin: '0 auto', width: 'fit-content', backgroundColor: badgeBg }}>
+                  <div style={{ fontSize: '6.5pt', color: badgeColor, fontWeight: 'bold', textTransform: 'uppercase', border: `1px dashed ${badgeColor}`, borderRadius: '4px', padding: '1px 4px', textAlign: 'center', lineHeight: '1.1', margin: '0 auto', width: 'fit-content', backgroundColor: badgeBg }}>
                     {label}
                   </div>
-                  <div style={{ fontSize: '6pt', color: '#475569', fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'center', marginTop: '2px', lineHeight: '1', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={opText}>
-                    {opText}
+                  <div style={{ fontSize: '6pt', color: '#475569', fontWeight: 'bold', textTransform: 'uppercase', textAlign: 'center', marginTop: '2px', lineHeight: '1', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`MILITAR: ${opText}`}>
+                    MILITAR: {opText}
                   </div>
                 </div>
               );
