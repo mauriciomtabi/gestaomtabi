@@ -520,13 +520,18 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification, isR
     isSavingRef.current = true;
     setSaving(true);
     try {
-      let initialStatus: 'aguardando_substituto' | 'aguardando_escalado' | 'pendente' = 'aguardando_substituto';
+      let initialStatusIda: 'aguardando_substituto' | 'aguardando_escalado' | 'pendente' = 'aguardando_substituto';
+      let initialStatusVolta: 'aguardando_substituto' | 'aguardando_escalado' | 'pendente' = 'aguardando_escalado';
+
       if (currentUser.isAdmin && formData.escaladoId !== currentUser.id && formData.substitutoId !== currentUser.id) {
-        initialStatus = 'pendente';
+        initialStatusIda = 'pendente';
+        initialStatusVolta = 'pendente';
       } else if (formData.substitutoId === currentUser.id) {
-        initialStatus = 'aguardando_escalado';
+        initialStatusIda = 'aguardando_escalado';
+        initialStatusVolta = 'aguardando_substituto';
       } else {
-        initialStatus = 'aguardando_substituto';
+        initialStatusIda = 'aguardando_substituto';
+        initialStatusVolta = 'aguardando_escalado';
       }
 
       // 1. Criar a troca original (A -> B)
@@ -537,7 +542,7 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification, isR
         data:          formData.data,
         horarioInicio: formData.horarioInicio,
         horarioFim:    formData.horarioFim,
-        status:        initialStatus,
+        status:        initialStatusIda,
       } as Partial<ServiceSwap>);
 
       // 2. Criar a perna de Volta automaticamente "A Definir" (1970-01-01)
@@ -548,7 +553,7 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification, isR
         data:          '1970-01-01', // Data de controle para "A definir" (Pagar depois)
         horarioInicio: '00:00',
         horarioFim:    '00:00',
-        status:        initialStatus,
+        status:        initialStatusVolta,
       } as any);
 
       if (result) {
@@ -811,7 +816,7 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification, isR
           </button>
         )}
 
-        {!isReadOnly && currentUser.isAdmin && isCompleted && (
+        {!isReadOnly && currentUser.isAdmin && (isArchived || s.status === 'cancelado') && (
           isArchived ? (
             <button
               type="button"
