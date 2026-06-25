@@ -14,7 +14,7 @@ import FaceCheckIn from './components/FaceCheckIn';
 import Settings from './components/Settings';
 import HelpCenter from './components/HelpCenter';
 import ServiceSwapManager from './components/ServiceSwapManager';
-import { Users, LayoutDashboard, FileText, Loader2, ShieldCheck, ShieldAlert, Cpu, Database, Network, Sparkles, LogOut, UserCircle, CheckCircle2, X, Smartphone, Fuel, ScanFace, Settings as SettingsIcon, HelpCircle, RefreshCw, Sun, Moon } from 'lucide-react';
+import { Users, LayoutDashboard, FileText, Loader2, ShieldCheck, ShieldAlert, Cpu, Database, Network, Sparkles, LogOut, UserCircle, CheckCircle2, X, Smartphone, Fuel, ScanFace, Settings as SettingsIcon, HelpCircle, RefreshCw } from 'lucide-react';
 import { getProviders, getAttendance, createProvider, updateProvider, saveAttendance, deleteAttendance, saveAuditLog, supabase, getFuelSupplies, getVehicles, getStationNicknames } from './services/supabaseService';
 
 const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => {
@@ -58,19 +58,6 @@ const App: React.FC = () => {
       mainRef.current.scrollTo({ top: 0, behavior: 'instant' });
     }
   }, [view]);
-
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
-  });
-
-  useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
   
   const [isBooting, setIsBooting] = useState(true);
   const [bootProgress, setBootProgress] = useState(0);
@@ -498,14 +485,6 @@ const App: React.FC = () => {
             <NavItem icon={SettingsIcon} label="Configurações" target="settings" active={view === 'settings'} />
           )}
           <NavItem icon={HelpCircle} label="Ajuda e Documentação" target="help" active={view === 'help'} />
-          <button
-            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-            title={theme === 'light' ? 'Ativar Modo Escuro' : 'Ativar Modo Claro'}
-            className="flex flex-col md:flex-row items-center justify-center md:justify-start gap-1 md:gap-3 px-2 py-2 md:px-4 md:py-2.5 rounded-xl transition-all flex-1 md:w-full shrink-0 text-[10px] md:text-sm font-bold text-blue-200 hover:text-white hover:bg-blue-800/50"
-          >
-            {theme === 'light' ? <Moon size={20} className="md:w-[18px] md:h-[18px]" /> : <Sun size={20} className="md:w-[18px] md:h-[18px]" />}
-            <span className="hidden md:inline">{theme === 'light' ? 'Modo Escuro' : 'Modo Claro'}</span>
-          </button>
         </div>
 
         <div className="hidden md:flex flex-col mt-auto w-full px-2 space-y-2 py-4">

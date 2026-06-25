@@ -8,23 +8,8 @@
 
 body {
   font-family: "Inter", sans-serif;
-  background-color: var(--color-slate-50);
-  color: var(--color-slate-900);
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-.dark {
-  --color-white: #0f172a; /* slate-900 para cards */
-  --color-slate-50: #020617; /* slate-950 para o fundo principal */
-  --color-slate-100: #1e293b; /* slate-800 para painéis secundários e inputs */
-  --color-slate-200: #334155; /* slate-700 para bordas */
-  --color-slate-300: #475569; /* slate-600 */
-  --color-slate-400: #64748b; /* slate-500 */
-  --color-slate-500: #94a3b8; /* slate-400 */
-  --color-slate-600: #cbd5e1; /* slate-300 */
-  --color-slate-700: #e2e8f0; /* slate-200 */
-  --color-slate-800: #f1f5f9; /* slate-100 */
-  --color-slate-900: #f8fafc; /* slate-50 */
+  background-color: #0f172a;
+  color: #f8fafc;
 }
 
 @keyframes scan-down {
