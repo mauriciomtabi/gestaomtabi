@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { Operator, Cliente, Projeto, FerramentaCusto, PipelineLead, FinanceiroMovimento, LogAcessoCredencial } from '../types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://lirbmymfsdktxdvbnrrg.supabase.co';
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpcmJteW1mc2RrdHhkdmJucnJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5Mjg1MzQsImV4cCI6MjA5NzUwNDUzNH0.FUPtbmSDGdQtGM3kRAfxiuWIXIbjXDlbpV0724XrX4w';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://rpnyobdmaaanyuquywiv.supabase.co';
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwbnlvYmRtYWFhbnl1cXV5d2l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzIzODEsImV4cCI6MjA5ODEwODM4MX0.6ROH6dNdkdoNrfEl4kdEOyU_FASD0iGuSt8irtYueBg';
 
 const customStorage = {
   getItem: (key: string) => {
