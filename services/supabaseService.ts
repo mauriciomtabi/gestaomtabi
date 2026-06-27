@@ -837,3 +837,27 @@ export const uploadProfilePhoto = async (userId: string, base64: string): Promis
     return null;
   }
 };
+
+// Upload de logotipo de cliente
+export const uploadClientLogo = async (clienteId: string, base64: string): Promise<string | null> => {
+  if (!base64 || !base64.startsWith('data:')) return base64;
+  try {
+    const response = await fetch(base64);
+    const blob = await response.blob();
+    const fileExt = blob.type.split('/')[1] || 'png';
+    const filePath = `client_logos/${clienteId}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(filePath, blob, { contentType: blob.type, upsert: true });
+      
+    if (uploadError) throw uploadError;
+    
+    const { data } = supabase.storage.from('documents').getPublicUrl(filePath);
+    return data.publicUrl;
+  } catch (error) {
+    console.error('Erro ao fazer upload do logotipo do cliente:', error);
+    return null;
+  }
+};
+

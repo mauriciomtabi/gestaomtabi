@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Plus, Search, Filter, Phone, User, Landmark, HelpCircle, Edit2, Trash2, Calendar, FileText, ChevronRight, X, AlertTriangle, ArrowUpRight } from 'lucide-react';
-import { getClientes, createCliente, updateCliente, deleteCliente, getProjetos, createProjeto, getFinanceiroMovimentos } from '../services/supabaseService';
+import { Building2, Plus, Search, Filter, Phone, User, Landmark, HelpCircle, Edit2, Trash2, Calendar, FileText, ChevronRight, X, AlertTriangle, ArrowUpRight, Upload } from 'lucide-react';
+import { getClientes, createCliente, updateCliente, deleteCliente, getProjetos, createProjeto, getFinanceiroMovimentos, uploadClientLogo } from '../services/supabaseService';
 import { Cliente, Projeto, FinanceiroMovimento } from '../types';
 
 interface ClientesProps {
@@ -25,6 +25,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
   const [clientForm, setClientForm] = useState({
     nome_empresa: '',
+    logo_url: '',
     nome_contato_principal: '',
     nome_contato_interno: '',
     segmento: '',
@@ -88,6 +89,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     setEditingCliente(null);
     setClientForm({
       nome_empresa: '',
+      logo_url: '',
       nome_contato_principal: '',
       nome_contato_interno: '',
       segmento: '',
@@ -102,6 +104,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     setEditingCliente(c);
     setClientForm({
       nome_empresa: c.nome_empresa,
+      logo_url: c.logo_url || '',
       nome_contato_principal: c.nome_contato_principal || '',
       nome_contato_interno: c.nome_contato_interno || '',
       segmento: c.segmento || '',
@@ -115,16 +118,45 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   const handleClientSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      let finalForm = { ...clientForm };
+      
       if (editingCliente) {
-        await updateCliente(editingCliente.id, clientForm);
+        if (clientForm.logo_url && clientForm.logo_url.startsWith('data:')) {
+          const uploadedUrl = await uploadClientLogo(editingCliente.id, clientForm.logo_url);
+          if (uploadedUrl) {
+            finalForm.logo_url = uploadedUrl;
+          }
+        }
+        await updateCliente(editingCliente.id, finalForm);
       } else {
-        const created = await createCliente(clientForm);
+        const logoBase64 = clientForm.logo_url;
+        finalForm.logo_url = '';
+        const created = await createCliente(finalForm);
+        
+        if (logoBase64 && logoBase64.startsWith('data:')) {
+          const uploadedUrl = await uploadClientLogo(created.id, logoBase64);
+          if (uploadedUrl) {
+            await updateCliente(created.id, { logo_url: uploadedUrl });
+            created.logo_url = uploadedUrl;
+          }
+        }
         setSelectedCliente(created);
       }
       setIsClientModalOpen(false);
       await loadData();
     } catch (err) {
       console.error('Erro ao salvar cliente:', err);
+    }
+  };
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setClientForm(prev => ({ ...prev, logo_url: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -288,18 +320,33 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                       : 'border-mtabi-border hover:border-mtabi-border/80'
                   }`}
                 >
-                  <div className="min-w-0 pr-2">
-                    <h3 className="text-sm font-bold text-white group-hover:text-mtabi-yellow transition-colors truncate">
-                      {c.nome_empresa}
-                    </h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] text-mtabi-muted truncate">
-                        {c.segmento || 'Sem Segmento'}
-                      </span>
-                      <span className="text-mtabi-border">•</span>
-                      <span className="text-[10px] text-mtabi-muted font-medium">
-                        {c.tipo_relacao}
-                      </span>
+                  <div className="flex items-center gap-3 min-w-0 pr-2">
+                    {c.logo_url ? (
+                      <div className="w-10 h-10 rounded-xl bg-[#13151A] border border-mtabi-border flex items-center justify-center p-1 shrink-0">
+                        <img 
+                          src={c.logo_url} 
+                          alt={c.nome_empresa} 
+                          className="w-full h-full object-contain rounded-lg"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-mtabi-border/35 border border-mtabi-border flex items-center justify-center text-mtabi-yellow font-display font-extrabold text-sm shrink-0 uppercase select-none">
+                        {c.nome_empresa.substring(0, 2)}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-white group-hover:text-mtabi-yellow transition-colors truncate">
+                        {c.nome_empresa}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] text-mtabi-muted truncate">
+                          {c.segmento || 'Sem Segmento'}
+                        </span>
+                        <span className="text-mtabi-border">•</span>
+                        <span className="text-[10px] text-mtabi-muted font-medium">
+                          {c.tipo_relacao}
+                        </span>
+                      </div>
                     </div>
                   </div>
                   
@@ -331,23 +378,38 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
               
               {/* Cabeçalho do Detalhe */}
               <div className="flex justify-between items-start border-b border-mtabi-border pb-5 gap-4">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h2 className="text-xl sm:text-2xl font-extrabold text-white font-display">
-                      {selectedCliente.nome_empresa}
-                    </h2>
-                    <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                      selectedCliente.status === 'Ativo' ? 'bg-emerald-900/30 text-mtabi-success' :
-                      selectedCliente.status === 'Negociação' ? 'bg-amber-900/30 text-mtabi-yellow' :
-                      selectedCliente.status === 'Pausado' ? 'bg-blue-900/30 text-mtabi-info' :
-                      'bg-zinc-800 text-mtabi-muted'
-                    }`}>
-                      {selectedCliente.status}
-                    </span>
+                <div className="flex items-center gap-4 min-w-0">
+                  {selectedCliente.logo_url ? (
+                    <div className="w-14 h-14 rounded-2xl bg-[#13151A] border border-mtabi-border flex items-center justify-center p-1.5 shrink-0">
+                      <img 
+                        src={selectedCliente.logo_url} 
+                        alt={selectedCliente.nome_empresa} 
+                        className="w-full h-full object-contain rounded-xl"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-14 h-14 rounded-2xl bg-mtabi-border/30 border border-mtabi-border flex items-center justify-center text-mtabi-yellow font-display font-extrabold text-lg shrink-0 uppercase select-none">
+                      {selectedCliente.nome_empresa.substring(0, 2)}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h2 className="text-xl sm:text-2xl font-extrabold text-white font-display truncate">
+                        {selectedCliente.nome_empresa}
+                      </h2>
+                      <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                        selectedCliente.status === 'Ativo' ? 'bg-emerald-900/30 text-mtabi-success' :
+                        selectedCliente.status === 'Negociação' ? 'bg-amber-900/30 text-mtabi-yellow' :
+                        selectedCliente.status === 'Pausado' ? 'bg-blue-900/30 text-mtabi-info' :
+                        'bg-zinc-800 text-mtabi-muted'
+                      }`}>
+                        {selectedCliente.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-mtabi-muted mt-1 uppercase tracking-wider">
+                      {selectedCliente.segmento || 'Setor não informado'} • Relação: <span className="text-white">{selectedCliente.tipo_relacao}</span>
+                    </p>
                   </div>
-                  <p className="text-xs text-mtabi-muted mt-1 uppercase tracking-wider">
-                    {selectedCliente.segmento || 'Setor não informado'} • Relação: <span className="text-white">{selectedCliente.tipo_relacao}</span>
-                  </p>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
@@ -543,6 +605,49 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
             </div>
             
             <form onSubmit={handleClientSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+              
+              {/* LOGOTIPO */}
+              <div className="mb-4 bg-mtabi-bg/30 p-3 rounded-xl border border-mtabi-border/60">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2.5">
+                  Logotipo do Cliente
+                </label>
+                <div className="flex items-center gap-4">
+                  {clientForm.logo_url ? (
+                    <div className="relative w-16 h-16 rounded-xl bg-[#13151A] border border-mtabi-border flex items-center justify-center p-1 shrink-0 overflow-hidden group">
+                      <img 
+                        src={clientForm.logo_url} 
+                        alt="Logotipo Preview" 
+                        className="w-full h-full object-contain rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setClientForm({ ...clientForm, logo_url: '' })}
+                        className="absolute inset-0 bg-black/75 flex items-center justify-center text-mtabi-error opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-[10px] font-bold font-display"
+                      >
+                        REMOVER
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="w-16 h-16 rounded-xl border border-dashed border-mtabi-border hover:border-mtabi-yellow flex flex-col items-center justify-center text-mtabi-muted hover:text-mtabi-yellow transition-all cursor-pointer shrink-0">
+                      <Upload size={18} />
+                      <span className="text-[8px] font-bold uppercase mt-1">Anexar</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={handleLogoChange} 
+                        className="hidden" 
+                      />
+                    </label>
+                  )}
+                  <div className="text-left">
+                    <span className="text-xs text-white font-bold block">Carregar imagem</span>
+                    <span className="text-[9px] text-mtabi-muted block mt-0.5 leading-normal max-w-xs">
+                      Selecione um arquivo PNG, JPG ou SVG. Proporção quadrada recomendada.
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
                   Nome da Empresa / Marca *

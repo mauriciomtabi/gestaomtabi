@@ -24,6 +24,7 @@ create table if not exists public.profiles (
 create table if not exists public.clientes (
   id uuid primary key default uuid_generate_v4(),
   nome_empresa text not null,
+  logo_url text,
   nome_contato_principal text,
   nome_contato_interno text,
   segmento text,

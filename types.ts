@@ -32,6 +32,7 @@ export interface Operator {
 export interface Cliente {
   id: string;
   nome_empresa: string;
+  logo_url?: string;
   nome_contato_principal?: string;
   nome_contato_interno?: string;
   segmento?: string;
