@@ -182,12 +182,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
           </h1>
           <p className="text-sm text-mtabi-muted">Visão geral do ecossistema e saúde financeira da MTABI.</p>
         </div>
-        <button
-          onClick={loadData}
-          className="self-start sm:self-auto flex items-center gap-2 px-4 py-2 bg-mtabi-card hover:bg-mtabi-border border border-mtabi-border text-white text-xs font-semibold uppercase tracking-wider rounded-xl transition-all cursor-pointer"
-        >
-          <RefreshCw size={14} /> Atualizar Dados
-        </button>
       </div>
 
       {/* Alertas Críticos de Vencimento de Licenças */}

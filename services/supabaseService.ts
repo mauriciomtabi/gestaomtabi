@@ -31,7 +31,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 // ==========================================
 
 export const isMockMode = (): boolean => {
-  return localStorage.getItem('mtabi_use_mock') === 'true';
+  return false;
 };
 
 export const setMockMode = (active: boolean) => {
@@ -354,28 +354,13 @@ export const reauthenticateUser = async (password: string): Promise<boolean> => 
 // ==========================================
 
 export const getClientes = async (): Promise<Cliente[]> => {
-  if (isMockMode()) {
-    return getLocalData('mtabi_mock_clientes', MOCK_CLIENTES);
-  }
-  try {
-    const { data, error } = await supabase
-      .from('clientes')
-      .select('*')
-      .order('nome_empresa', { ascending: true });
-      
-    if (error) {
-      if (error.message.includes('relation') && error.message.includes('does not exist')) {
-        console.warn("Tabela 'clientes' inexistente no Supabase. Alternando para o Modo Local.");
-        setMockMode(true);
-        return getClientes();
-      }
-      throw error;
-    }
-    return data || [];
-  } catch (e) {
-    setMockMode(true);
-    return getClientes();
-  }
+  const { data, error } = await supabase
+    .from('clientes')
+    .select('*')
+    .order('nome_empresa', { ascending: true });
+    
+  if (error) throw error;
+  return data || [];
 };
 
 export const createCliente = async (cliente: Partial<Cliente>): Promise<Cliente> => {
@@ -448,33 +433,13 @@ export const deleteCliente = async (id: string): Promise<void> => {
 // ==========================================
 
 export const getProjetos = async (): Promise<Projeto[]> => {
-  if (isMockMode()) {
-    const projs = getLocalData('mtabi_mock_projetos', MOCK_PROJETOS);
-    const clis = getLocalData('mtabi_mock_clientes', MOCK_CLIENTES);
+  const { data, error } = await supabase
+    .from('projetos')
+    .select('*, cliente:clientes(*)')
+    .order('nome_solucao', { ascending: true });
     
-    return projs.map(p => ({
-      ...p,
-      cliente: clis.find(c => c.id === p.cliente_id)
-    }));
-  }
-  try {
-    const { data, error } = await supabase
-      .from('projetos')
-      .select('*, cliente:clientes(*)')
-      .order('nome_solucao', { ascending: true });
-      
-    if (error) {
-      if (error.message.includes('relation') && error.message.includes('does not exist')) {
-        setMockMode(true);
-        return getProjetos();
-      }
-      throw error;
-    }
-    return data || [];
-  } catch (e) {
-    setMockMode(true);
-    return getProjetos();
-  }
+  if (error) throw error;
+  return data || [];
 };
 
 export const createProjeto = async (projeto: Partial<Projeto>): Promise<Projeto> => {
@@ -555,32 +520,13 @@ export const deleteProjeto = async (id: string): Promise<void> => {
 // ==========================================
 
 export const getFerramentas = async (): Promise<FerramentaCusto[]> => {
-  if (isMockMode()) {
-    const tools = getLocalData('mtabi_mock_ferramentas', MOCK_FERRAMENTAS);
-    const projs = getLocalData('mtabi_mock_projetos', MOCK_PROJETOS);
-    return tools.map(t => ({
-      ...t,
-      projeto: projs.find(p => p.id === t.projeto_vinculado_id)
-    }));
-  }
-  try {
-    const { data, error } = await supabase
-      .from('ferramentas_custos')
-      .select('*, projeto:projetos(*)')
-      .order('nome_ferramenta', { ascending: true });
-      
-    if (error) {
-      if (error.message.includes('relation') && error.message.includes('does not exist')) {
-        setMockMode(true);
-        return getFerramentas();
-      }
-      throw error;
-    }
-    return data || [];
-  } catch (e) {
-    setMockMode(true);
-    return getFerramentas();
-  }
+  const { data, error } = await supabase
+    .from('ferramentas_custos')
+    .select('*, projeto:projetos(*)')
+    .order('nome_ferramenta', { ascending: true });
+    
+  if (error) throw error;
+  return data || [];
 };
 
 export const createFerramenta = async (ferramenta: Partial<FerramentaCusto>): Promise<FerramentaCusto> => {
@@ -658,32 +604,13 @@ export const deleteFerramenta = async (id: string): Promise<void> => {
 // ==========================================
 
 export const getPipeline = async (): Promise<PipelineLead[]> => {
-  if (isMockMode()) {
-    const pipe = getLocalData('mtabi_mock_pipeline', MOCK_PIPELINE);
-    const clis = getLocalData('mtabi_mock_clientes', MOCK_CLIENTES);
-    return pipe.map(l => ({
-      ...l,
-      cliente: clis.find(c => c.id === l.cliente_id)
-    }));
-  }
-  try {
-    const { data, error } = await supabase
-      .from('pipeline_negociacao')
-      .select('*, cliente:clientes(*)')
-      .order('data_proxima_acao', { ascending: true, nullsFirst: false });
-      
-    if (error) {
-      if (error.message.includes('relation') && error.message.includes('does not exist')) {
-        setMockMode(true);
-        return getPipeline();
-      }
-      throw error;
-    }
-    return data || [];
-  } catch (e) {
-    setMockMode(true);
-    return getPipeline();
-  }
+  const { data, error } = await supabase
+    .from('pipeline_negociacao')
+    .select('*, cliente:clientes(*)')
+    .order('data_proxima_acao', { ascending: true, nullsFirst: false });
+    
+  if (error) throw error;
+  return data || [];
 };
 
 export const createPipelineLead = async (lead: Partial<PipelineLead>): Promise<PipelineLead> => {
@@ -768,35 +695,13 @@ export const deletePipelineLead = async (id: string): Promise<void> => {
 // ==========================================
 
 export const getFinanceiroMovimentos = async (): Promise<FinanceiroMovimento[]> => {
-  if (isMockMode()) {
-    const movs = getLocalData('mtabi_mock_financeiro', MOCK_FINANCEIRO);
-    const clis = getLocalData('mtabi_mock_clientes', MOCK_CLIENTES);
-    const projs = getLocalData('mtabi_mock_projetos', MOCK_PROJETOS);
+  const { data, error } = await supabase
+    .from('financeiro_movimentos')
+    .select('*, cliente:clientes(*), projeto:projetos(*)')
+    .order('data_movimento', { ascending: false });
     
-    return movs.map(m => ({
-      ...m,
-      cliente: clis.find(c => c.id === m.cliente_id),
-      projeto: projs.find(p => p.id === m.projeto_id)
-    }));
-  }
-  try {
-    const { data, error } = await supabase
-      .from('financeiro_movimentos')
-      .select('*, cliente:clientes(*), projeto:projetos(*)')
-      .order('data_movimento', { ascending: false });
-      
-    if (error) {
-      if (error.message.includes('relation') && error.message.includes('does not exist')) {
-        setMockMode(true);
-        return getFinanceiroMovimentos();
-      }
-      throw error;
-    }
-    return data || [];
-  } catch (e) {
-    setMockMode(true);
-    return getFinanceiroMovimentos();
-  }
+  if (error) throw error;
+  return data || [];
 };
 
 export const createFinanceiroMovimento = async (movimento: Partial<FinanceiroMovimento>): Promise<FinanceiroMovimento> => {
@@ -870,39 +775,20 @@ export const deleteFinanceiroMovimento = async (id: string): Promise<void> => {
 // ==========================================
 
 export const getLogsCredenciais = async (): Promise<LogAcessoCredencial[]> => {
-  if (isMockMode()) {
-    const logs = getLocalData('mtabi_mock_logs', MOCK_LOGS);
-    const tools = getLocalData('mtabi_mock_ferramentas', MOCK_FERRAMENTAS);
-    return logs.map(l => ({
-      ...l,
-      ferramenta_nome: tools.find(t => t.id === l.ferramenta_id)?.nome_ferramenta || 'Ferramenta Removida'
-    }));
-  }
-  try {
-    const { data, error } = await supabase
-      .from('log_acessos_credenciais')
-      .select('*, ferramenta:ferramentas_custos(nome_ferramenta)')
-      .order('data_hora', { ascending: false });
-      
-    if (error) {
-      if (error.message.includes('relation') && error.message.includes('does not exist')) {
-        setMockMode(true);
-        return getLogsCredenciais();
-      }
-      throw error;
-    }
+  const { data, error } = await supabase
+    .from('log_acessos_credenciais')
+    .select('*, ferramenta:ferramentas_custos(nome_ferramenta)')
+    .order('data_hora', { ascending: false });
     
-    return (data || []).map(log => ({
-      id: log.id,
-      ferramenta_id: log.ferramenta_id,
-      data_hora: log.data_hora,
-      acao: log.acao,
-      ferramenta_nome: log.ferramenta?.nome_ferramenta || 'Ferramenta Removida'
-    }));
-  } catch (e) {
-    setMockMode(true);
-    return getLogsCredenciais();
-  }
+  if (error) throw error;
+  
+  return (data || []).map(log => ({
+    id: log.id,
+    ferramenta_id: log.ferramenta_id,
+    data_hora: log.data_hora,
+    acao: log.acao,
+    ferramenta_nome: log.ferramenta?.nome_ferramenta || 'Ferramenta Removida'
+  }));
 };
 
 export const logCredentialAccess = async (ferramentaId: string): Promise<void> => {

@@ -214,7 +214,7 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-mtabi-bg text-mtabi-text flex flex-col md:flex-row">
       
       {/* 1. SIDEBAR (DESKTOP LAYOUT) */}
-      <aside className={`hidden md:flex flex-col shrink-0 bg-mtabi-card border-r border-mtabi-border transition-all duration-300 relative ${
+      <aside className={`hidden md:flex flex-col shrink-0 bg-mtabi-card border-r border-mtabi-border transition-all duration-300 sticky top-0 h-screen z-30 ${
         sidebarCollapsed ? 'w-20' : 'w-64'
       }`}>
         
@@ -227,18 +227,22 @@ const App: React.FC = () => {
         </button>
 
         {/* LOGO */}
-        <div className="p-6 border-b border-mtabi-border flex items-center gap-3">
+        <div className={`border-b border-mtabi-border flex items-center gap-3.5 transition-all select-none ${
+          sidebarCollapsed ? 'justify-center p-4 py-6' : 'p-6'
+        }`}>
           <img 
             src="/mtabi-icone-apenas.svg" 
             alt="Logo MTABI" 
-            className="w-10 h-10 object-contain shrink-0 select-none" 
+            className={`object-contain shrink-0 select-none transition-all ${
+              sidebarCollapsed ? 'w-10 h-10' : 'w-14 h-14'
+            }`} 
           />
           {!sidebarCollapsed && (
             <div className="min-w-0">
-              <h2 className="text-lg font-extrabold tracking-wider font-display text-white select-none">
+              <h2 className="text-2xl font-black tracking-wider font-display text-white select-none leading-none">
                 MT<span className="text-mtabi-yellow">ABI</span>
               </h2>
-              <span className="text-[8px] text-mtabi-muted uppercase tracking-widest block mt-0.5 font-bold">
+              <span className="text-[9px] text-mtabi-muted uppercase tracking-widest block mt-1.5 font-bold">
                 Gestão Interna
               </span>
             </div>
@@ -298,22 +302,6 @@ const App: React.FC = () => {
       {/* 2. BODY CONTAINER */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto px-4 py-6 md:p-8 pb-24 md:pb-8">
         
-        {localStorage.getItem('mtabi_use_mock') === 'true' && (
-          <div className="mb-6 px-4 py-3 bg-mtabi-yellow/10 border border-mtabi-yellow/30 text-mtabi-yellow rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-sans">
-            <span className="font-semibold flex items-center gap-2 text-center sm:text-left">
-              <AlertCircle size={16} className="animate-pulse shrink-0" />
-              Modo de Avaliação Local: Os dados estão salvos temporariamente neste navegador.
-            </span>
-            <a 
-              href="/supabase_schema.sql" 
-              download="supabase_schema.sql"
-              className="px-3 py-1.5 bg-mtabi-yellow text-black font-bold uppercase tracking-wider rounded-xl text-[10px] hover:bg-mtabi-yellow/90 shrink-0 cursor-pointer"
-            >
-              Baixar SQL do Supabase
-            </a>
-          </div>
-        )}
-
         {/* Renderiza Componente com base na View Ativa */}
         {view === 'dashboard' && <Dashboard onNavigate={(v) => setView(v)} />}
         {view === 'clientes' && <Clientes onNavigateToProject={navigateToProject} />}

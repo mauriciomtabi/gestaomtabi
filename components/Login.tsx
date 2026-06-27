@@ -107,7 +107,7 @@ const Login: React.FC<Props> = () => {
           <img 
             src="/mtabi-logo-transparente.svg" 
             alt="Logo MTABI" 
-            className="h-16 object-contain"
+            className="h-32 object-contain"
           />
           <p className="text-[10px] text-mtabi-muted uppercase tracking-widest mt-4">
             Gestão Interna de Negócios
@@ -192,17 +192,6 @@ const Login: React.FC<Props> = () => {
               ) : (
                 'ENTRAR NO SISTEMA'
               )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                localStorage.setItem('mtabi_use_mock', 'true');
-                window.location.reload();
-              }}
-              className="w-full py-2.5 bg-mtabi-card hover:bg-mtabi-border border border-mtabi-border text-white text-xs font-bold font-display rounded-xl tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              AVALIAR SISTEMA (MODO DEMONSTRAÇÃO LOCAL)
             </button>
 
             <div className="text-center pt-2">
