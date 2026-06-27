@@ -1,13 +1,13 @@
 {
-  "name": "Gestão CBM RS",
-  "short_name": "Gestão CBM RS",
-  "description": "Sistema de Gestão | CBM RS",
+  "name": "Gestão MTABI",
+  "short_name": "Gestão MTABI",
+  "description": "Sistema de Gestão Interna | MTABI",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#020617",
-  "theme_color": "#1d4ed8",
+  "orientation": "any",
+  "background_color": "#0E0E10",
+  "theme_color": "#F5B324",
   "icons": [
     {
       "src": "/icon-192.png",

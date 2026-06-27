@@ -1,21 +1,31 @@
-
 import React, { useState, useEffect, useRef } from 'react';
-import { Provider, AttendanceRecord, AuditLog, Operator, FuelSupply, Vehicle, StationNickname } from './types';
-import ProviderList from './components/ProviderList';
-import ProviderDetails from './components/ProviderDetails';
-import Dashboard from './components/Dashboard';
-import ReportOfficial from './components/ReportOfficial';
-import ProviderModal from './components/ProviderModal';
-import UserProfile from './components/UserProfile';
+import { supabase } from './services/supabaseService';
+import { Operator } from './types';
 import Login from './components/Login';
-import InstallGuide from './components/InstallGuide';
-import FuelSupplyManager from './components/FuelSupplyManager';
-import FaceCheckIn from './components/FaceCheckIn';
-import Settings from './components/Settings';
-import HelpCenter from './components/HelpCenter';
-import ServiceSwapManager from './components/ServiceSwapManager';
-import { Users, LayoutDashboard, FileText, Loader2, ShieldCheck, ShieldAlert, Cpu, Database, Network, Sparkles, LogOut, UserCircle, CheckCircle2, X, Smartphone, Fuel, ScanFace, Settings as SettingsIcon, HelpCircle, RefreshCw } from 'lucide-react';
-import { getProviders, getAttendance, createProvider, updateProvider, saveAttendance, deleteAttendance, saveAuditLog, supabase, getFuelSupplies, getVehicles, getStationNicknames } from './services/supabaseService';
+import Dashboard from './components/Dashboard';
+import Clientes from './components/Clientes';
+import Projetos from './components/Projetos';
+import Pipeline from './components/Pipeline';
+import Ferramentas from './components/Ferramentas';
+import Financeiro from './components/Financeiro';
+
+import { 
+  LayoutDashboard, 
+  Building2, 
+  FolderKanban, 
+  TrendingUp, 
+  Wrench, 
+  Landmark, 
+  Menu, 
+  ChevronLeft, 
+  ChevronRight, 
+  LogOut, 
+  UserCircle, 
+  X, 
+  CheckCircle2, 
+  AlertCircle,
+  MoreHorizontal
+} from 'lucide-react';
 
 const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => {
   useEffect(() => {
@@ -24,644 +34,459 @@ const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () 
   }, [onClose]);
 
   return (
-    <div className={`fixed top-6 right-6 z-[2000] flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border animate-in slide-in-from-right-10 duration-500 ${type === 'success' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-red-600 border-red-500 text-white'}`}>
-      {type === 'success' ? <CheckCircle2 size={20} /> : <X size={20} />}
-      <p className="text-sm font-black uppercase tracking-tight">{message}</p>
-      <button onClick={onClose} className="ml-4 opacity-50 hover:opacity-100 transition-opacity">
-        <X size={16} />
+    <div className={`fixed top-6 right-6 z-[2000] flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl border animate-in slide-in-from-right-10 duration-300 font-sans ${
+      type === 'success' 
+        ? 'bg-emerald-950 border-emerald-800 text-emerald-300' 
+        : 'bg-red-950 border-red-800 text-red-300'
+    }`}>
+      {type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+      <p className="text-xs font-bold uppercase tracking-wider">{message}</p>
+      <button onClick={onClose} className="ml-3 opacity-50 hover:opacity-100 transition-opacity cursor-pointer">
+        <X size={14} />
       </button>
     </div>
   );
 };
 
 const App: React.FC = () => {
-  const [view, setView] = useState<'dashboard' | 'providers' | 'details' | 'reports' | 'settings' | 'fuel' | 'face-checkin' | 'help' | 'swaps'>(() => {
-    const saved = localStorage.getItem('cbm_active_view');
-    // Fallback security check
-    if (saved === 'details' && !localStorage.getItem('cbm_selected_provider_id')) {
-      return 'providers';
-    }
-    return (saved as any) || 'dashboard';
-  });
-  const [dashboardTab, setDashboardTab] = useState<'geral' | 'prestadores' | 'abastecimento'>(() => {
-    return (localStorage.getItem('cbm_dashboard_tab') as any) || 'geral';
-  });
-  
-  const navigateToDashboard = (tab: 'geral' | 'prestadores' | 'abastecimento') => {
-    setDashboardTab(tab);
-    setView('dashboard');
-  };
-
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(() => {
-    return localStorage.getItem('cbm_selected_provider_id');
-  });
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
-  const [isInstallGuideOpen, setIsInstallGuideOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<Operator | null>(null);
-  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [connectionError, setConnectionError] = useState(false);
-  const mainRef = useRef<HTMLElement>(null);
-
-  // Sincronizar navegação com o localStorage
-  useEffect(() => {
-    localStorage.setItem('cbm_active_view', view);
-  }, [view]);
-
-  useEffect(() => {
-    localStorage.setItem('cbm_dashboard_tab', dashboardTab);
-  }, [dashboardTab]);
-
-  useEffect(() => {
-    if (selectedProviderId) {
-      localStorage.setItem('cbm_selected_provider_id', selectedProviderId);
-    } else {
-      localStorage.removeItem('cbm_selected_provider_id');
-    }
-  }, [selectedProviderId]);
-
-  // Scroll para o topo sempre que a view mudar
-  useEffect(() => {
-    if (mainRef.current) {
-      mainRef.current.scrollTo({ top: 0, behavior: 'instant' });
-    }
-  }, [view]);
-  
   const [isBooting, setIsBooting] = useState(true);
   const [bootProgress, setBootProgress] = useState(0);
-  const [bootStatus, setBootStatus] = useState("Iniciando Kernel...");
+  const [bootStatus, setBootStatus] = useState("Iniciando...");
+  const [view, setView] = useState<'dashboard' | 'clientes' | 'projetos' | 'pipeline' | 'ferramentas' | 'financeiro'>('dashboard');
   
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
-  const [fuelSupplies, setFuelSupplies] = useState<FuelSupply[]>([]);
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [stationNicknames, setStationNicknames] = useState<StationNickname[]>([]);
+  // Sincronizar navegação direta de sub-telas (ex: ir para projetos a partir de um cliente)
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
-  const bootMessages = [
-    "Autenticando credenciais militares...",
-    "Sincronizando Banco de Dados Supabase...",
-    "Calibrando Engine de IA Gemini 3.0...",
-    "Verificando integridade dos protocolos...",
-    "Carregando registros de presença...",
-    "Ajustando interface tática...",
-    "Sistema Pronto."
-  ];
+  // Layout Sidebar (Desktop)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
+  // Menu "Mais" (Mobile)
+  const [isMobileMoreOpen, setIsMobileMoreOpen] = useState(false);
 
+  // Toast Notifications
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+  };
+
+  // Carregar sessão auth
   useEffect(() => {
-    // 1. Verificação de primeiro acesso do dia (movida para o início)
-    const today = new Date().toLocaleDateString('pt-BR');
-    const lastAccess = localStorage.getItem('lastAccessDate');
-    
-    // 2. Inicialização do Auth Listener
-    // O onAuthStateChange dispara imediatamente com a sessão atual (INITIAL_SESSION)
+    if (localStorage.getItem('mtabi_use_mock') === 'true') {
+      const mockUser: Operator = {
+        id: 'mock-user-id',
+        name: 'Operador Convidado',
+        email: 'demo@mtabi.com',
+        allowedScreens: ['dashboard', 'clientes', 'projetos', 'pipeline', 'ferramentas', 'financeiro'],
+        isAdmin: true
+      };
+      setCurrentUser(mockUser);
+      setIsBooting(false);
+      return;
+    }
+
+    // Escuta mudanças de sessão
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[Auth] Evento detectado: ${event}`);
+      console.log(`[Auth Event] ${event}`);
       
       if (event === 'SIGNED_OUT') {
         setCurrentUser(null);
-        setProviders([]);
-        setAttendance([]);
-        setFuelSupplies([]);
-        setVehicles([]);
         setView('dashboard');
         setIsBooting(false);
       } else if (session) {
-        // Se temos uma sessão, verificamos se precisamos forçar um reload diário
-        // Fazemos isso APENAS se já estivermos autenticados para evitar loops no Login
-        if (lastAccess && lastAccess !== today) {
-          console.log("[App] Primeiro acesso do dia detectado. Atualizando sistema...");
-          localStorage.setItem('lastAccessDate', today);
-          // Pequeno delay para garantir que o storage foi gravado
-          setTimeout(() => window.location.reload(), 100);
-          return;
-        }
-        
-        // Se não for reload, atualiza o storage silenciosamente se for nulo
-        if (!lastAccess) localStorage.setItem('lastAccessDate', today);
-
-        // Carrega o perfil e os dados
-        handleAuthSession(session);
+        handleLoadSession(session);
       } else {
-        // Sem sessão e sem evento de sign out (pode ser o boot inicial sem login)
         setIsBooting(false);
       }
     });
 
-    // Safety fallback: force boot to finish after 15 seconds if it hangs
-    const fallbackTimer = setTimeout(() => {
-      setIsBooting(false);
-    }, 15000);
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        supabase.auth.getSession().then(({ data }) => {
-          if (data.session) fetchData();
-        });
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     return () => {
       subscription.unsubscribe();
-      clearTimeout(fallbackTimer);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
-  const handleAuthSession = async (session: any) => {
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.random() * 15;
-      if (progress > 90) progress = 90;
-      setBootProgress(progress);
-      const msgIdx = Math.floor((progress / 100) * bootMessages.length);
-      setBootStatus(bootMessages[Math.min(msgIdx, bootMessages.length - 1)]);
-    }, 150);
-
+  const handleLoadSession = async (session: any) => {
     try {
-      const { data: profile } = await supabase
+      setBootStatus("Conectando ao Supabase...");
+      setBootProgress(30);
+
+      const { data: profile, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
-        .single();
+        .maybeSingle();
 
-      const meta = session.user.user_metadata;
-      
+      setBootProgress(70);
+      setBootStatus("Sincronizando ambiente...");
+
       const operator: Operator = {
         id: session.user.id,
-        name: profile?.name || meta?.name || "Operador",
-        warName: profile?.war_name || meta?.war_name || "MILITAR",
-        cpf: profile?.cpf || meta?.cpf || "000.000.000-00",
-        email: profile?.email || session.user.email || "",
-        rank: profile?.rank || meta?.rank || "Soldado",
-        profilePhoto: profile?.profile_photo,
-        allowedScreens: profile?.allowed_screens || ['dashboard', 'fuel', 'face-checkin', 'swaps'],
-        isAdmin: profile?.is_admin || false
+        name: profile?.name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || "Founder",
+        email: session.user.email || "",
+        profilePhoto: profile?.profile_photo || undefined,
+        allowedScreens: ['dashboard', 'clientes', 'projetos', 'pipeline', 'ferramentas', 'financeiro'],
+        isAdmin: true
       };
 
-      if (meta && (!profile?.war_name || !profile?.rank)) {
-        supabase.from('profiles').update({
-          war_name: operator.warName,
-          rank: operator.rank,
-          cpf: operator.cpf
-        }).eq('id', session.user.id).then();
-      }
-
-      if (operator.email === 'mtabi.adm@gmail.com') {
-        operator.isAdmin = true;
-        operator.allowedScreens = ['dashboard', 'providers', 'face-checkin', 'fuel', 'reports', 'settings', 'swaps'];
-      }
-
       setCurrentUser(operator);
-      
-      // Restaura a tela salva do localStorage se for permitida para este operador
-      const savedView = localStorage.getItem('cbm_active_view');
-      if (operator.allowedScreens && operator.allowedScreens.length > 0) {
-        const defaultView = savedView && operator.allowedScreens.includes(savedView) 
-          ? (savedView as any) 
-          : (operator.allowedScreens.includes('dashboard') ? 'dashboard' : operator.allowedScreens[0]);
-        setView(defaultView);
-      }
-
-      await fetchData();
-      
-      clearInterval(interval);
       setBootProgress(100);
-      setBootStatus("Sistema Pronto.");
-      setTimeout(() => setIsBooting(false), 500);
+      setBootStatus("Pronto.");
+      
+      setTimeout(() => {
+        setIsBooting(false);
+      }, 500);
     } catch (err) {
-      console.error("Erro ao processar sessão:", err);
-      clearInterval(interval);
+      console.error("Erro ao carregar perfil:", err);
       setIsBooting(false);
-    }
-  };
-
-  // Mantemos o checkUserAndFetch apenas como compatibilidade ou removemos se não for mais usado
-  // Neste caso, handleAuthSession substituiu a lógica principal.
-
-  const fetchData = async (retryCount = 0) => {
-    try {
-      setConnectionError(false);
-      const [pData, aData, fData, vData, nData] = await Promise.all([
-        getProviders(), 
-        getAttendance(), 
-        getFuelSupplies(),
-        getVehicles(),
-        getStationNicknames()
-      ]);
-      setProviders(pData);
-      setAttendance(aData);
-      setFuelSupplies(fData);
-      setVehicles(vData);
-      setStationNicknames(nData);
-    } catch (err) {
-      console.error(`Erro ao atualizar dados (tentativa ${retryCount}):`, err);
-      if (retryCount < 3) {
-        // Tenta novamente após 2 segundos, possivelmente esperando o token renovar
-        setTimeout(() => fetchData(retryCount + 1), 2000);
-      } else {
-        setConnectionError(true);
-      }
-    }
-  };
-
-  const handleLogin = async (user: Operator) => {
-    setCurrentUser(user);
-    await fetchData();
-  };
-
-  const handleUpdateProfile = async (updatedUser: Operator) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      let photoUrl = updatedUser.profilePhoto || null;
-      const oldPhotoUrl = currentUser?.profilePhoto || null;
-
-      // If photo is a base64 data URL, upload it to Supabase Storage
-      if (photoUrl && photoUrl.startsWith('data:')) {
-        const { uploadProfilePhoto, deleteDocument } = await import('./services/supabaseService');
-        photoUrl = await uploadProfilePhoto(session.user.id, photoUrl);
-        if (oldPhotoUrl && oldPhotoUrl !== photoUrl) {
-          await deleteDocument(oldPhotoUrl);
-        }
-      } else if (!photoUrl && oldPhotoUrl) {
-        const { deleteDocument } = await import('./services/supabaseService');
-        await deleteDocument(oldPhotoUrl);
-      }
-
-      const { error } = await supabase.from('profiles').update({
-        name: updatedUser.name,
-        war_name: updatedUser.warName,
-        rank: updatedUser.rank,
-        profile_photo: photoUrl
-      }).eq('id', session.user.id);
-      if (error) throw error;
-      setCurrentUser({ ...updatedUser, profilePhoto: photoUrl || undefined });
-    } catch (err: any) {
-      console.error('Erro ao salvar perfil:', err);
-      throw err;
     }
   };
 
   const handleLogout = async () => {
+    if (localStorage.getItem('mtabi_use_mock') === 'true') {
+      localStorage.removeItem('mtabi_use_mock');
+      window.location.reload();
+      return;
+    }
     try {
-      await Promise.race([
-        supabase.auth.signOut(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout ao sair.")), 3000))
-      ]);
+      await supabase.auth.signOut();
     } catch (e) {
-      console.error("Erro ao fazer logout:", e);
-    }
-    localStorage.removeItem('cbm_active_view');
-    localStorage.removeItem('cbm_dashboard_tab');
-    localStorage.removeItem('cbm_selected_provider_id');
-    setCurrentUser(null);
-    setProviders([]);
-    setAttendance([]);
-    setFuelSupplies([]);
-    setVehicles([]);
-    setView('dashboard');
-  };
-
-  const handleSelectProvider = (id: string) => {
-    setSelectedProviderId(id);
-    setView('details');
-  };
-
-  const handleAddProvider = async (newProviderData: any) => {
-    try {
-      if (newProviderData.processNumber && providers.some(p => p.processNumber === newProviderData.processNumber)) {
-        throw new Error("Já existe um prestador cadastrado com este Número de Processo.");
-      }
-
-      const initialLog: AuditLog = {
-        id: 'temp-init', 
-        timestamp: new Date().toISOString(),
-        userName: currentUser?.warName || "Operador",
-        action: 'CADASTRO',
-        details: `Novo cadastro criado para ${newProviderData.name}`
-      };
-      
-      const saved = await createProvider({ ...newProviderData, history: [initialLog] });
-      await fetchData();
-      setEditingProvider(null);
-      setIsModalOpen(false);
-      setNotification({ message: "Cadastro realizado com sucesso!", type: 'success' });
-    } catch (err: any) {
-      setNotification({ message: `Erro ao salvar: ${err.message}`, type: 'error' });
-      throw err;
+      console.error("Erro ao deslogar:", e);
     }
   };
 
-  const handleEditProvider = async (updatedData: any) => {
-    if (!editingProvider) return;
-    try {
-      const changes: string[] = [];
-      const fieldsToTrack: {key: keyof Provider, label: string}[] = [
-        { key: 'name', label: 'Nome' },
-        { key: 'processNumber', label: 'Processo' },
-        { key: 'phone', label: 'Telefone' },
-        { key: 'address', label: 'Endereço' },
-        { key: 'assignedEntity', label: 'Entidade' },
-        { key: 'totalHoursToFulfill', label: 'Horas Totais' },
-        { key: 'observations', label: 'Observações' },
-        { key: 'referralDate', label: 'Data Encaminhamento' },
-        { key: 'receiptDate', label: 'Data Recebimento' }
-      ];
-
-      fieldsToTrack.forEach(field => {
-        if (updatedData[field.key] !== editingProvider[field.key]) {
-          changes.push(`${field.label}: de "${editingProvider[field.key] || 'vazio'}" para "${updatedData[field.key] || 'vazio'}"`);
-        }
-      });
-
-      const details = changes.length > 0 
-        ? `Modificações realizadas:\n${changes.join('\n')}` 
-        : `Dados cadastrais atualizados (nenhuma mudança detectada em campos rastreados).`;
-
-      await updateProvider(editingProvider.id, updatedData);
-      const log: AuditLog = {
-        id: 'temp-edit',
-        timestamp: new Date().toISOString(),
-        userName: currentUser?.warName || "Operador",
-        action: 'EDIÇÃO',
-        details
-      };
-      await saveAuditLog(editingProvider.id, log);
-      await fetchData();
-      setEditingProvider(null);
-      setIsModalOpen(false);
-      setNotification({ message: "Cadastro atualizado com sucesso!", type: 'success' });
-    } catch (err: any) {
-      setNotification({ message: `Erro ao editar: ${err.message}`, type: 'error' });
-      throw err;
-    }
-  };
-
-  const handleUpdateProviderAttendance = async (providerId: string, updatedRecords: AttendanceRecord[]) => {
-    try {
-      await saveAttendance(updatedRecords);
-      await fetchData();
-      setNotification({ message: "Frequência atualizada com sucesso!", type: 'success' });
-    } catch (err: any) {
-      setNotification({ message: "Erro ao salvar frequência.", type: 'error' });
-    }
-  };
-
-  const handleDeleteAttendance = async (id: string) => {
-    try {
-      await deleteAttendance(id);
-      await fetchData();
-      setNotification({ message: "Registro excluído com sucesso!", type: 'success' });
-    } catch (err) {
-      setNotification({ message: "Erro ao excluir registro.", type: 'error' });
-    }
-  };
-
-  const handleUpdateProvider = async (updatedProvider: Provider) => {
-    try {
-      const { history, ...rest } = updatedProvider;
-      await updateProvider(updatedProvider.id, rest);
-      if (history && history.length > 0 && history[0].id.startsWith('temp-')) {
-        await saveAuditLog(updatedProvider.id, history[0]);
-      }
-      await fetchData();
-      setNotification({ message: "Dados do prestador atualizados!", type: 'success' });
-    } catch (err) {
-      console.error("Erro no update do prestador:", err);
-      setNotification({ message: "Erro ao atualizar prestador.", type: 'error' });
-    }
+  // Navegar direto para o Projeto (vindo de Clientes)
+  const navigateToProject = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    setView('projetos');
   };
 
   if (isBooting) {
     return (
-      <div className="fixed inset-0 bg-[#020617] z-[1000] flex flex-col items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600 rounded-full blur-[120px] animate-pulse"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-900 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }}></div>
-        </div>
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="relative mb-12 group">
-            <div className="absolute inset-0 bg-blue-500/10 rounded-full blur-2xl scale-150 animate-pulse"></div>
-            <div className="relative w-32 h-32 md:w-40 md:h-40 flex items-center justify-center">
-              <img src="https://i.postimg.cc/T1nny2hc/Brasao-cbmrs.png" alt="Logo CBM" className="w-full h-full object-contain" />
-            </div>
-          </div>
-          <div className="text-center space-y-4">
-            <h1 className="text-3xl md:text-4xl font-black text-white tracking-tighter uppercase">Gestão CBM <span className="text-red-500">RS</span></h1>
-            <div className="mt-8 flex flex-col items-center gap-4">
-              <div className="w-64 h-1 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                <div className="h-full bg-blue-600 transition-all duration-300 ease-out" style={{ width: `${bootProgress}%` }}></div>
+      <div className="min-h-screen bg-mtabi-bg text-mtabi-text flex flex-col items-center justify-center p-4">
+        <div className="w-full max-w-xs space-y-4 text-center">
+          {/* Logo MTABI renderizado em HTML/CSS */}
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-16 h-16 bg-mtabi-yellow rounded-xl flex items-center justify-center shadow-lg p-2.5 select-none">
+              <div className="flex items-end gap-1 h-7">
+                <div className="w-1.5 bg-black h-4"></div>
+                <div className="w-1.5 bg-black h-6"></div>
+                <div className="w-1.5 bg-white h-4"></div>
+                <div className="w-1.5 bg-white h-6 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-black origin-top-left -rotate-12"></div>
+                </div>
               </div>
-              <p className="text-[10px] font-black text-blue-400/80 uppercase tracking-[0.3em] animate-pulse">{bootStatus}</p>
             </div>
+            <h1 className="text-xl font-extrabold tracking-wider font-display text-white mt-3">
+              MT<span className="text-mtabi-yellow">ABI</span>
+            </h1>
           </div>
+
+          <div className="h-1.5 bg-mtabi-border rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-mtabi-yellow transition-all duration-300 rounded-full"
+              style={{ width: `${bootProgress}%` }}
+            ></div>
+          </div>
+          <p className="text-[10px] text-mtabi-muted uppercase tracking-widest font-mono">
+            {bootStatus}
+          </p>
         </div>
       </div>
     );
   }
 
   if (!currentUser) {
-    return <Login onLogin={handleLogin} />;
+    return <Login />;
   }
 
-
-  const currentProvider = providers.find(p => p.id === selectedProviderId);
-  const isReadOnly = currentUser?.email === 'cobom.consulta@cbm.rs.gov.br';
-  
-  const formattedMilitaryName = currentUser 
-    ? ((currentUser.rank && currentUser.rank !== 'Outro' && currentUser.warName?.toUpperCase() !== 'COBOM' ? `${currentUser.rank} ` : '') + (currentUser.warName || ''))
-    : 'Operador';
-
-  const NavItem = ({ icon: Icon, label, target, active, onClick }: any) => (
-    <button 
-      onClick={onClick || (() => setView(target))}
-      title={label}
-      className={`flex flex-col md:flex-row items-center justify-center md:justify-start gap-1 md:gap-3 px-2 py-2 md:px-4 md:py-2.5 rounded-xl transition-all flex-1 md:w-full shrink-0 text-[10px] md:text-sm font-bold ${active ? 'bg-blue-600 md:bg-blue-800 text-white shadow-lg md:shadow-inner scale-105 md:scale-100' : 'text-blue-200 hover:text-white hover:bg-blue-800/50'}`}
-    >
-      <Icon size={20} className="md:w-[18px] md:h-[18px]" />
-      <span className="hidden md:inline">{label}</span>
-    </button>
-  );
+  // --- DEFINIÇÃO DOS MÓDULOS DO MENU ---
+  const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'clientes', label: 'Clientes', icon: Building2 },
+    { id: 'projetos', label: 'Projetos', icon: FolderKanban },
+    { id: 'pipeline', label: 'Pipeline', icon: TrendingUp },
+    { id: 'financeiro', label: 'Financeiro', icon: Landmark },
+    { id: 'ferramentas', label: 'Ferramentas & Custos', icon: Wrench }
+  ] as const;
 
   return (
-    <div className="h-screen print:h-auto overflow-hidden print:overflow-visible bg-slate-50 flex flex-col md:flex-row font-sans text-slate-900 animate-in fade-in zoom-in-95 duration-700">
-      <nav className="bg-blue-950 text-white w-full md:w-64 p-2 md:p-4 fixed bottom-0 md:relative z-[100] md:h-full flex md:flex-col items-center md:items-start justify-around md:justify-start gap-1 md:gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] md:shadow-xl shrink-0 overflow-x-auto md:overflow-y-auto no-scrollbar print:hidden">
-        <div className="hidden md:flex flex-col mb-8 w-full px-2 gap-4">
-          <div className="flex items-center gap-4">
-            <img src="https://i.postimg.cc/T1nny2hc/Brasao-cbmrs.png" alt="Logo Gestão CBM" className="w-14 h-14 object-contain" />
-            <div>
-              <h1 className="text-xl font-black tracking-tight uppercase leading-tight text-white">Gestão CBM <span className="text-red-400">RS</span></h1>
-            </div>
-          </div>
-        </div>
+    <div className="min-h-screen bg-mtabi-bg text-mtabi-text flex flex-col md:flex-row">
+      
+      {/* 1. SIDEBAR (DESKTOP LAYOUT) */}
+      <aside className={`hidden md:flex flex-col shrink-0 bg-mtabi-card border-r border-mtabi-border transition-all duration-300 relative ${
+        sidebarCollapsed ? 'w-20' : 'w-64'
+      }`}>
         
-        <div className="flex md:flex-col gap-1 md:gap-2 w-full md:max-w-none">
-          {currentUser.allowedScreens?.includes('dashboard') && (
-            <NavItem icon={LayoutDashboard} label="Painel" target="dashboard" active={view === 'dashboard'} onClick={() => navigateToDashboard('geral')} />
-          )}
-          {currentUser.allowedScreens?.includes('providers') && (
-            <NavItem icon={Users} label="Prestadores" target="providers" active={view === 'providers' || view === 'details'} />
-          )}
-          {currentUser.allowedScreens?.includes('face-checkin') && (
-            <NavItem icon={ScanFace} label="Check-in Facial" target="face-checkin" active={view === 'face-checkin'} />
-          )}
-          {currentUser.allowedScreens?.includes('fuel') && (
-            <NavItem icon={Fuel} label="Abastecimento" target="fuel" active={view === 'fuel'} />
-          )}
-          {currentUser.allowedScreens?.includes('swaps') && (
-            <NavItem icon={RefreshCw} label="Troca de Serviço" target="swaps" active={view === 'swaps'} />
-          )}
-          {currentUser.allowedScreens?.includes('settings') && (
-            <NavItem icon={SettingsIcon} label="Configurações" target="settings" active={view === 'settings'} />
-          )}
-          <NavItem icon={HelpCircle} label="Ajuda e Documentação" target="help" active={view === 'help'} />
-        </div>
+        {/* Toggle Collapse Button */}
+        <button
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          className="absolute top-6 -right-3.5 z-50 p-1.5 bg-mtabi-card border border-mtabi-border text-mtabi-muted hover:text-white rounded-full transition-colors cursor-pointer"
+        >
+          {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
 
-        <div className="hidden md:flex flex-col mt-auto w-full px-2 space-y-2 py-4">
-          <button 
-            onClick={() => setView('settings')}
-            className={`px-3 py-3 bg-blue-900/30 rounded-2xl border border-white/5 text-left transition-all hover:bg-blue-800/50 ${view === 'settings' ? 'ring-2 ring-blue-500 border-transparent' : ''}`}
-          >
-            <p className="text-[8px] font-black uppercase text-blue-400 tracking-widest mb-1">Operador Logado</p>
-            <p className="text-[11px] font-bold truncate text-white uppercase">{(currentUser.rank && currentUser.rank !== 'Outro' && currentUser.warName?.toUpperCase() !== 'COBOM' ? `${currentUser.rank} ` : '')}{(currentUser.warName || '')}</p>
-          </button>
-          <button 
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-blue-300 hover:text-white hover:bg-red-500/20 transition-all w-full text-sm font-bold"
-          >
-            <LogOut size={18} />
-            Sair do Sistema
-          </button>
-        </div>
-      </nav>
-
-      <main ref={mainRef} className="flex-1 p-4 md:p-8 pb-24 md:pb-8 overflow-y-auto print:p-0 print:overflow-visible">
-        {connectionError && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center justify-between animate-in fade-in slide-in-from-top-4">
-            <div className="flex items-center gap-3">
-              <div className="bg-red-100 p-2 rounded-xl text-red-600">
-                <ShieldAlert size={20} />
-              </div>
-              <div>
-                <p className="text-xs font-black text-red-900 uppercase">Erro de Conexão com o Banco de Dados</p>
-                <p className="text-[10px] text-red-600 font-bold uppercase tracking-tight">O sistema não conseguiu sincronizar os dados. Verifique se o projeto Supabase está ativo.</p>
+        {/* LOGO */}
+        <div className="p-6 border-b border-mtabi-border flex items-center gap-3">
+          <div className="w-10 h-10 bg-mtabi-yellow rounded-lg flex items-center justify-center shadow shrink-0 select-none">
+            <div className="flex items-end gap-0.5 h-4.5">
+              <div className="w-1 bg-black h-2.5"></div>
+              <div className="w-1 bg-black h-4"></div>
+              <div className="w-1 bg-white h-2.5"></div>
+              <div className="w-1 bg-white h-4 relative overflow-hidden">
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-black origin-top-left -rotate-12"></div>
               </div>
             </div>
-            <button 
-              onClick={fetchData}
-              className="px-4 py-2 bg-red-600 text-white text-[10px] font-black uppercase rounded-xl hover:bg-red-700 transition-all active:scale-95"
+          </div>
+          {!sidebarCollapsed && (
+            <div className="min-w-0">
+              <h2 className="text-sm font-extrabold tracking-wider font-display text-white select-none">
+                MT<span className="text-mtabi-yellow">ABI</span>
+              </h2>
+              <span className="text-[8px] text-mtabi-muted uppercase tracking-widest block mt-0.5 font-bold">
+                Gestão Interna
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* NAVEGAÇÃO SIDEBAR */}
+        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
+          {menuItems.map(item => {
+            const Icon = item.icon;
+            const active = view === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setView(item.id);
+                  if (item.id === 'projetos') setSelectedProjectId(null);
+                }}
+                className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer border ${
+                  active 
+                    ? 'bg-mtabi-yellow text-black border-mtabi-yellow shadow-md shadow-mtabi-yellow/5' 
+                    : 'text-mtabi-muted hover:text-white border-transparent hover:bg-mtabi-border/30'
+                }`}
+                title={sidebarCollapsed ? item.label : undefined}
+              >
+                <Icon size={18} className="shrink-0" />
+                {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* PERFIL / LOGOUT BOTTOM */}
+        <div className="p-4 border-t border-mtabi-border space-y-2">
+          <div className="flex items-center gap-3 px-2">
+            <UserCircle className="text-mtabi-muted shrink-0" size={24} />
+            {!sidebarCollapsed && (
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-white truncate">{currentUser.name}</p>
+                <p className="text-[9px] text-mtabi-muted truncate">{currentUser.email}</p>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handleLogout}
+            className={`w-full flex items-center gap-3.5 px-3 py-2 text-xs font-bold text-mtabi-error hover:bg-mtabi-error/10 border border-transparent hover:border-mtabi-error/20 rounded-xl transition-all cursor-pointer ${
+              sidebarCollapsed ? 'justify-center' : ''
+            }`}
+            title="Sair do Sistema"
+          >
+            <LogOut size={16} />
+            {!sidebarCollapsed && <span>Sair</span>}
+          </button>
+        </div>
+      </aside>
+
+      {/* 2. BODY CONTAINER */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto px-4 py-6 md:p-8 pb-24 md:pb-8">
+        
+        {localStorage.getItem('mtabi_use_mock') === 'true' && (
+          <div className="mb-6 px-4 py-3 bg-mtabi-yellow/10 border border-mtabi-yellow/30 text-mtabi-yellow rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-sans">
+            <span className="font-semibold flex items-center gap-2 text-center sm:text-left">
+              <AlertCircle size={16} className="animate-pulse shrink-0" />
+              Modo de Avaliação Local: Os dados estão salvos temporariamente neste navegador.
+            </span>
+            <a 
+              href="/supabase_schema.sql" 
+              download="supabase_schema.sql"
+              className="px-3 py-1.5 bg-mtabi-yellow text-black font-bold uppercase tracking-wider rounded-xl text-[10px] hover:bg-mtabi-yellow/90 shrink-0 cursor-pointer"
             >
-              Tentar Novamente
-            </button>
+              Baixar SQL do Supabase
+            </a>
           </div>
         )}
-        {view === 'dashboard' && (
-          <Dashboard 
-            providers={providers} 
-            attendance={attendance} 
-            fuelSupplies={fuelSupplies} 
-            vehicles={vehicles} 
-            stationNicknames={stationNicknames}
-            initialTab={dashboardTab}
-            onNavigateProvider={(p) => {
-              setSelectedProviderId(p.id);
-              setView('details');
-            }}
-            onNavigateFuel={() => setView('fuel')}
+
+        {/* Renderiza Componente com base na View Ativa */}
+        {view === 'dashboard' && <Dashboard onNavigate={(v) => setView(v)} />}
+        {view === 'clientes' && <Clientes onNavigateToProject={navigateToProject} />}
+        {view === 'projetos' && (
+          <Projetos 
+            selectedProjectId={selectedProjectId} 
+            onClearSelectedProject={() => setSelectedProjectId(null)} 
           />
         )}
-        {view === 'providers' && (
-          <ProviderList 
-            providers={providers} 
-            attendance={attendance}
-            onSelect={handleSelectProvider}
-            onAdd={isReadOnly ? undefined : () => setIsModalOpen(true)}
-            onNavigateDashboard={() => navigateToDashboard('prestadores')}
-          />
-        )}
-        {view === 'details' && currentProvider && (
-          <ProviderDetails 
-            provider={currentProvider} 
-            attendance={attendance.filter(a => a.providerId === currentProvider.id)}
-            onBack={() => setView('providers')}
-            onUpdateAttendance={(recs) => handleUpdateProviderAttendance(currentProvider.id, recs)}
-            onDeleteAttendance={handleDeleteAttendance}
-            onUpdateProvider={handleUpdateProvider}
-            onEditProvider={(p) => { setEditingProvider(p); setIsModalOpen(true); }}
-            currentUser={formattedMilitaryName}
-            setNotification={(msg: string, type: 'success' | 'error') => setNotification({ message: msg, type })}
-            isReadOnly={isReadOnly}
-          />
-        )}
-        {view === 'reports' && (
-          <ReportOfficial 
-            providers={providers} 
-            attendance={attendance} 
-            currentUser={formattedMilitaryName}
-          />
-        )}
-        {view === 'fuel' && (
-          <FuelSupplyManager 
-            currentUser={formattedMilitaryName}
-            vehicles={vehicles}
-            fuelSupplies={fuelSupplies}
-            stationNicknames={stationNicknames}
-            onUpdateVehicles={fetchData}
-            onNavigateDashboard={() => navigateToDashboard('abastecimento')}
-            setNotification={(msg: string, type: 'success' | 'error') => setNotification({ message: msg, type })}
-            isReadOnly={isReadOnly}
-          />
-        )}
-        {view === 'face-checkin' && (
-          <FaceCheckIn
-            providers={providers}
-            attendance={attendance}
-            currentUser={formattedMilitaryName}
-            onAttendanceUpdated={fetchData}
-            setNotification={(msg: string, type: 'success' | 'error') => setNotification({ message: msg, type })}
-          />
-        )}
-        {view === 'settings' && currentUser && (
-          <Settings 
-            currentUser={currentUser} 
-            onUpdateProfile={handleUpdateProfile} 
-            onOpenInstallGuide={() => setIsInstallGuideOpen(true)}
-            setNotification={(msg: string, type: 'success' | 'error') => setNotification({ message: msg, type })}
-          />
-        )}
-        {view === 'swaps' && currentUser && (
-          <ServiceSwapManager 
-            currentUser={currentUser}
-            setNotification={(msg: string, type: 'success' | 'error') => setNotification({ message: msg, type })}
-            isReadOnly={isReadOnly}
-          />
-        )}
-        {view === 'help' && (
-          <HelpCenter currentUser={currentUser} />
-        )}
+        {view === 'pipeline' && <Pipeline />}
+        {view === 'financeiro' && <Financeiro />}
+        {view === 'ferramentas' && <Ferramentas />}
+
       </main>
 
-      {isModalOpen && (
-        <ProviderModal 
-          provider={editingProvider || undefined}
-          onClose={() => { setIsModalOpen(false); setEditingProvider(null); }} 
-          onSubmit={editingProvider ? handleEditProvider : handleAddProvider} 
-        />
+      {/* 3. MOBILE FIXED NAVIGATION TAB BAR (BOTTOM BAR) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-mtabi-card border-t border-mtabi-border px-3 py-2 flex items-center justify-around">
+        
+        {/* Tab 1: Dashboard */}
+        <button
+          onClick={() => {
+            setView('dashboard');
+            setIsMobileMoreOpen(false);
+          }}
+          className={`flex flex-col items-center gap-1 py-1.5 transition-colors cursor-pointer ${
+            view === 'dashboard' && !isMobileMoreOpen ? 'text-mtabi-yellow' : 'text-mtabi-muted hover:text-white'
+          }`}
+        >
+          <LayoutDashboard size={20} />
+          <span className="text-[8px] font-bold uppercase tracking-wider">Dashboard</span>
+        </button>
+
+        {/* Tab 2: Clientes */}
+        <button
+          onClick={() => {
+            setView('clientes');
+            setIsMobileMoreOpen(false);
+          }}
+          className={`flex flex-col items-center gap-1 py-1.5 transition-colors cursor-pointer ${
+            view === 'clientes' && !isMobileMoreOpen ? 'text-mtabi-yellow' : 'text-mtabi-muted hover:text-white'
+          }`}
+        >
+          <Building2 size={20} />
+          <span className="text-[8px] font-bold uppercase tracking-wider">Clientes</span>
+        </button>
+
+        {/* Tab 3: Projetos */}
+        <button
+          onClick={() => {
+            setView('projetos');
+            setSelectedProjectId(null);
+            setIsMobileMoreOpen(false);
+          }}
+          className={`flex flex-col items-center gap-1 py-1.5 transition-colors cursor-pointer ${
+            view === 'projetos' && !isMobileMoreOpen ? 'text-mtabi-yellow' : 'text-mtabi-muted hover:text-white'
+          }`}
+        >
+          <FolderKanban size={20} />
+          <span className="text-[8px] font-bold uppercase tracking-wider">Projetos</span>
+        </button>
+
+        {/* Tab 4: Pipeline */}
+        <button
+          onClick={() => {
+            setView('pipeline');
+            setIsMobileMoreOpen(false);
+          }}
+          className={`flex flex-col items-center gap-1 py-1.5 transition-colors cursor-pointer ${
+            view === 'pipeline' && !isMobileMoreOpen ? 'text-mtabi-yellow' : 'text-mtabi-muted hover:text-white'
+          }`}
+        >
+          <TrendingUp size={20} />
+          <span className="text-[8px] font-bold uppercase tracking-wider">CRM</span>
+        </button>
+
+        {/* Tab 5: "Mais" */}
+        <button
+          onClick={() => setIsMobileMoreOpen(!isMobileMoreOpen)}
+          className={`flex flex-col items-center gap-1 py-1.5 transition-colors cursor-pointer ${
+            isMobileMoreOpen ? 'text-mtabi-yellow' : 'text-mtabi-muted hover:text-white'
+          }`}
+        >
+          <MoreHorizontal size={20} />
+          <span className="text-[8px] font-bold uppercase tracking-wider">Mais</span>
+        </button>
+
+      </nav>
+
+      {/* MOBILE ACTION SHEET (MENU MAIS) */}
+      {isMobileMoreOpen && (
+        <div className="md:hidden fixed inset-0 z-40 bg-black/80 backdrop-blur-xs flex items-end">
+          {/* Overlay click closer */}
+          <div className="absolute inset-0" onClick={() => setIsMobileMoreOpen(false)}></div>
+          
+          <div className="w-full bg-mtabi-card border-t border-mtabi-border rounded-t-3xl p-5 space-y-4 z-50 animate-in slide-in-from-bottom duration-300 font-sans">
+            
+            <div className="flex justify-between items-center border-b border-mtabi-border pb-3">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-white">Navegação Adicional</h3>
+              <button 
+                onClick={() => setIsMobileMoreOpen(false)}
+                className="p-1 hover:bg-mtabi-border text-mtabi-muted hover:text-white rounded-lg cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3.5">
+              
+              <button
+                onClick={() => {
+                  setView('financeiro');
+                  setIsMobileMoreOpen(false);
+                }}
+                className={`p-4 rounded-2xl flex flex-col items-center gap-2 border text-center transition-colors cursor-pointer ${
+                  view === 'financeiro' ? 'bg-mtabi-yellow/10 border-mtabi-yellow text-mtabi-yellow' : 'bg-mtabi-bg border-mtabi-border text-white'
+                }`}
+              >
+                <Landmark size={24} />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Financeiro</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setView('ferramentas');
+                  setIsMobileMoreOpen(false);
+                }}
+                className={`p-4 rounded-2xl flex flex-col items-center gap-2 border text-center transition-colors cursor-pointer ${
+                  view === 'ferramentas' ? 'bg-mtabi-yellow/10 border-mtabi-yellow text-mtabi-yellow' : 'bg-mtabi-bg border-mtabi-border text-white'
+                }`}
+              >
+                <Wrench size={24} />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Ferramentas</span>
+              </button>
+
+            </div>
+
+            <div className="pt-4 border-t border-mtabi-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <UserCircle className="text-mtabi-muted" size={20} />
+                <div className="text-left">
+                  <p className="text-xs font-bold text-white">{currentUser.name}</p>
+                  <p className="text-[9px] text-mtabi-muted">{currentUser.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setIsMobileMoreOpen(false);
+                  handleLogout();
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-mtabi-error/10 hover:bg-mtabi-error/20 border border-mtabi-error/20 rounded-xl text-[10px] font-bold text-mtabi-error uppercase tracking-wider cursor-pointer"
+              >
+                <LogOut size={12} /> Sair
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
 
-      {notification && (
+      {/* TOASTS GLOBAL */}
+      {toast && (
         <Toast 
-          message={notification.message} 
-          type={notification.type} 
-          onClose={() => setNotification(null)} 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast(null)} 
         />
       )}
 
-      {isInstallGuideOpen && (
-        <InstallGuide onClose={() => setIsInstallGuideOpen(false)} />
-      )}
     </div>
   );
 };

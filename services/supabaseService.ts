@@ -1,15 +1,8 @@
-
-
 import { createClient } from '@supabase/supabase-js';
-import { Provider, AttendanceRecord, AuditLog, FuelSupply, Vehicle, StationNickname, MonthlyEvaluation, ServiceSwap } from '../types';
-import type { GeoPerimeter } from './geoService';
+import { Operator, Cliente, Projeto, FerramentaCusto, PipelineLead, FinanceiroMovimento, LogAcessoCredencial } from '../types';
 
-const SUPABASE_URL = 'https://lirbmymfsdktxdvbnrrg.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpcmJteW1mc2RrdHhkdmJucnJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5Mjg1MzQsImV4cCI6MjA5NzUwNDUzNH0.FUPtbmSDGdQtGM3kRAfxiuWIXIbjXDlbpV0724XrX4w';
-
-if (!SUPABASE_KEY.startsWith('eyJ') && !SUPABASE_KEY.startsWith('sb_')) {
-  console.warn("AVISO: A SUPABASE_KEY não parece ser uma chave 'anon' válida. Verifique as configurações no Supabase Dashboard.");
-}
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://lirbmymfsdktxdvbnrrg.supabase.co';
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpcmJteW1mc2RrdHhkdmJucnJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5Mjg1MzQsImV4cCI6MjA5NzUwNDUzNH0.FUPtbmSDGdQtGM3kRAfxiuWIXIbjXDlbpV0724XrX4w';
 
 const customStorage = {
   getItem: (key: string) => {
@@ -29,1287 +22,932 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     autoRefreshToken: true,
     detectSessionInUrl: true,
     storage: customStorage,
-    storageKey: 'supabase.auth.token.gestao-cbm-v2' // Nova chave para ignorar locks antigos
+    storageKey: 'supabase.auth.token.mtabi-gestao'
   }
 });
 
-// --- Funções de Storage (Cloudinary) ---
-export const uploadDocument = async (base64: string, path: string) => {
-  if (!base64 || !base64.startsWith('data:')) return base64;
-  
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dizhbrjdv';
-  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'cbm_gestao';
-  
-  try {
-    const url = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
-    
-    const formData = new URLSearchParams();
-    formData.append('file', base64);
-    formData.append('upload_preset', uploadPreset);
-    
-    if (path) {
-      const safeFilename = path.replace(/[^a-zA-Z0-9_\-]/g, '_');
-      formData.append('public_id', safeFilename);
-      formData.append('filename_override', safeFilename);
-    }
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.warn("Falha no upload para o Cloudinary:", errorData);
-      return null;
-    }
-    
-    const data = await response.json();
-    return data.secure_url;
-  } catch (error) {
-    console.error("Erro ao fazer upload para o Cloudinary:", error);
-    return null;
-  }
+// ==========================================
+// CONFIGURAÇÃO DO MODO DEMONSTRAÇÃO (MOCK)
+// ==========================================
+
+export const isMockMode = (): boolean => {
+  return localStorage.getItem('mtabi_use_mock') === 'true';
 };
 
-export const extractPublicIdFromUrl = (url: string): string | null => {
-  if (!url || !url.includes('cloudinary.com')) return null;
+export const setMockMode = (active: boolean) => {
+  localStorage.setItem('mtabi_use_mock', active ? 'true' : 'false');
+};
+
+// Dados semente para a demonstração inicial
+const MOCK_CLIENTES: Cliente[] = [
+  {
+    id: 'c1-mock-id',
+    nome_empresa: 'SaaS Booster Inc',
+    nome_contato_principal: 'Lucas Decisor',
+    nome_contato_interno: 'Aline Dev',
+    segmento: 'Tecnologia',
+    status: 'Ativo',
+    tipo_relacao: 'Ambos',
+    observacoes: 'Cliente recorrente de assessoria técnica + desenvolvimento de hubs adicionais.'
+  },
+  {
+    id: 'c2-mock-id',
+    nome_empresa: 'BioCare Health',
+    nome_contato_principal: 'Dra. Julia Castro',
+    nome_contato_interno: 'Felipe Gerente',
+    segmento: 'Saúde',
+    status: 'Negociação',
+    tipo_relacao: 'Projeto único',
+    observacoes: 'Negociação para desenvolvimento do app de telemedicina.'
+  },
+  {
+    id: 'c3-mock-id',
+    nome_empresa: 'FinTech Pro',
+    nome_contato_principal: 'Ricardo CEO',
+    nome_contato_interno: 'Carlos Financeiro',
+    segmento: 'Finanças',
+    status: 'Pausado',
+    tipo_relacao: 'Consultoria recorrente',
+    observacoes: 'Contrato recorrente de suporte de arquitetura pausado temporariamente.'
+  }
+];
+
+const MOCK_PROJETOS: Projeto[] = [
+  {
+    id: 'p1-mock-id',
+    cliente_id: 'c1-mock-id',
+    nome_solucao: 'Portal do Cliente Booster',
+    descricao: 'Dashboard completo para os assinantes controlarem seus planos e integrações.',
+    status: 'Em produção',
+    link_acesso: 'https://portal.saasbooster.com',
+    ferramenta_dev: ['Antigravity', 'AI Studio', 'React', 'Vite'],
+    banco_dados: 'Supabase Postgres',
+    repositorio_url: 'https://github.com/saasbooster/portal',
+    hospedagem_imagens: 'Supabase Storage',
+    hospedagem_geral: 'Vercel',
+    data_inicio: '2026-01-10',
+    data_entrega_prevista: '2026-04-15',
+    valor_projeto: 12000,
+    valor_mensal: 1500,
+    observacoes: 'Sistema rodando perfeitamente. Cobrança de manutenção ativa.'
+  },
+  {
+    id: 'p2-mock-id',
+    cliente_id: 'c1-mock-id',
+    nome_solucao: 'Integração CRM HubSpot',
+    descricao: 'Microserviço para sincronizar leads e tags de faturamento do portal.',
+    status: 'Em desenvolvimento',
+    link_acesso: 'https://staging.hubspot.saasbooster.com',
+    ferramenta_dev: ['Lovable', 'Claude Code', 'Node.js'],
+    banco_dados: 'Postgres',
+    repositorio_url: 'https://github.com/saasbooster/hubspot-sync',
+    hospedagem_imagens: 'N/A',
+    hospedagem_geral: 'Railway',
+    data_inicio: '2026-05-01',
+    data_entrega_prevista: '2026-07-15',
+    valor_projeto: 8000,
+    valor_mensal: 0,
+    observacoes: 'Aguardando validação dos webhooks de produção pela equipe técnica do cliente.'
+  },
+  {
+    id: 'p3-mock-id',
+    cliente_id: 'c2-mock-id',
+    nome_solucao: 'App Telemedicina BioCare',
+    descricao: 'Aplicativo mobile PWA para agendamento e chamadas de vídeo integradas.',
+    status: 'Em negociação',
+    ferramenta_dev: ['Vite', 'React', 'Tailwind'],
+    banco_dados: 'Firebase Firestore',
+    repositorio_url: '',
+    hospedagem_imagens: 'Cloudinary',
+    hospedagem_geral: 'Netlify',
+    data_inicio: '2026-07-01',
+    data_entrega_prevista: '2026-10-30',
+    valor_projeto: 22000,
+    valor_mensal: 800,
+    observacoes: 'Proposta comercial enviada e sob aprovação da diretoria.'
+  }
+];
+
+const MOCK_FERRAMENTAS: FerramentaCusto[] = [
+  {
+    id: 'f1-mock-id',
+    nome_ferramenta: 'Claude Team Plan',
+    categoria: 'IA/Dev',
+    tipo_custo: 'Mensal',
+    valor: 30,
+    moeda: 'USD',
+    data_cobranca: '15',
+    projeto_vinculado_id: undefined,
+    ativo: true,
+    link_acesso: 'https://claude.ai',
+    usuario_acesso: 'mtabi.adm@gmail.com',
+    senha_acesso_criptografada: '23f8b89812df082729a8ec8db34f78de19b88cc4f728c467a843', // Simulado criptografado
+    observacoes: 'Ferramenta de uso geral no desenvolvimento.'
+  },
+  {
+    id: 'f2-mock-id',
+    nome_ferramenta: 'Supabase Pro Tier',
+    categoria: 'Banco de Dados',
+    tipo_custo: 'Mensal',
+    valor: 25,
+    moeda: 'USD',
+    data_cobranca: '28',
+    projeto_vinculado_id: undefined,
+    ativo: true,
+    link_acesso: 'https://supabase.com',
+    usuario_acesso: 'mtabi.adm@gmail.com',
+    senha_acesso_criptografada: '62e7aa23b89012cd34a2e57bc8dfa32b192837bcdaea8c928b9c',
+    observacoes: 'Banco de dados principal de testes e homologação.'
+  },
+  {
+    id: 'f3-mock-id',
+    nome_ferramenta: 'Vercel Team Upgrade',
+    categoria: 'Hospedagem',
+    tipo_custo: 'Mensal',
+    valor: 20,
+    moeda: 'USD',
+    data_cobranca: '05',
+    projeto_vinculado_id: 'p1-mock-id', // Portal do cliente Booster
+    ativo: true,
+    link_acesso: 'https://vercel.com',
+    usuario_acesso: 'mtabi.adm@gmail.com',
+    senha_acesso_criptografada: '52df25b3c8f9aa182bc8c5bc6b8fef8de1b55ff8de8c6b29cf',
+    observacoes: 'Hospedagem vinculada ao Portal do Cliente. Custo repassado na manutenção.'
+  },
+  {
+    id: 'f4-mock-id',
+    nome_ferramenta: 'Figma Professional',
+    categoria: 'Design',
+    tipo_custo: 'Mensal',
+    valor: 15,
+    moeda: 'USD',
+    data_cobranca: '10',
+    projeto_vinculado_id: undefined,
+    ativo: false,
+    link_acesso: 'https://figma.com',
+    usuario_acesso: 'design@mtabi.com',
+    senha_acesso_criptografada: '82ebaa53bd9c1b3fbc8c5bcbb8fef8de1b55ff8de',
+    observacoes: 'Assinatura pausada temporariamente (usando plano gratuito).'
+  }
+];
+
+const MOCK_PIPELINE: PipelineLead[] = [
+  {
+    id: 'l1-mock-id',
+    nome_lead: 'AgroTech Export',
+    etapa: 'Primeiro contato',
+    valor_estimado: 25000,
+    decisor_nome: 'Roberto Agro',
+    campeao_interno_nome: 'Tadeu Campo',
+    proxima_acao: 'Enviar portfólio de soluções de BI',
+    data_proxima_acao: '2026-06-29',
+    probabilidade: 40,
+    observacoes: 'Contato frio estabelecido via LinkedIn. Demonstrou interesse.'
+  },
+  {
+    id: 'l2-mock-id',
+    nome_lead: 'Logística Express',
+    etapa: 'Proposta enviada',
+    valor_estimado: 18000,
+    decisor_nome: 'Sofia Transportes',
+    proxima_acao: 'Ligar para alinhar prazos de desenvolvimento',
+    data_proxima_acao: '2026-06-30',
+    probabilidade: 70,
+    observacoes: 'Proposta técnica e comercial enviada. Feedbacks iniciais positivos.'
+  },
+  {
+    id: 'l3-mock-id',
+    nome_lead: 'Escola Aprender PWA',
+    etapa: 'Em negociação',
+    valor_estimado: 12000,
+    decisor_nome: 'Diretor Marcos',
+    proxima_acao: 'Reunião de apresentação técnica do escopo',
+    data_proxima_acao: '2026-07-02',
+    probabilidade: 60,
+    observacoes: 'Negociando parcelamento do valor único de desenvolvimento.'
+  }
+];
+
+const MOCK_FINANCEIRO: FinanceiroMovimento[] = [
+  {
+    id: 'm1-mock-id',
+    cliente_id: 'c1-mock-id',
+    projeto_id: 'p1-mock-id',
+    tipo: 'Entrada recorrente mensal',
+    descricao: 'Mensalidade Consultoria - Portal Booster (Jun/26)',
+    valor: 1500,
+    data_movimento: '2026-06-10',
+    mes_referencia: '2026-06',
+    status: 'Confirmado'
+  },
+  {
+    id: 'm2-mock-id',
+    cliente_id: 'c1-mock-id',
+    projeto_id: 'p1-mock-id',
+    tipo: 'Entrada única',
+    descricao: 'Marcos de Entrega 2/2 Portal Booster',
+    valor: 6000,
+    data_movimento: '2026-06-15',
+    mes_referencia: '2026-06',
+    status: 'Confirmado'
+  },
+  {
+    id: 'm3-mock-id',
+    cliente_id: 'c1-mock-id',
+    projeto_id: 'p1-mock-id',
+    tipo: 'Entrada recorrente mensal',
+    descricao: 'Mensalidade Consultoria - Portal Booster (Mai/26)',
+    valor: 1500,
+    data_movimento: '2026-05-10',
+    mes_referencia: '2026-05',
+    status: 'Confirmado'
+  },
+  {
+    id: 'm4-mock-id',
+    cliente_id: 'c1-mock-id',
+    projeto_id: 'p2-mock-id',
+    tipo: 'Entrada única',
+    descricao: 'Adiantamento 50% Integração CRM HubSpot',
+    valor: 4000,
+    data_movimento: '2026-05-20',
+    mes_referencia: '2026-05',
+    status: 'Confirmado'
+  },
+  {
+    id: 'm5-mock-id',
+    cliente_id: 'c1-mock-id',
+    projeto_id: 'p1-mock-id',
+    tipo: 'Entrada recorrente mensal',
+    descricao: 'Mensalidade Consultoria - Portal Booster (Jul/26)',
+    valor: 1500,
+    data_movimento: '2026-07-10',
+    mes_referencia: '2026-07',
+    status: 'Previsto'
+  },
+  {
+    id: 'm6-mock-id',
+    cliente_id: 'c1-mock-id',
+    projeto_id: 'p1-mock-id',
+    tipo: 'Saída/custo',
+    descricao: 'Assinatura Vercel Team (Jun/26)',
+    valor: 110,
+    data_movimento: '2026-06-05',
+    mes_referencia: '2026-06',
+    status: 'Confirmado'
+  }
+];
+
+const MOCK_LOGS: LogAcessoCredencial[] = [
+  {
+    id: 'log1-mock-id',
+    ferramenta_id: 'f1-mock-id',
+    data_hora: '2026-06-25T14:32:00.000Z',
+    acao: 'revelou senha'
+  }
+];
+
+// Helper para leitura do LocalStorage ou fallback para Mock semente
+function getLocalData<T>(key: string, seed: T[]): T[] {
+  const local = localStorage.getItem(key);
+  if (!local) {
+    localStorage.setItem(key, JSON.stringify(seed));
+    return seed;
+  }
   try {
-    const parts = url.split('/upload/');
-    if (parts.length < 2) return null;
-    
-    let path = parts[1];
-    // Remove o fragmento de versão (v + dígitos + /)
-    path = path.replace(/^v\d+\//, '');
-    
-    // Remove a extensão
-    const lastDot = path.lastIndexOf('.');
-    if (lastDot !== -1) {
-      path = path.substring(0, lastDot);
-    }
-    
-    return path;
+    return JSON.parse(local);
   } catch (e) {
-    return null;
+    return seed;
   }
-};
+}
 
-export const deleteDocument = async (url: string) => {
-  if (!url || !url.includes('cloudinary.com')) return;
-  const publicId = extractPublicIdFromUrl(url);
-  if (!publicId) return;
-  
+function saveLocalData<T>(key: string, data: T[]): void {
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+// ==========================================
+// SERVIÇOS DE AUTENTICAÇÃO E PERFIL
+// ==========================================
+
+export const reauthenticateUser = async (password: string): Promise<boolean> => {
+  if (isMockMode()) {
+    // No modo de demonstração, qualquer senha funciona (ou mtabi123)
+    return password.length > 0;
+  }
   try {
-    // Dispara a exclusão de forma assíncrona (fire-and-forget)
-    supabase.functions.invoke('delete-cloudinary-image', {
-      body: { publicId }
-    }).then(({ data, error }) => {
-      if (error) {
-        console.warn("Erro ao deletar imagem do Cloudinary via Edge Function:", error);
-      } else {
-        console.log("Imagem deletada do Cloudinary:", publicId, data);
-      }
-    }).catch(err => {
-      console.error("Falha ao invocar Edge Function de exclusão:", err);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !session.user.email) return false;
+    
+    const { error } = await supabase.auth.signInWithPassword({
+      email: session.user.email,
+      password
     });
-  } catch (err) {
-    console.error("Erro na exclusão do documento:", err);
+    
+    return !error;
+  } catch (error) {
+    console.error('Erro na reautenticação:', error);
+    return false;
   }
 };
 
+// ==========================================
+// CRUD: CLIENTES
+// ==========================================
 
-// --- Mapeadores de Dados (JS <-> DB) ---
-const mapAuditLogFromDB = (l: any): AuditLog => ({
-  id: l.id,
-  timestamp: l.timestamp,
-  userName: l.user_name,
-  action: l.action,
-  details: l.details
-});
-
-const mapProviderFromDB = (p: any): Provider => ({
-  id: p.id,
-  name: p.name,
-  processNumber: p.process_number,
-  phone: p.phone,
-  address: p.address,
-  assignedEntity: p.assigned_entity,
-  totalHoursToFulfill: p.total_hours_to_fulfill,
-  status: p.status || 'active',
-  returnReason: p.return_reason,
-  returnAttachment: p.return_attachment,
-  identityDoc: p.identity_doc,
-  referralDoc: p.referral_doc,
-  observations: p.observations,
-  referralDate: p.referral_date,
-  receiptDate: p.receipt_date,
-  profilePhoto: p.profile_photo,
-  history: (p.audit_logs || [])
-    .map(mapAuditLogFromDB)
-    .sort((a: AuditLog, b: AuditLog) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-});
-
-const mapProviderToDB = (p: Partial<Provider>) => {
-  const dbData: any = {};
-  if (p.name !== undefined) dbData.name = p.name;
-  if (p.processNumber !== undefined) dbData.process_number = p.processNumber;
-  if (p.phone !== undefined) dbData.phone = p.phone;
-  if (p.address !== undefined) dbData.address = p.address;
-  if (p.assignedEntity !== undefined) dbData.assigned_entity = p.assignedEntity;
-  
-  if (p.totalHoursToFulfill !== undefined) dbData.total_hours_to_fulfill = Number(p.totalHoursToFulfill);
-  if (p.status !== undefined) dbData.status = p.status;
-  
-  if (p.returnReason !== undefined) dbData.return_reason = p.returnReason;
-  if (p.returnAttachment !== undefined) dbData.return_attachment = p.returnAttachment;
-  if (p.identityDoc !== undefined) dbData.identity_doc = p.identityDoc;
-  if (p.referralDoc !== undefined) dbData.referral_doc = p.referralDoc;
-  if (p.observations !== undefined) dbData.observations = p.observations;
-  if (p.referralDate !== undefined) dbData.referral_date = p.referralDate;
-  if (p.receiptDate !== undefined) dbData.receipt_date = p.receiptDate;
-  if (p.profilePhoto !== undefined) dbData.profile_photo = p.profilePhoto;
-  
-  return dbData;
-};
-
-const mapAttendanceFromDB = (a: any): AttendanceRecord => ({
-  id: a.id,
-  providerId: a.provider_id,
-  date: a.date,
-  entryTime: a.entry_time || '',
-  exitTime: a.exit_time || '',
-  durationMinutes: a.duration_minutes,
-  attachmentData: a.attachment_data,
-  attachmentType: a.attachment_type,
-  type: a.type || 'presence',
-  reason: a.reason
-});
-
-const generateUUID = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
+export const getClientes = async (): Promise<Cliente[]> => {
+  if (isMockMode()) {
+    return getLocalData('mtabi_mock_clientes', MOCK_CLIENTES);
   }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-};
-
-const isUUID = (id: string) => {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(id);
-};
-
-const mapAttendanceToDB = (a: AttendanceRecord) => {
-  const dbData: any = {
-    provider_id: a.providerId,
-    date: a.date,
-    entry_time: a.entryTime ?? null,
-    exit_time: a.exitTime ?? null,
-    duration_minutes: Number(a.durationMinutes) || 0,
-    attachment_data: a.attachmentData,
-    attachment_type: a.attachmentType,
-    type: a.type || 'presence',
-    reason: a.reason
-  };
-
-  // Se o ID for um UUID válido, nós o mantemos para o upsert (atualização).
-  // Se for um ID temporário ou não for um UUID, geramos um novo UUID
-  // para evitar o erro de "null value in column id" caso o banco não tenha default.
-  if (a.id && isUUID(a.id)) {
-    dbData.id = a.id;
-  } else {
-    // Geramos um ID aqui para garantir que nunca seja nulo
-    dbData.id = generateUUID();
-  }
-  
-  return dbData;
-};
-
-const mapFuelSupplyFromDB = (f: any): FuelSupply => {
-  let entryType: 'abastecimento' | 'manutencao' = 'abastecimento';
-  let items: any[] = [];
-  let protocol = f.protocol || '';
-
-  if (protocol.startsWith('__maintenance__:')) {
-    entryType = 'manutencao';
-    const itemsPart = protocol.split('__items__:');
-    if (itemsPart.length > 1) {
-      try {
-        items = JSON.parse(itemsPart[1]);
-      } catch (e) {
-        console.error("Erro ao fazer parse dos itens de manutencao:", e);
-      }
-    }
-    protocol = itemsPart[0].replace('__maintenance__:', '');
-  }
-
-  return {
-    id: f.id,
-    date: f.date,
-    location: f.location,
-    cnpj: f.cnpj,
-    fuelType: f.fuel_type,
-    liters: f.liters,
-    pricePerLiter: f.price_per_liter,
-    totalValue: f.total_value,
-    driver: f.driver,
-    plate: f.plate,
-    km: f.km,
-    attendant: f.attendant,
-    protocol: protocol,
-    entryType: entryType,
-    items: items,
-    attachmentData: f.attachment_data,
-    attachmentType: f.attachment_type,
-    ticketLogData: f.ticket_log_data,
-    ticketLogType: f.ticket_log_type,
-    createdAt: f.created_at,
-    history: (f.fuel_audit_logs || [])
-      .map(mapAuditLogFromDB)
-      .sort((a: AuditLog, b: AuditLog) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-  };
-};
-
-const mapFuelSupplyToDB = (f: FuelSupply) => {
-  let protocolValue = f.protocol || '';
-  if (f.entryType === 'manutencao' && f.items && f.items.length > 0) {
-    protocolValue = `__maintenance__:${f.protocol || ''}__items__:${JSON.stringify(f.items)}`;
-  }
-  
-  return {
-    id: f.id && isUUID(f.id) ? f.id : generateUUID(),
-    date: f.date,
-    location: f.location,
-    cnpj: f.cnpj,
-    fuel_type: f.fuelType,
-    liters: Number(f.liters) || 0,
-    price_per_liter: Number(f.pricePerLiter) || 0,
-    total_value: Number(f.totalValue) || 0,
-    driver: f.driver,
-    plate: f.plate,
-    km: Number(f.km) || 0,
-    attendant: f.attendant,
-    protocol: protocolValue,
-    attachment_data: f.attachmentData,
-    attachment_type: f.attachmentType,
-    ticket_log_data: f.ticketLogData,
-    ticket_log_type: f.ticketLogType
-  };
-};
-
-const mapVehicleFromDB = (v: any): Vehicle => ({
-  id: v.id,
-  plate: v.plate,
-  fleetCode: v.fleet_code || '',
-  model: v.model,
-  brand: v.brand,
-  year: v.year,
-  color: v.color,
-  photo: v.photo,
-  createdAt: v.created_at
-});
-
-const mapVehicleToDB = (v: Partial<Vehicle>) => ({
-  plate: v.plate,
-  fleet_code: v.fleetCode,
-  model: v.model,
-  brand: v.brand,
-  year: v.year,
-  color: v.color,
-  photo: v.photo
-});
-
-// --- Funções de Prestadores ---
-export const getProviders = async () => {
   try {
     const { data, error } = await supabase
-      .from('providers')
-      .select('*, audit_logs(*)');
+      .from('clientes')
+      .select('*')
+      .order('nome_empresa', { ascending: true });
       
-    if (error) throw error;
-    return (data || []).map(mapProviderFromDB);
-  } catch (err: any) {
-    console.error("Erro detalhado ao buscar prestadores:", {
-      message: err.message,
-      details: err.details,
-      hint: err.hint,
-      code: err.code
-    });
-    if (err.message === 'Failed to fetch') {
-      console.error("DICA: Verifique se o projeto Supabase está ativo ou se há bloqueio de rede (Firewall/VPN).");
+    if (error) {
+      if (error.message.includes('relation') && error.message.includes('does not exist')) {
+        console.warn("Tabela 'clientes' inexistente no Supabase. Alternando para o Modo Local.");
+        setMockMode(true);
+        return getClientes();
+      }
+      throw error;
     }
-    throw err;
+    return data || [];
+  } catch (e) {
+    setMockMode(true);
+    return getClientes();
   }
 };
 
-export const createProvider = async (provider: Partial<Provider>) => {
-  const providerId = provider.id && isUUID(provider.id) ? provider.id : generateUUID();
-  const providerForDb = {
-    ...provider,
-    id: providerId,
-    totalHoursToFulfill: provider.totalHoursToFulfill ?? 40,
-    status: provider.status ?? 'active'
-  };
-
-  // Upload all base64 files to Cloudinary before saving to database
-  if (providerForDb.identityDoc && providerForDb.identityDoc.startsWith('data:')) {
-    providerForDb.identityDoc = await uploadDocument(providerForDb.identityDoc, `providers/${providerId}/identity`);
+export const createCliente = async (cliente: Partial<Cliente>): Promise<Cliente> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_clientes', MOCK_CLIENTES);
+    const newClient: Cliente = {
+      id: 'c-' + Math.random().toString(36).substring(2, 9),
+      nome_empresa: cliente.nome_empresa || 'Empresa Nova',
+      nome_contato_principal: cliente.nome_contato_principal,
+      nome_contato_interno: cliente.nome_contato_interno,
+      segmento: cliente.segmento,
+      status: cliente.status || 'Ativo',
+      tipo_relacao: cliente.tipo_relacao || 'Projeto único',
+      observacoes: cliente.observacoes,
+      data_criacao: new Date().toISOString()
+    };
+    data.push(newClient);
+    saveLocalData('mtabi_mock_clientes', data);
+    return newClient;
   }
-  if (providerForDb.referralDoc && providerForDb.referralDoc.startsWith('data:')) {
-    providerForDb.referralDoc = await uploadDocument(providerForDb.referralDoc, `providers/${providerId}/referral`);
-  }
-  if (providerForDb.profilePhoto && providerForDb.profilePhoto.startsWith('data:')) {
-    providerForDb.profilePhoto = await uploadDocument(providerForDb.profilePhoto, `providers/${providerId}/profile`);
-  }
-  if (providerForDb.returnAttachment && providerForDb.returnAttachment.startsWith('data:')) {
-    providerForDb.returnAttachment = await uploadDocument(providerForDb.returnAttachment, `providers/${providerId}/return`);
-  }
-
-  const dbData = mapProviderToDB(providerForDb);
-  dbData.id = providerId;
-
-  const { data: newProvider, error } = await supabase
-    .from('providers')
-    .insert([dbData])
+  const { data, error } = await supabase
+    .from('clientes')
+    .insert([cliente])
     .select()
     .single();
-
-  if (error) {
-    console.error("Erro ao inserir prestador no Supabase:", error);
-    throw error;
-  }
-  
-  if (!newProvider) {
-    throw new Error("Falha ao recuperar o registro recém-criado.");
-  }
-
-  if (provider.history && provider.history.length > 0) {
-    await saveAuditLog(providerId, provider.history[0]);
-  }
-
-  return mapProviderFromDB(newProvider);
-};
-
-export const updateProvider = async (id: string, provider: Partial<Provider>) => {
-  const providerForDb = { ...provider };
-
-  // Fetch old data to delete replaced assets from Cloudinary
-  let oldProvider: any = null;
-  try {
-    const { data } = await supabase
-      .from('providers')
-      .select('identity_doc, referral_doc, profile_photo, return_attachment')
-      .eq('id', id)
-      .single();
-    oldProvider = data;
-  } catch (e) {}
-
-  // Upload all base64 files to Cloudinary before saving to database
-  if (providerForDb.identityDoc && providerForDb.identityDoc.startsWith('data:')) {
-    providerForDb.identityDoc = await uploadDocument(providerForDb.identityDoc, `providers/${id}/identity`);
-    if (oldProvider?.identity_doc && oldProvider.identity_doc !== providerForDb.identityDoc) {
-      deleteDocument(oldProvider.identity_doc);
-    }
-  } else if (!providerForDb.identityDoc && oldProvider?.identity_doc) {
-    deleteDocument(oldProvider.identity_doc);
-  }
-
-  if (providerForDb.referralDoc && providerForDb.referralDoc.startsWith('data:')) {
-    providerForDb.referralDoc = await uploadDocument(providerForDb.referralDoc, `providers/${id}/referral`);
-    if (oldProvider?.referral_doc && oldProvider.referral_doc !== providerForDb.referralDoc) {
-      deleteDocument(oldProvider.referral_doc);
-    }
-  } else if (!providerForDb.referralDoc && oldProvider?.referral_doc) {
-    deleteDocument(oldProvider.referral_doc);
-  }
-
-  if (providerForDb.profilePhoto && providerForDb.profilePhoto.startsWith('data:')) {
-    providerForDb.profilePhoto = await uploadDocument(providerForDb.profilePhoto, `providers/${id}/profile`);
-    if (oldProvider?.profile_photo && oldProvider.profile_photo !== providerForDb.profilePhoto) {
-      deleteDocument(oldProvider.profile_photo);
-    }
-  } else if (!providerForDb.profilePhoto && oldProvider?.profile_photo) {
-    deleteDocument(oldProvider.profile_photo);
-  }
-
-  if (providerForDb.returnAttachment && providerForDb.returnAttachment.startsWith('data:')) {
-    providerForDb.returnAttachment = await uploadDocument(providerForDb.returnAttachment, `providers/${id}/return`);
-    if (oldProvider?.return_attachment && oldProvider.return_attachment !== providerForDb.returnAttachment) {
-      deleteDocument(oldProvider.return_attachment);
-    }
-  } else if (!providerForDb.returnAttachment && oldProvider?.return_attachment) {
-    deleteDocument(oldProvider.return_attachment);
-  }
-
-  const dbData = mapProviderToDB(providerForDb);
-  
-  const { error } = await supabase
-    .from('providers')
-    .update(dbData)
-    .eq('id', id);
-
+    
   if (error) throw error;
+  return data;
 };
 
-// --- Funções de Frequência ---
-export const getAttendance = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('attendance')
-      .select('*')
-      .order('date', { ascending: false });
-      
-    if (error) throw error;
-    return (data || []).map(mapAttendanceFromDB);
-  } catch (err: any) {
-    console.error("Erro detalhado ao buscar frequência:", err);
-    throw err;
-  }
-};
-
-export const saveAttendance = async (records: AttendanceRecord[]) => {
-  // Cache para evitar múltiplos uploads da mesma imagem no mesmo lote (comum em OCR)
-  const uploadCache = new Map<string, string>();
-
-  const processed = await Promise.all(records.map(async (r) => {
-    let attachmentUrl = r.attachmentData;
+export const updateCliente = async (id: string, cliente: Partial<Cliente>): Promise<Cliente> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_clientes', MOCK_CLIENTES);
+    const index = data.findIndex(c => c.id === id);
+    if (index === -1) throw new Error('Cliente não encontrado no mock');
     
-    if (r.attachmentData && r.attachmentData.startsWith('data:')) {
-      if (uploadCache.has(r.attachmentData)) {
-        attachmentUrl = uploadCache.get(r.attachmentData)!;
-      } else {
-        const uploadedUrl = await uploadDocument(r.attachmentData, `attendance/${r.providerId}/${r.date}_${Date.now()}`);
-        if (uploadedUrl && !uploadedUrl.startsWith('data:')) {
-          uploadCache.set(r.attachmentData, uploadedUrl);
-          attachmentUrl = uploadedUrl;
-        } else {
-          attachmentUrl = uploadedUrl;
-        }
-      }
-    }
-    
-    return mapAttendanceToDB({ ...r, attachmentData: attachmentUrl });
-  }));
-
-  const { error } = await supabase.from('attendance').upsert(processed);
-  if (error) {
-    console.error("Erro ao salvar frequência no Supabase:", error);
-    throw error;
+    const updated = { ...data[index], ...cliente };
+    data[index] = updated;
+    saveLocalData('mtabi_mock_clientes', data);
+    return updated;
   }
-};
-
-export const deleteAttendance = async (id: string) => {
-  // Fetch attachment before deleting
-  try {
-    const { data } = await supabase.from('attendance').select('attachment_data').eq('id', id).single();
-    if (data?.attachment_data) {
-      deleteDocument(data.attachment_data);
-    }
-  } catch (e) {}
-
-  const { error } = await supabase.from('attendance').delete().eq('id', id);
-  if (error) throw error;
-};
-
-// --- Funções de Abastecimento ---
-export const getFuelSupplies = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('fuel_supplies')
-      .select('*, fuel_audit_logs(*)')
-      .order('date', { ascending: false });
-      
-    if (error) throw error;
-    return (data || []).map(mapFuelSupplyFromDB);
-  } catch (err: any) {
-    console.error("Erro detalhado ao buscar abastecimentos:", err);
-    throw err;
-  }
-};
-
-export const saveFuelSupply = async (supply: FuelSupply) => {
-  let attachmentUrl = supply.attachmentData;
-  let ticketLogUrl = supply.ticketLogData;
-  
-  // Fetch old data if it is an update to clean up replaced documents
-  let oldSupply: any = null;
-  if (supply.id) {
-    try {
-      const { data } = await supabase.from('fuel_supplies').select('attachment_data, ticket_log_data').eq('id', supply.id).single();
-      oldSupply = data;
-    } catch (e) {}
-  }
-
-  if (supply.attachmentData && supply.attachmentData.startsWith('data:')) {
-    const uploadedUrl = await uploadDocument(supply.attachmentData, `fuel_supplies/${supply.date.split('T')[0]}_${Date.now()}`);
-    if (uploadedUrl && !uploadedUrl.startsWith('data:')) {
-      attachmentUrl = uploadedUrl;
-      if (oldSupply?.attachment_data && oldSupply.attachment_data !== attachmentUrl) {
-        deleteDocument(oldSupply.attachment_data);
-      }
-    }
-  } else if (!supply.attachmentData && oldSupply?.attachment_data) {
-    deleteDocument(oldSupply.attachment_data);
-  }
-
-  if (supply.ticketLogData && supply.ticketLogData.startsWith('data:')) {
-    const uploadedUrl = await uploadDocument(supply.ticketLogData, `fuel_supplies/ticketlog_${supply.date.split('T')[0]}_${Date.now()}`);
-    if (uploadedUrl && !uploadedUrl.startsWith('data:')) {
-      ticketLogUrl = uploadedUrl;
-      if (oldSupply?.ticket_log_data && oldSupply.ticket_log_data !== ticketLogUrl) {
-        deleteDocument(oldSupply.ticket_log_data);
-      }
-    }
-  } else if (!supply.ticketLogData && oldSupply?.ticket_log_data) {
-    deleteDocument(oldSupply.ticket_log_data);
-  }
-  
-  const dbData = mapFuelSupplyToDB({ ...supply, attachmentData: attachmentUrl, ticketLogData: ticketLogUrl });
-  const { data: savedData, error } = await supabase.from('fuel_supplies').upsert([dbData]).select().single();
-  
-  if (error) {
-    console.error("Erro ao salvar abastecimento no Supabase:", error);
-    throw error;
-  }
-
-  return savedData ? mapFuelSupplyFromDB(savedData) : null;
-};
-
-export const saveFuelAuditLog = async (fuelSupplyId: string, log: AuditLog) => {
-  const { error } = await supabase.from('fuel_audit_logs').insert([{
-    fuel_supply_id: fuelSupplyId,
-    user_name: log.userName,
-    action: log.action,
-    details: log.details,
-    timestamp: new Date().toISOString()
-  }]);
-  
-  if (error) {
-    console.error("Erro ao salvar log de abastecimento no Supabase:", error);
-    throw error;
-  }
-};
-
-export const deleteFuelSupply = async (id: string) => {
-  // Fetch attachment before deleting
-  try {
-    const { data } = await supabase.from('fuel_supplies').select('attachment_data, ticket_log_data').eq('id', id).single();
-    if (data?.attachment_data) {
-      deleteDocument(data.attachment_data);
-    }
-    if (data?.ticket_log_data) {
-      deleteDocument(data.ticket_log_data);
-    }
-  } catch (e) {}
-
-  // Primeiro deletamos os logs de auditoria associados para evitar erro de chave estrangeira
-  await supabase.from('fuel_audit_logs').delete().eq('fuel_supply_id', id);
-  
-  const { error } = await supabase.from('fuel_supplies').delete().eq('id', id);
-  if (error) throw error;
-};
-
-// --- Funções de Veículos ---
-export const getVehicles = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('vehicles')
-      .select('*')
-      .order('plate', { ascending: true });
-      
-    if (error) {
-      if (error.code === 'PGRST205') {
-        console.warn("Tabela 'vehicles' não encontrada. Certifique-se de criá-la no Supabase.");
-        return [];
-      }
-      throw error;
-    }
-    return (data || []).map(mapVehicleFromDB);
-  } catch (err) {
-    console.error("Erro ao buscar veículos:", err);
-    return [];
-  }
-};
-
-export const saveVehicle = async (vehicle: Partial<Vehicle>) => {
-  try {
-    let photoUrl = vehicle.photo;
-    
-    // Fetch old data to clean up replaced photo
-    let oldVehicle: any = null;
-    if (vehicle.id && isUUID(vehicle.id)) {
-      try {
-        const { data } = await supabase.from('vehicles').select('photo').eq('id', vehicle.id).single();
-        oldVehicle = data;
-      } catch (e) {}
-    }
-    
-    // Se for uma nova foto em base64, fazemos o upload
-    if (vehicle.photo && vehicle.photo.startsWith('data:')) {
-      const uploadedUrl = await uploadDocument(vehicle.photo, `vehicles/${vehicle.plate}_${Date.now()}`);
-      if (uploadedUrl && !uploadedUrl.startsWith('data:')) {
-        photoUrl = uploadedUrl;
-        if (oldVehicle?.photo && oldVehicle.photo !== photoUrl) {
-          deleteDocument(oldVehicle.photo);
-        }
-      }
-    } else if (!vehicle.photo && oldVehicle?.photo) {
-      deleteDocument(oldVehicle.photo);
-    }
-    
-    const dbData = mapVehicleToDB({ ...vehicle, photo: photoUrl });
-    
-    let result;
-    if (vehicle.id && isUUID(vehicle.id)) {
-      result = await supabase.from('vehicles').update(dbData).eq('id', vehicle.id).select().single();
-    } else {
-      result = await supabase.from('vehicles').insert([dbData]).select().single();
-    }
-    
-    if (result.error) {
-      if (result.error.code === 'PGRST205') {
-        throw new Error("A tabela 'vehicles' não existe no banco de dados. Por favor, crie-a para usar esta função.");
-      }
-      throw result.error;
-    }
-
-    return result.data ? mapVehicleFromDB(result.data) : null;
-  } catch (err: any) {
-    console.error("Erro ao salvar veículo:", err);
-    throw err;
-  }
-};
-
-export const deleteVehicle = async (id: string) => {
-  try {
-    const { data } = await supabase.from('vehicles').select('photo').eq('id', id).single();
-    if (data?.photo) {
-      deleteDocument(data.photo);
-    }
-  } catch (e) {}
-
-  try {
-    const { error } = await supabase.from('vehicles').delete().eq('id', id);
-    if (error) {
-      if (error.code === 'PGRST205') {
-        throw new Error("A tabela 'vehicles' não existe no banco de dados.");
-      }
-      throw error;
-    }
-  } catch (err: any) {
-    console.error("Erro ao excluir veículo:", err);
-    throw err;
-  }
-};
-
-// --- Funções de Postos ---
-export const getStationNicknames = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('station_nicknames')
-      .select('*');
-      
-    if (error) {
-      if (error.code === 'PGRST205') return [];
-      throw error;
-    }
-    return (data || []).map(n => ({
-      id: n.id,
-      originalName: n.original_name,
-      nickname: n.nickname
-    })) as StationNickname[];
-  } catch (err) {
-    console.error("Erro ao buscar postos:", err);
-    return [];
-  }
-};
-
-export const saveStationNickname = async (originalName: string, nickname: string) => {
-  try {
-    // Aqui garantimos que o banco receba 'original_name' 
-    // e não 'originalName'
-    const { error } = await supabase
-      .from('station_nicknames')
-      .upsert(
-        { 
-          original_name: originalName, 
-          nickname: nickname 
-        },
-        { onConflict: 'original_name' }
-      );
-
-    if (error) throw error;
-    console.log("Salvo com sucesso!");
-  } catch (err) {
-    console.error("Erro ao salvar posto:", err);
-    throw err;
-  }
-};
-
-// --- Funções de Auditoria ---
-export const saveAuditLog = async (providerId: string, log: AuditLog) => {
-  const { error } = await supabase.from('audit_logs').insert([{
-    provider_id: providerId,
-    user_name: log.userName,
-    action: log.action,
-    details: log.details,
-    timestamp: new Date().toISOString()
-  }]);
-  
-  if (error) {
-    console.error("Erro ao salvar log no Supabase:", error);
-    throw error;
-  }
-};
-
-// --- Funções de Autenticação ---
-export const requestPasswordReset = async (email: string) => {
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin,
-  });
-  if (error) throw error;
-  return true;
-};
-
-// --- Funções de Reconhecimento Facial ---
-export const saveFaceDescriptor = async (providerId: string, descriptor: number[]): Promise<void> => {
-  // Remove any existing descriptor for this provider first
-  await supabase.from('face_descriptors').delete().eq('provider_id', providerId);
-  
-  const { error } = await supabase.from('face_descriptors').insert({
-    provider_id: providerId,
-    descriptor: descriptor,
-  });
-  if (error) throw error;
-};
-
-export const getFaceDescriptors = async (): Promise<{ provider_id: string; descriptor: number[] }[]> => {
   const { data, error } = await supabase
-    .from('face_descriptors')
-    .select('provider_id, descriptor');
-  if (error) {
-    console.error('Erro ao buscar descritores faciais:', error);
-    return [];
-  }
-  return data || [];
-};
-
-export const deleteFaceDescriptor = async (providerId: string): Promise<void> => {
-  const { error } = await supabase.from('face_descriptors').delete().eq('provider_id', providerId);
-  if (error) throw error;
-};
-
-// --- Funções de Controle de Acesso (ACL) ---
-export const getSystemConfig = async (key: string): Promise<any> => {
-  try {
-    const { data, error } = await supabase
-      .from('sys_config')
-      .select('value')
-      .eq('key', key)
-      .single();
+    .from('clientes')
+    .update(cliente)
+    .eq('id', id)
+    .select()
+    .single();
     
-    if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
-      throw error;
-    }
-    return data?.value;
-  } catch (err) {
-    console.error(`Erro ao buscar sys_config (${key}):`, err);
-    return null;
-  }
+  if (error) throw error;
+  return data;
 };
 
-export const updateSystemConfig = async (key: string, value: any): Promise<void> => {
+export const deleteCliente = async (id: string): Promise<void> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_clientes', MOCK_CLIENTES);
+    const filtered = data.filter(c => c.id !== id);
+    saveLocalData('mtabi_mock_clientes', filtered);
+    return;
+  }
   const { error } = await supabase
-    .from('sys_config')
-    .upsert({ key, value }, { onConflict: 'key' });
+    .from('clientes')
+    .delete()
+    .eq('id', id);
+    
   if (error) throw error;
 };
 
-export const getAllProfiles = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('name');
-      
-    if (error) throw error;
+// ==========================================
+// CRUD: PROJETOS
+// ==========================================
+
+export const getProjetos = async (): Promise<Projeto[]> => {
+  if (isMockMode()) {
+    const projs = getLocalData('mtabi_mock_projetos', MOCK_PROJETOS);
+    const clis = getLocalData('mtabi_mock_clientes', MOCK_CLIENTES);
     
-    return (data || []).map(p => ({
-      id: p.id,
-      name: p.name,
-      warName: p.war_name,
-      email: p.email,
-      rank: p.rank,
-      cpf: p.cpf,
-      profilePhoto: p.profile_photo,
-      allowedScreens: p.allowed_screens || ['dashboard', 'fuel', 'face-checkin'],
-      isAdmin: p.is_admin || false
+    return projs.map(p => ({
+      ...p,
+      cliente: clis.find(c => c.id === p.cliente_id)
     }));
-  } catch (err) {
-    console.error("Erro ao buscar todos os perfis:", err);
-    throw err;
+  }
+  try {
+    const { data, error } = await supabase
+      .from('projetos')
+      .select('*, cliente:clientes(*)')
+      .order('nome_solucao', { ascending: true });
+      
+    if (error) {
+      if (error.message.includes('relation') && error.message.includes('does not exist')) {
+        setMockMode(true);
+        return getProjetos();
+      }
+      throw error;
+    }
+    return data || [];
+  } catch (e) {
+    setMockMode(true);
+    return getProjetos();
   }
 };
 
-export const updateUserAccess = async (userId: string, allowedScreens: string[], isAdmin: boolean): Promise<void> => {
+export const createProjeto = async (projeto: Partial<Projeto>): Promise<Projeto> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_projetos', MOCK_PROJETOS);
+    const newProj: Projeto = {
+      id: 'p-' + Math.random().toString(36).substring(2, 9),
+      cliente_id: projeto.cliente_id || '',
+      nome_solucao: projeto.nome_solucao || 'Solução Nova',
+      descricao: projeto.descricao,
+      status: projeto.status || 'Em desenvolvimento',
+      link_acesso: projeto.link_acesso,
+      ferramenta_dev: projeto.ferramenta_dev || [],
+      banco_dados: projeto.banco_dados,
+      repositorio_url: projeto.repositorio_url,
+      hospedagem_imagens: projeto.hospedagem_imagens,
+      hospedagem_geral: projeto.hospedagem_geral,
+      data_inicio: projeto.data_inicio,
+      data_entrega_prevista: projeto.data_entrega_prevista,
+      valor_projeto: projeto.valor_projeto,
+      valor_mensal: projeto.valor_mensal,
+      observacoes: projeto.observacoes,
+      data_criacao: new Date().toISOString()
+    };
+    data.push(newProj);
+    saveLocalData('mtabi_mock_projetos', data);
+    return newProj;
+  }
+  const { data, error } = await supabase
+    .from('projetos')
+    .insert([projeto])
+    .select()
+    .single();
+    
+  if (error) throw error;
+  return data;
+};
+
+export const updateProjeto = async (id: string, projeto: Partial<Projeto>): Promise<Projeto> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_projetos', MOCK_PROJETOS);
+    const index = data.findIndex(p => p.id === id);
+    if (index === -1) throw new Error('Projeto não encontrado no mock');
+    
+    const updated = { ...data[index], ...projeto };
+    data[index] = updated;
+    saveLocalData('mtabi_mock_projetos', data);
+    return updated;
+  }
+  const { data, error } = await supabase
+    .from('projetos')
+    .update(projeto)
+    .eq('id', id)
+    .select()
+    .single();
+    
+  if (error) throw error;
+  return data;
+};
+
+export const deleteProjeto = async (id: string): Promise<void> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_projetos', MOCK_PROJETOS);
+    const filtered = data.filter(p => p.id !== id);
+    saveLocalData('mtabi_mock_projetos', filtered);
+    return;
+  }
   const { error } = await supabase
-    .from('profiles')
-    .update({ 
-      allowed_screens: allowedScreens,
-      is_admin: isAdmin
-    })
-    .eq('id', userId);
+    .from('projetos')
+    .delete()
+    .eq('id', id);
     
   if (error) throw error;
 };
 
-// --- Foto de Perfil via Supabase Storage ---
-// --- Funções de Perímetro GPS ---
-export const getGeoPerimeter = async (): Promise<GeoPerimeter | null> => {
-  const value = await getSystemConfig('geo_perimeter');
-  return value ?? null;
-};
+// ==========================================
+// CRUD: FERRAMENTAS E CUSTOS
+// ==========================================
 
-export const saveGeoPerimeter = async (perimeter: GeoPerimeter): Promise<void> => {
-  await updateSystemConfig('geo_perimeter', perimeter);
-};
-
-export const uploadProfilePhoto = async (userId: string, base64DataUrl: string): Promise<string> => {
-  if (!base64DataUrl || !base64DataUrl.startsWith('data:')) return base64DataUrl;
-  
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'dizhbrjdv';
-  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'cbm_gestao';
-  
-  try {
-    const url = `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`;
-    const safeFilename = `operator_${userId}_profile_${Date.now()}`.replace(/[^a-zA-Z0-9_\-]/g, '_');
-    
-    const formData = new URLSearchParams();
-    formData.append('file', base64DataUrl);
-    formData.append('upload_preset', uploadPreset);
-    formData.append('public_id', safeFilename);
-    formData.append('filename_override', safeFilename);
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error("Falha no upload da foto de perfil para o Cloudinary:", errorData);
-      throw new Error(errorData.error?.message || "Erro no upload da foto de perfil");
-    }
-    
-    const data = await response.json();
-    return data.secure_url;
-  } catch (error: any) {
-    console.error("Erro ao fazer upload da foto de perfil para o Cloudinary:", error);
-    throw error;
+export const getFerramentas = async (): Promise<FerramentaCusto[]> => {
+  if (isMockMode()) {
+    const tools = getLocalData('mtabi_mock_ferramentas', MOCK_FERRAMENTAS);
+    const projs = getLocalData('mtabi_mock_projetos', MOCK_PROJETOS);
+    return tools.map(t => ({
+      ...t,
+      projeto: projs.find(p => p.id === t.projeto_vinculado_id)
+    }));
   }
-};
-
-// --- Funções de Avaliação Mensal ---
-const mapEvaluationFromDB = (e: any): MonthlyEvaluation => ({
-  id: e.id,
-  providerId: e.provider_id,
-  year: e.year,
-  month: e.month,
-  hadAbsences: e.had_absences,
-  goodBehavior: e.good_behavior,
-  disciplinaryIssues: e.disciplinary_issues,
-  satisfactoryService: e.satisfactory_service,
-  observations: e.observations,
-  evaluatedBy: e.evaluated_by,
-  createdAt: e.created_at
-});
-
-const mapEvaluationToDB = (e: Partial<MonthlyEvaluation> & { evaluatedBy: string }) => ({
-  provider_id: e.providerId,
-  year: e.year,
-  month: e.month,
-  had_absences: e.hadAbsences ?? false,
-  good_behavior: e.goodBehavior ?? true,
-  disciplinary_issues: e.disciplinaryIssues ?? false,
-  satisfactory_service: e.satisfactoryService ?? true,
-  observations: e.observations || null,
-  evaluated_by: e.evaluatedBy
-});
-
-export const getMonthlyEvaluations = async (providerId: string): Promise<MonthlyEvaluation[]> => {
   try {
     const { data, error } = await supabase
-      .from('monthly_evaluations')
-      .select('*')
-      .eq('provider_id', providerId)
-      .order('year', { ascending: false })
-      .order('month', { ascending: false });
-
+      .from('ferramentas_custos')
+      .select('*, projeto:projetos(*)')
+      .order('nome_ferramenta', { ascending: true });
+      
     if (error) {
-      if (error.code === 'PGRST205') return [];
+      if (error.message.includes('relation') && error.message.includes('does not exist')) {
+        setMockMode(true);
+        return getFerramentas();
+      }
       throw error;
     }
-    return (data || []).map(mapEvaluationFromDB);
-  } catch (err) {
-    console.error("Erro ao buscar avaliações mensais:", err);
-    return [];
+    return data || [];
+  } catch (e) {
+    setMockMode(true);
+    return getFerramentas();
   }
 };
 
-export const getMonthlyEvaluationForMonth = async (providerId: string, year: number, month: number): Promise<MonthlyEvaluation | null> => {
+export const createFerramenta = async (ferramenta: Partial<FerramentaCusto>): Promise<FerramentaCusto> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_ferramentas', MOCK_FERRAMENTAS);
+    const newTool: FerramentaCusto = {
+      id: 'f-' + Math.random().toString(36).substring(2, 9),
+      nome_ferramenta: ferramenta.nome_ferramenta || 'Nova Ferramenta',
+      categoria: ferramenta.categoria || 'IA/Dev',
+      tipo_custo: ferramenta.tipo_custo || 'Mensal',
+      valor: ferramenta.valor || 0,
+      moeda: ferramenta.moeda || 'BRL',
+      data_cobranca: ferramenta.data_cobranca,
+      projeto_vinculado_id: ferramenta.projeto_vinculado_id,
+      ativo: ferramenta.ativo !== undefined ? ferramenta.ativo : true,
+      link_acesso: ferramenta.link_acesso,
+      usuario_acesso: ferramenta.usuario_acesso,
+      senha_acesso_criptografada: ferramenta.senha_acesso_criptografada,
+      observacoes: ferramenta.observacoes,
+      data_criacao: new Date().toISOString()
+    };
+    data.push(newTool);
+    saveLocalData('mtabi_mock_ferramentas', data);
+    return newTool;
+  }
+  const { data, error } = await supabase
+    .from('ferramentas_custos')
+    .insert([ferramenta])
+    .select()
+    .single();
+    
+  if (error) throw error;
+  return data;
+};
+
+export const updateFerramenta = async (id: string, ferramenta: Partial<FerramentaCusto>): Promise<FerramentaCusto> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_ferramentas', MOCK_FERRAMENTAS);
+    const index = data.findIndex(t => t.id === id);
+    if (index === -1) throw new Error('Ferramenta não encontrada no mock');
+    
+    const updated = { ...data[index], ...ferramenta };
+    data[index] = updated;
+    saveLocalData('mtabi_mock_ferramentas', data);
+    return updated;
+  }
+  const { data, error } = await supabase
+    .from('ferramentas_custos')
+    .update(ferramenta)
+    .eq('id', id)
+    .select()
+    .single();
+    
+  if (error) throw error;
+  return data;
+};
+
+export const deleteFerramenta = async (id: string): Promise<void> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_ferramentas', MOCK_FERRAMENTAS);
+    const filtered = data.filter(t => t.id !== id);
+    saveLocalData('mtabi_mock_ferramentas', filtered);
+    return;
+  }
+  const { error } = await supabase
+    .from('ferramentas_custos')
+    .delete()
+    .eq('id', id);
+    
+  if (error) throw error;
+};
+
+// ==========================================
+// CRUD: PIPELINE DE NEGOCIAÇÃO (CRM)
+// ==========================================
+
+export const getPipeline = async (): Promise<PipelineLead[]> => {
+  if (isMockMode()) {
+    const pipe = getLocalData('mtabi_mock_pipeline', MOCK_PIPELINE);
+    const clis = getLocalData('mtabi_mock_clientes', MOCK_CLIENTES);
+    return pipe.map(l => ({
+      ...l,
+      cliente: clis.find(c => c.id === l.cliente_id)
+    }));
+  }
   try {
     const { data, error } = await supabase
-      .from('monthly_evaluations')
-      .select('*')
-      .eq('provider_id', providerId)
-      .eq('year', year)
-      .eq('month', month)
-      .maybeSingle();
+      .from('pipeline_negociacao')
+      .select('*, cliente:clientes(*)')
+      .order('data_proxima_acao', { ascending: true, nullsFirst: false });
+      
+    if (error) {
+      if (error.message.includes('relation') && error.message.includes('does not exist')) {
+        setMockMode(true);
+        return getPipeline();
+      }
+      throw error;
+    }
+    return data || [];
+  } catch (e) {
+    setMockMode(true);
+    return getPipeline();
+  }
+};
 
-    if (error) throw error;
-    return data ? mapEvaluationFromDB(data) : null;
-  } catch (err) {
-    console.error("Erro ao buscar avaliação do mês:", err);
+export const createPipelineLead = async (lead: Partial<PipelineLead>): Promise<PipelineLead> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_pipeline', MOCK_PIPELINE);
+    const newLead: PipelineLead = {
+      id: 'l-' + Math.random().toString(36).substring(2, 9),
+      cliente_id: lead.cliente_id || undefined,
+      nome_lead: lead.nome_lead,
+      etapa: lead.etapa || 'Primeiro contato',
+      valor_estimado: lead.valor_estimado || 0,
+      decisor_nome: lead.decisor_nome,
+      campeao_interno_nome: lead.campeao_interno_nome,
+      proxima_acao: lead.proxima_acao,
+      data_proxima_acao: lead.data_proxima_acao,
+      probabilidade: lead.probabilidade || 50,
+      observacoes: lead.observacoes,
+      data_ultima_atualizacao: new Date().toISOString(),
+      data_criacao: new Date().toISOString()
+    };
+    data.push(newLead);
+    saveLocalData('mtabi_mock_pipeline', data);
+    return newLead;
+  }
+  const updateData = {
+    ...lead,
+    data_ultima_atualizacao: new Date().toISOString()
+  };
+  const { data, error } = await supabase
+    .from('pipeline_negociacao')
+    .insert([updateData])
+    .select()
+    .single();
+    
+  if (error) throw error;
+  return data;
+};
+
+export const updatePipelineLead = async (id: string, lead: Partial<PipelineLead>): Promise<PipelineLead> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_pipeline', MOCK_PIPELINE);
+    const index = data.findIndex(l => l.id === id);
+    if (index === -1) throw new Error('Lead não encontrado no mock');
+    
+    const updated = { ...data[index], ...lead, data_ultima_atualizacao: new Date().toISOString() };
+    data[index] = updated;
+    saveLocalData('mtabi_mock_pipeline', data);
+    return updated;
+  }
+  const updateData = {
+    ...lead,
+    data_ultima_atualizacao: new Date().toISOString()
+  };
+  const { data, error } = await supabase
+    .from('pipeline_negociacao')
+    .update(updateData)
+    .eq('id', id)
+    .select()
+    .single();
+    
+  if (error) throw error;
+  return data;
+};
+
+export const deletePipelineLead = async (id: string): Promise<void> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_pipeline', MOCK_PIPELINE);
+    const filtered = data.filter(l => l.id !== id);
+    saveLocalData('mtabi_mock_pipeline', filtered);
+    return;
+  }
+  const { error } = await supabase
+    .from('pipeline_negociacao')
+    .delete()
+    .eq('id', id);
+    
+  if (error) throw error;
+};
+
+// ==========================================
+// CRUD: FINANCEIRO MOVIMENTOS
+// ==========================================
+
+export const getFinanceiroMovimentos = async (): Promise<FinanceiroMovimento[]> => {
+  if (isMockMode()) {
+    const movs = getLocalData('mtabi_mock_financeiro', MOCK_FINANCEIRO);
+    const clis = getLocalData('mtabi_mock_clientes', MOCK_CLIENTES);
+    const projs = getLocalData('mtabi_mock_projetos', MOCK_PROJETOS);
+    
+    return movs.map(m => ({
+      ...m,
+      cliente: clis.find(c => c.id === m.cliente_id),
+      projeto: projs.find(p => p.id === m.projeto_id)
+    }));
+  }
+  try {
+    const { data, error } = await supabase
+      .from('financeiro_movimentos')
+      .select('*, cliente:clientes(*), projeto:projetos(*)')
+      .order('data_movimento', { ascending: false });
+      
+    if (error) {
+      if (error.message.includes('relation') && error.message.includes('does not exist')) {
+        setMockMode(true);
+        return getFinanceiroMovimentos();
+      }
+      throw error;
+    }
+    return data || [];
+  } catch (e) {
+    setMockMode(true);
+    return getFinanceiroMovimentos();
+  }
+};
+
+export const createFinanceiroMovimento = async (movimento: Partial<FinanceiroMovimento>): Promise<FinanceiroMovimento> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_financeiro', MOCK_FINANCEIRO);
+    const newMov: FinanceiroMovimento = {
+      id: 'm-' + Math.random().toString(36).substring(2, 9),
+      cliente_id: movimento.cliente_id || '',
+      projeto_id: movimento.projeto_id || undefined,
+      tipo: movimento.tipo || 'Entrada recorrente mensal',
+      descricao: movimento.descricao || 'Lançamento',
+      valor: movimento.valor || 0,
+      data_movimento: movimento.data_movimento || new Date().toISOString().split('T')[0],
+      mes_referencia: movimento.mes_referencia || new Date().toISOString().slice(0, 7),
+      status: movimento.status || 'Confirmado',
+      data_criacao: new Date().toISOString()
+    };
+    data.push(newMov);
+    saveLocalData('mtabi_mock_financeiro', data);
+    return newMov;
+  }
+  const { data, error } = await supabase
+    .from('financeiro_movimentos')
+    .insert([movimento])
+    .select()
+    .single();
+    
+  if (error) throw error;
+  return data;
+};
+
+export const updateFinanceiroMovimento = async (id: string, movimento: Partial<FinanceiroMovimento>): Promise<FinanceiroMovimento> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_financeiro', MOCK_FINANCEIRO);
+    const index = data.findIndex(m => m.id === id);
+    if (index === -1) throw new Error('Movimento não encontrado no mock');
+    
+    const updated = { ...data[index], ...movimento };
+    data[index] = updated;
+    saveLocalData('mtabi_mock_financeiro', data);
+    return updated;
+  }
+  const { data, error } = await supabase
+    .from('financeiro_movimentos')
+    .update(movimento)
+    .eq('id', id)
+    .select()
+    .single();
+    
+  if (error) throw error;
+  return data;
+};
+
+export const deleteFinanceiroMovimento = async (id: string): Promise<void> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_financeiro', MOCK_FINANCEIRO);
+    const filtered = data.filter(m => m.id !== id);
+    saveLocalData('mtabi_mock_financeiro', filtered);
+    return;
+  }
+  const { error } = await supabase
+    .from('financeiro_movimentos')
+    .delete()
+    .eq('id', id);
+    
+  if (error) throw error;
+};
+
+// ==========================================
+// AUDITORIA E LOGS DE CREDENCIAIS
+// ==========================================
+
+export const getLogsCredenciais = async (): Promise<LogAcessoCredencial[]> => {
+  if (isMockMode()) {
+    const logs = getLocalData('mtabi_mock_logs', MOCK_LOGS);
+    const tools = getLocalData('mtabi_mock_ferramentas', MOCK_FERRAMENTAS);
+    return logs.map(l => ({
+      ...l,
+      ferramenta_nome: tools.find(t => t.id === l.ferramenta_id)?.nome_ferramenta || 'Ferramenta Removida'
+    }));
+  }
+  try {
+    const { data, error } = await supabase
+      .from('log_acessos_credenciais')
+      .select('*, ferramenta:ferramentas_custos(nome_ferramenta)')
+      .order('data_hora', { ascending: false });
+      
+    if (error) {
+      if (error.message.includes('relation') && error.message.includes('does not exist')) {
+        setMockMode(true);
+        return getLogsCredenciais();
+      }
+      throw error;
+    }
+    
+    return (data || []).map(log => ({
+      id: log.id,
+      ferramenta_id: log.ferramenta_id,
+      data_hora: log.data_hora,
+      acao: log.acao,
+      ferramenta_nome: log.ferramenta?.nome_ferramenta || 'Ferramenta Removida'
+    }));
+  } catch (e) {
+    setMockMode(true);
+    return getLogsCredenciais();
+  }
+};
+
+export const logCredentialAccess = async (ferramentaId: string): Promise<void> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_logs', MOCK_LOGS);
+    const newLog: LogAcessoCredencial = {
+      id: 'log-' + Math.random().toString(36).substring(2, 9),
+      ferramenta_id: ferramentaId,
+      data_hora: new Date().toISOString(),
+      acao: 'revelou senha'
+    };
+    data.unshift(newLog); // Mais recente no início
+    saveLocalData('mtabi_mock_logs', data);
+    return;
+  }
+  const { error } = await supabase
+    .from('log_acessos_credenciais')
+    .insert([{
+      ferramenta_id: ferramentaId,
+      acao: 'revelou senha'
+    }]);
+    
+  if (error) console.error('Falha ao gravar log de acesso:', error);
+};
+
+// Compatibilidade de upload de imagem
+export const uploadProfilePhoto = async (userId: string, base64: string): Promise<string | null> => {
+  if (isMockMode()) return base64;
+  if (!base64 || !base64.startsWith('data:')) return base64;
+  try {
+    const response = await fetch(base64);
+    const blob = await response.blob();
+    const fileExt = blob.type.split('/')[1] || 'png';
+    const filePath = `profiles/${userId}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(filePath, blob, { contentType: blob.type, upsert: true });
+      
+    if (uploadError) throw uploadError;
+    
+    const { data } = supabase.storage.from('documents').getPublicUrl(filePath);
+    return data.publicUrl;
+  } catch (error) {
+    console.error('Erro ao fazer upload da foto de perfil:', error);
     return null;
   }
 };
-
-export const saveMonthlyEvaluation = async (evaluation: Partial<MonthlyEvaluation> & { providerId: string; year: number; month: number; evaluatedBy: string }): Promise<MonthlyEvaluation | null> => {
-  try {
-    const dbData = mapEvaluationToDB(evaluation);
-
-    const { data, error } = await supabase
-      .from('monthly_evaluations')
-      .upsert([dbData], { onConflict: 'provider_id,year,month' })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Erro ao salvar avaliação mensal:", error);
-      throw error;
-    }
-    return data ? mapEvaluationFromDB(data) : null;
-  } catch (err) {
-    console.error("Erro ao salvar avaliação mensal:", err);
-    throw err;
-  }
-};
-
-export const getAllMonthlyEvaluationsForMonth = async (year: number, month: number): Promise<MonthlyEvaluation[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('monthly_evaluations')
-      .select('*')
-      .eq('year', year)
-      .eq('month', month);
-
-    if (error) {
-      if (error.code === 'PGRST205') return [];
-      throw error;
-    }
-    return (data || []).map(mapEvaluationFromDB);
-  } catch (err) {
-    console.error("Erro ao buscar avaliações do mês:", err);
-    return [];
-  }
-};
-
-// --- Funções de Troca de Serviço ---
-const mapServiceSwapFromDB = (s: any): ServiceSwap => ({
-  id: s.id,
-  escaladoId: s.escalado_id,
-  substitutoId: s.substituto_id,
-  funcao: s.funcao,
-  data: s.data,
-  horarioInicio: s.horario_inicio ? s.horario_inicio.substring(0, 5) : '', // HH:mm
-  horarioFim: s.horario_fim ? s.horario_fim.substring(0, 5) : '', // HH:mm
-  status: s.status,
-  aprovadorId: s.aprovador_id || undefined,
-  observacao: s.observacao || undefined,
-  dataAprovacao: s.data_aprovacao || undefined,
-  dataPagamento: s.data_pagamento || undefined,
-  horarioInicioPagamento: s.horario_inicio_pagamento ? s.horario_inicio_pagamento.substring(0, 5) : undefined,
-  horarioFimPagamento: s.horario_fim_pagamento ? s.horario_fim_pagamento.substring(0, 5) : undefined,
-  createdAt: s.created_at
-});
-
-const mapServiceSwapToDB = (s: Partial<ServiceSwap>) => {
-  const dbData: any = {};
-  if (s.escaladoId !== undefined) dbData.escalado_id = s.escaladoId;
-  if (s.substitutoId !== undefined) dbData.substituto_id = s.substitutoId;
-  if (s.funcao !== undefined) dbData.funcao = s.funcao;
-  if (s.data !== undefined) dbData.data = s.data;
-  if (s.horarioInicio !== undefined) dbData.horario_inicio = s.horarioInicio;
-  if (s.horarioFim !== undefined) dbData.horario_fim = s.horarioFim;
-  if (s.status !== undefined) dbData.status = s.status;
-  if (s.aprovadorId !== undefined) dbData.aprovador_id = s.aprovadorId;
-  if (s.observacao !== undefined) dbData.observacao = s.observacao;
-  if (s.dataAprovacao !== undefined) dbData.data_aprovacao = s.dataAprovacao;
-  if (s.dataPagamento !== undefined) dbData.data_pagamento = s.dataPagamento || null;
-  if (s.horarioInicioPagamento !== undefined) dbData.horario_inicio_pagamento = s.horarioInicioPagamento || null;
-  if (s.horarioFimPagamento !== undefined) dbData.horario_fim_pagamento = s.horarioFimPagamento || null;
-  return dbData;
-};
-
-
-export const getServiceSwaps = async (): Promise<ServiceSwap[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('service_swaps')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      if (error.code === 'PGRST205') return [];
-      throw error;
-    }
-    return (data || []).map(mapServiceSwapFromDB);
-  } catch (err) {
-    console.error("Erro ao buscar trocas de serviço:", err);
-    return [];
-  }
-};
-
-export const createServiceSwap = async (swap: Partial<ServiceSwap>): Promise<ServiceSwap | null> => {
-  try {
-    const dbData = mapServiceSwapToDB({ ...swap, status: swap.status || 'aguardando_substituto' });
-    const { data, error } = await supabase
-      .from('service_swaps')
-      .insert([dbData])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data ? mapServiceSwapFromDB(data) : null;
-  } catch (err) {
-    console.error("Erro ao criar troca de serviço:", err);
-    throw err;
-  }
-};
-
-export const evaluateServiceSwap = async (
-  swapId: string,
-  status: 'aprovado' | 'reprovado',
-  approverId: string,
-  observation?: string
-): Promise<ServiceSwap | null> => {
-  try {
-    const { data, error } = await supabase
-      .from('service_swaps')
-      .update({
-        status,
-        aprovador_id: approverId,
-        observacao: observation || null,
-        data_aprovacao: new Date().toISOString()
-      })
-      .eq('id', swapId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data ? mapServiceSwapFromDB(data) : null;
-  } catch (err) {
-    console.error("Erro ao avaliar troca de serviço:", err);
-    throw err;
-  }
-};
-
-export const cancelServiceSwap = async (
-  swapId: string,
-  reason?: string,
-  approverId?: string
-): Promise<ServiceSwap | null> => {
-  try {
-    const updateData: any = { status: 'cancelado' };
-    if (reason) {
-      updateData.observacao = reason;
-    }
-    if (approverId) {
-      updateData.aprovador_id = approverId;
-      updateData.data_aprovacao = new Date().toISOString();
-    }
-
-    const { data, error } = await supabase
-      .from('service_swaps')
-      .update(updateData)
-      .eq('id', swapId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data ? mapServiceSwapFromDB(data) : null;
-  } catch (err) {
-    console.error("Erro ao cancelar troca de serviço:", err);
-    throw err;
-  }
-};
-
-
-export const acceptServiceSwap = async (swapId: string): Promise<ServiceSwap | null> => {
-  try {
-    const { data, error } = await supabase
-      .from('service_swaps')
-      .update({ status: 'pendente' })
-      .eq('id', swapId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data ? mapServiceSwapFromDB(data) : null;
-  } catch (err) {
-    console.error("Erro ao aceitar troca de serviço:", err);
-    throw err;
-  }
-};
-
-export const rejectServiceSwap = async (swapId: string, reason: string): Promise<ServiceSwap | null> => {
-  try {
-    const { data, error } = await supabase
-      .from('service_swaps')
-      .update({ status: 'recusado_substituto', observacao: reason })
-      .eq('id', swapId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data ? mapServiceSwapFromDB(data) : null;
-  } catch (err) {
-    console.error("Erro ao recusar troca de serviço:", err);
-    throw err;
-  }
-};
-
-export const deleteUserProfile = async (userId: string): Promise<void> => {
-  try {
-    const { error } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', userId);
-    if (error) throw error;
-  } catch (err) {
-    console.error('Erro ao remover perfil do usuário:', err);
-    throw err;
-  }
-};
-
-export const updateServiceSwapPayment = async (
-  swapId: string,
-  dataPagamento: string | null,
-  horarioInicioPagamento: string | null,
-  horarioFimPagamento: string | null,
-  status?: string
-): Promise<ServiceSwap | null> => {
-  try {
-    const updateFields: any = {
-      data_pagamento: dataPagamento,
-      horario_inicio_pagamento: horarioInicioPagamento,
-      horario_fim_pagamento: horarioFimPagamento
-    };
-    if (status) {
-      updateFields.status = status;
-    }
-    const { data, error } = await supabase
-      .from('service_swaps')
-      .update(updateFields)
-      .eq('id', swapId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data ? mapServiceSwapFromDB(data) : null;
-  } catch (err) {
-    console.error("Erro ao atualizar pagamento da troca:", err);
-    throw err;
-  }
-};
-
-export const updateServiceSwapDetails = async (
-  swapId: string,
-  data: string,
-  horarioInicio: string,
-  horarioFim: string,
-  status?: string
-): Promise<ServiceSwap | null> => {
-  try {
-    const updateFields: any = {
-      data: data,
-      horario_inicio: horarioInicio,
-      horario_fim: horarioFim
-    };
-    if (status) {
-      updateFields.status = status;
-    }
-    const { data: updated, error } = await supabase
-      .from('service_swaps')
-      .update(updateFields)
-      .eq('id', swapId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return updated ? mapServiceSwapFromDB(updated) : null;
-  } catch (err) {
-    console.error("Erro ao atualizar detalhes da troca:", err);
-    throw err;
-  }
-};
-
-export const archiveServiceSwap = async (
-  swapId: string,
-  currentObs?: string
-): Promise<ServiceSwap | null> => {
-  try {
-    let cleanObs = currentObs || '';
-    if (cleanObs.startsWith('[ARQUIVADO] ')) {
-      // Já arquivado
-    } else if (cleanObs === '[ARQUIVADO]') {
-      // Já arquivado
-    } else {
-      cleanObs = cleanObs ? `[ARQUIVADO] ${cleanObs}` : '[ARQUIVADO]';
-    }
-
-    const { data, error } = await supabase
-      .from('service_swaps')
-      .update({ observacao: cleanObs })
-      .eq('id', swapId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data ? mapServiceSwapFromDB(data) : null;
-  } catch (err) {
-    console.error("Erro ao arquivar troca de serviço:", err);
-    throw err;
-  }
-};
-
-export const unarchiveServiceSwap = async (
-  swapId: string,
-  currentObs?: string
-): Promise<ServiceSwap | null> => {
-  try {
-    let cleanObs = currentObs || '';
-    if (cleanObs.startsWith('[ARQUIVADO] ')) {
-      cleanObs = cleanObs.substring('[ARQUIVADO] '.length);
-    } else if (cleanObs === '[ARQUIVADO]') {
-      cleanObs = '';
-    }
-
-    const { data, error } = await supabase
-      .from('service_swaps')
-      .update({ observacao: cleanObs || null })
-      .eq('id', swapId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data ? mapServiceSwapFromDB(data) : null;
-  } catch (err) {
-    console.error("Erro ao desarquivar troca de serviço:", err);
-    throw err;
-  }
-};
-
-

@@ -1,148 +1,136 @@
+/**
+ * Definições de Tipos - Sistema de Gestão MTABI
+ */
 
-export interface AuditLog {
+export interface Profile {
   id: string;
-  providerId?: string;
-  timestamp: string;
-  userName: string;
-  action: 'CADASTRO' | 'DEVOLUÇÃO' | 'REATIVAÇÃO' | 'EDIÇÃO' | 'STATUS_ALTERADO' | 'PRESENÇA' | 'JUSTIFICATIVA' | 'AVALIAÇÃO';
-  details: string;
+  name: string;
+  war_name?: string;
+  cpf?: string;
+  email: string;
+  rank?: string;
+  profile_photo?: string;
+  allowed_screens?: string[];
+  is_admin?: boolean;
+  created_at?: string;
 }
 
+// Representação do usuário logado na interface
 export interface Operator {
-  id?: string;
+  id: string;
   name: string;
-  warName: string;
-  cpf: string;
+  warName?: string;
+  cpf?: string;
   email: string;
-  rank: string;
+  rank?: string;
   profilePhoto?: string;
   allowedScreens?: string[];
   isAdmin?: boolean;
 }
 
-export interface Provider {
+// 1. Clientes
+export interface Cliente {
   id: string;
-  name: string;
-  processNumber: string;
-  phone: string;
-  address: string;
-  assignedEntity: string;
-  totalHoursToFulfill: number; // In hours
-  status: 'active' | 'completed' | 'suspended' | 'returned';
-  returnReason?: string;
-  returnAttachment?: string;
-  identityDoc?: string; // Base64 do documento de identidade
-  referralDoc?: string; // Base64 da folha de encaminhamento
-  profilePhoto?: string; // Base64 da foto do rosto extraída
-  observations?: string;
-  referralDate?: string; // YYYY-MM-DD
-  receiptDate?: string; // YYYY-MM-DD
-  history: AuditLog[];
+  nome_empresa: string;
+  nome_contato_principal?: string;
+  nome_contato_interno?: string;
+  segmento?: string;
+  status: 'Negociação' | 'Ativo' | 'Inativo' | 'Pausado';
+  tipo_relacao: 'Projeto único' | 'Consultoria recorrente' | 'Ambos';
+  observacoes?: string;
+  data_criacao?: string;
 }
 
-export interface AttendanceRecord {
+// 2. Projetos
+export interface Projeto {
   id: string;
-  providerId: string;
-  date: string; // ISO format YYYY-MM-DD
-  entryTime: string; // HH:mm (vazio se for justificativa)
-  exitTime: string; // HH:mm (vazio se for justificativa)
-  durationMinutes: number;
-  attachmentData?: string; // Base64 do documento para consulta
-  attachmentType?: string; // mimeType
-  type?: 'presence' | 'justification';
-  reason?: string;
+  cliente_id: string;
+  nome_solucao: string;
+  descricao?: string;
+  status: 'Em negociação' | 'Em desenvolvimento' | 'Em produção' | 'Manutenção' | 'Pausado' | 'Encerrado';
+  link_acesso?: string;
+  ferramenta_dev?: string[]; // multi-select (guardado como array de strings no pg)
+  banco_dados?: string;
+  repositorio_url?: string;
+  hospedagem_imagens?: string;
+  hospedagem_geral?: string;
+  data_inicio?: string; // YYYY-MM-DD
+  data_entrega_prevista?: string; // YYYY-MM-DD
+  valor_projeto?: number;
+  valor_mensal?: number;
+  observacoes?: string;
+  data_criacao?: string;
+  
+  // Carregado por join
+  cliente?: Cliente;
 }
 
-export interface Vehicle {
+// 3. Ferramentas e Custos
+export interface FerramentaCusto {
   id: string;
-  plate: string;
-  fleetCode: string;
-  model: string;
-  brand: string;
-  year: string;
-  color: string;
-  photo?: string; // Base64 or URL
-  createdAt: string;
+  nome_ferramenta: string;
+  categoria: 'IA/Dev' | 'Hospedagem' | 'Banco de Dados' | 'Design' | 'Produtividade' | 'Outro';
+  tipo_custo: 'Gratuito' | 'Pago único' | 'Mensal' | 'Anual';
+  valor: number;
+  moeda: 'BRL' | 'USD';
+  data_cobranca?: string; // dia do mês ou data específica
+  projeto_vinculado_id?: string;
+  ativo: boolean;
+  link_acesso?: string;
+  usuario_acesso?: string;
+  senha_acesso_criptografada?: string;
+  observacoes?: string;
+  data_criacao?: string;
+  
+  // Carregados por join
+  projeto?: Projeto;
 }
 
-export interface StationNickname {
+// 4. Pipeline de Negociação (CRM)
+export interface PipelineLead {
   id: string;
-  originalName: string;
-  nickname: string;
+  cliente_id?: string;
+  nome_lead?: string; // Usado se ainda não houver um cliente formal cadastrado
+  etapa: 'Primeiro contato' | 'Proposta enviada' | 'Em negociação' | 'Aguardando decisão' | 'Fechado-Ganho' | 'Fechado-Perdido';
+  valor_estimado: number;
+  decisor_nome?: string;
+  campeao_interno_nome?: string;
+  proxima_acao?: string;
+  data_proxima_acao?: string; // YYYY-MM-DD
+  probabilidade: number; // 0 - 100
+  observacoes?: string;
+  data_ultima_atualizacao?: string;
+  data_criacao?: string;
+  
+  // Carregado por join
+  cliente?: Cliente;
 }
 
-export interface MaintenanceItem {
-  description: string;
-  quantity: number;
-  unitValue: number;
-  totalValue: number;
-}
-
-export interface FuelSupply {
+// 5. Financeiro Movimentos
+export interface FinanceiroMovimento {
   id: string;
-  date: string; // ISO format YYYY-MM-DDTHH:mm
-  location: string;
-  cnpj: string;
-  fuelType: string;
-  liters: number;
-  pricePerLiter: number;
-  totalValue: number;
-  driver: string;
-  plate: string;
-  km: number;
-  attendant: string;
-  protocol: string;
-  entryType?: 'abastecimento' | 'manutencao';
-  items?: MaintenanceItem[];
-  attachmentData?: string; // Base64 da nota
-  attachmentType?: string;
-  ticketLogData?: string; // Base64 do ticket log
-  ticketLogType?: string;
-  history?: AuditLog[];
-  createdAt: string;
+  cliente_id: string;
+  projeto_id?: string;
+  tipo: 'Entrada única' | 'Entrada recorrente mensal' | 'Saída/custo';
+  descricao: string;
+  valor: number;
+  data_movimento: string; // YYYY-MM-DD
+  mes_referencia: string; // YYYY-MM
+  status: 'Previsto' | 'Confirmado' | 'Atrasado' | 'Cancelado';
+  data_criacao?: string;
+  
+  // Carregados por join
+  cliente?: Cliente;
+  projeto?: Projeto;
 }
 
-export interface MonthlySummary {
-  providerId: string;
-  providerName: string;
-  lastVisit: string;
-  totalWorkedMinutes: number;
-  totalToFulfillMinutes: number;
-  remainingMinutes: number;
-}
-
-export interface MonthlyEvaluation {
+// 6. Log de Acessos Credenciais
+export interface LogAcessoCredencial {
   id: string;
-  providerId: string;
-  year: number;
-  month: number;
-  hadAbsences: boolean;
-  goodBehavior: boolean;
-  disciplinaryIssues: boolean;
-  satisfactoryService: boolean;
-  observations?: string;
-  evaluatedBy: string;
-  createdAt: string;
+  ferramenta_id: string;
+  data_hora: string;
+  acao: string;
+  
+  // Carregado por join
+  ferramenta_nome?: string;
 }
-
-export interface ServiceSwap {
-  id: string;
-  escaladoId: string;
-  substitutoId: string;
-  funcao: 'CG' | 'COV' | 'Linha' | 'COBOM';
-  data: string; // YYYY-MM-DD
-  horarioInicio: string; // HH:mm
-  horarioFim: string; // HH:mm
-  status: 'aguardando_substituto' | 'aguardando_escalado' | 'recusado_substituto' | 'pendente' | 'aprovado' | 'reprovado' | 'cancelado' | 'arquivado';
-  aprovadorId?: string;
-  observacao?: string;
-  dataAprovacao?: string;
-  dataPagamento?: string; // YYYY-MM-DD
-  horarioInicioPagamento?: string; // HH:mm
-  horarioFimPagamento?: string; // HH:mm
-  createdAt: string;
-  escaladoName?: string;
-  substitutoName?: string;
-  aprovadorName?: string;
-}
-
