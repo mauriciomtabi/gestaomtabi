@@ -109,16 +109,16 @@ const Login: React.FC<Props> = () => {
         
         {/* LOGO MTABI FUTURISTIC SECTION */}
         <div className="flex flex-col items-center mb-8 select-none">
-          <div className="relative flex items-center justify-center w-36 h-36 mb-2">
+          <div className="relative flex items-center justify-center w-72 h-72 mb-2">
             {/* Cyber rings */}
             <div className="absolute inset-0 border border-dashed border-mtabi-yellow/20 rounded-full animate-spin-slow"></div>
             <div className="absolute inset-2 border border-dotted border-white/5 rounded-full animate-spin-slow [animation-direction:reverse]"></div>
-            <div className="absolute w-20 h-20 bg-mtabi-yellow/10 rounded-full blur-xl animate-glow-pulse"></div>
+            <div className="absolute w-40 h-40 bg-mtabi-yellow/10 rounded-full blur-xl animate-glow-pulse"></div>
             
             <img 
               src="/mtabi-logo-transparente.svg" 
               alt="Logo MTABI" 
-              className="h-24 object-contain relative z-10 hover:scale-105 transition-transform duration-300"
+              className="h-48 object-contain relative z-10 hover:scale-105 transition-transform duration-300"
             />
           </div>
           <p className="text-[10px] text-mtabi-yellow font-bold uppercase tracking-[0.25em] font-display">
