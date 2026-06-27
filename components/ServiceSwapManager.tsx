@@ -545,18 +545,6 @@ const ServiceSwapManager: React.FC<Props> = ({ currentUser, setNotification, isR
         observacao:    creatorTag,
       } as Partial<ServiceSwap>);
 
-      // 2. Criar a perna de Volta automaticamente "A Definir" (1970-01-01)
-      await createServiceSwap({
-        escaladoId:    formData.substitutoId, // Invertido!
-        substitutoId:  formData.escaladoId,   // Invertido!
-        funcao:        formData.funcao,
-        data:          '1970-01-01', // Data de controle para "A definir" (Pagar depois)
-        horarioInicio: '00:00',
-        horarioFim:    '00:00',
-        status:        dbStatus,
-        observacao:    creatorTag,
-      } as any);
-
       if (result) {
         setNotification('Solicitação enviada para aprovação do administrador!', 'success');
         setIsModalOpen(false);
