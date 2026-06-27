@@ -1,16 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   
-  --color-mtabi-bg: #0E0E10;
-  --color-mtabi-card: #17171A;
-  --color-mtabi-yellow: #F5B324;
+  --color-mtabi-bg: #13151A;
+  --color-mtabi-card: #1C1F26;
+  --color-mtabi-yellow: #E8A33D;
   --color-mtabi-text: #F2F0EA;
   --color-mtabi-muted: #8A8A8F;
-  --color-mtabi-border: #2A2A2E;
+  --color-mtabi-border: #2A2F3D;
   
   --color-mtabi-success: #4ADE80;
   --color-mtabi-error: #F87171;

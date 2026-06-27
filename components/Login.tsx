@@ -103,22 +103,13 @@ const Login: React.FC<Props> = () => {
         <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-mtabi-yellow/5 rounded-full blur-2xl pointer-events-none"></div>
 
         {/* LOGO MTABI */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-20 h-20 bg-mtabi-yellow rounded-2xl flex items-center justify-center shadow-lg mb-3 p-3 select-none">
-            {/* Ícone de colunas do logo */}
-            <div className="flex items-end gap-1 h-9">
-              <div className="w-2 bg-black h-5"></div>
-              <div className="w-2 bg-black h-8"></div>
-              <div className="w-2 bg-white h-5"></div>
-              <div className="w-2 bg-white h-8 relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-1.5 bg-black origin-top-left -rotate-12"></div>
-              </div>
-            </div>
-          </div>
-          <h1 className="text-3xl font-extrabold tracking-wider font-display text-white select-none">
-            MT<span className="text-mtabi-yellow">ABI</span>
-          </h1>
-          <p className="text-[10px] text-mtabi-muted uppercase tracking-widest mt-1">
+        <div className="flex flex-col items-center mb-8 select-none">
+          <img 
+            src="/mtabi-logo-transparente.svg" 
+            alt="Logo MTABI" 
+            className="h-16 object-contain"
+          />
+          <p className="text-[10px] text-mtabi-muted uppercase tracking-widest mt-4">
             Gestão Interna de Negócios
           </p>
         </div>

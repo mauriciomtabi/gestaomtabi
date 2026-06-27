@@ -228,19 +228,14 @@ const App: React.FC = () => {
 
         {/* LOGO */}
         <div className="p-6 border-b border-mtabi-border flex items-center gap-3">
-          <div className="w-10 h-10 bg-mtabi-yellow rounded-lg flex items-center justify-center shadow shrink-0 select-none">
-            <div className="flex items-end gap-0.5 h-4.5">
-              <div className="w-1 bg-black h-2.5"></div>
-              <div className="w-1 bg-black h-4"></div>
-              <div className="w-1 bg-white h-2.5"></div>
-              <div className="w-1 bg-white h-4 relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-black origin-top-left -rotate-12"></div>
-              </div>
-            </div>
-          </div>
+          <img 
+            src="/mtabi-icone-apenas.svg" 
+            alt="Logo MTABI" 
+            className="w-10 h-10 object-contain shrink-0 select-none" 
+          />
           {!sidebarCollapsed && (
             <div className="min-w-0">
-              <h2 className="text-sm font-extrabold tracking-wider font-display text-white select-none">
+              <h2 className="text-lg font-extrabold tracking-wider font-display text-white select-none">
                 MT<span className="text-mtabi-yellow">ABI</span>
               </h2>
               <span className="text-[8px] text-mtabi-muted uppercase tracking-widest block mt-0.5 font-bold">
