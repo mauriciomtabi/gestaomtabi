@@ -231,7 +231,7 @@ const App: React.FC = () => {
           sidebarCollapsed ? 'justify-center p-4 py-6' : 'p-6'
         }`}>
           <img 
-            src="/mtabi-icone-apenas.svg" 
+            src="/mtabi-icone-amarelo-branco.svg" 
             alt="Logo MTABI" 
             className={`object-contain shrink-0 select-none transition-all ${
               sidebarCollapsed ? 'w-10 h-10' : 'w-14 h-14'
