@@ -95,35 +95,48 @@ const Login: React.FC<Props> = () => {
   };
 
   return (
-    <div className="min-h-screen bg-mtabi-bg text-mtabi-text flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-mtabi-card border border-mtabi-border rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+    <div className="min-h-screen bg-mtabi-bg text-mtabi-text flex items-center justify-center p-4 relative overflow-hidden tech-grid">
+      
+      {/* Background Animated Neon Orbs */}
+      <div className="absolute top-1/4 -left-32 w-[500px] h-[500px] bg-mtabi-yellow/10 rounded-full blur-[100px] animate-float-1 pointer-events-none"></div>
+      <div className="absolute bottom-1/4 -right-32 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[100px] animate-float-2 pointer-events-none"></div>
+      
+      {/* Card Wrapper (Glassmorphism) */}
+      <div className="w-full max-w-md backdrop-blur-md bg-[#1C1F26]/75 border border-[#2A2F3D]/80 rounded-3xl p-8 sm:p-10 shadow-[0_0_50px_rgba(0,0,0,0.6)] hover:shadow-[0_0_40px_rgba(232,163,61,0.06)] hover:border-mtabi-yellow/20 transition-all duration-500 relative z-10 overflow-hidden">
         
-        {/* Detalhes Visuais Premium em Hover/Fundo */}
-        <div className="absolute -top-12 -right-12 w-32 h-32 bg-mtabi-yellow/5 rounded-full blur-2xl pointer-events-none"></div>
-        <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-mtabi-yellow/5 rounded-full blur-2xl pointer-events-none"></div>
-
-        {/* LOGO MTABI */}
+        {/* Subtle interior glow */}
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-mtabi-yellow/5 rounded-full blur-3xl pointer-events-none"></div>
+        
+        {/* LOGO MTABI FUTURISTIC SECTION */}
         <div className="flex flex-col items-center mb-8 select-none">
-          <img 
-            src="/mtabi-logo-transparente.svg" 
-            alt="Logo MTABI" 
-            className="h-32 object-contain"
-          />
-          <p className="text-[10px] text-mtabi-muted uppercase tracking-widest mt-4">
+          <div className="relative flex items-center justify-center w-36 h-36 mb-2">
+            {/* Cyber rings */}
+            <div className="absolute inset-0 border border-dashed border-mtabi-yellow/20 rounded-full animate-spin-slow"></div>
+            <div className="absolute inset-2 border border-dotted border-white/5 rounded-full animate-spin-slow [animation-direction:reverse]"></div>
+            <div className="absolute w-20 h-20 bg-mtabi-yellow/10 rounded-full blur-xl animate-glow-pulse"></div>
+            
+            <img 
+              src="/mtabi-logo-transparente.svg" 
+              alt="Logo MTABI" 
+              className="h-24 object-contain relative z-10 hover:scale-105 transition-transform duration-300"
+            />
+          </div>
+          <p className="text-[10px] text-mtabi-yellow font-bold uppercase tracking-[0.25em] font-display">
             Gestão Interna de Negócios
           </p>
+          <div className="w-12 h-[1px] bg-gradient-to-r from-transparent via-mtabi-yellow/50 to-transparent mt-3"></div>
         </div>
 
         {/* MENSAGENS DE NOTIFICAÇÃO */}
         {errorMsg && (
-          <div className="mb-6 p-4 bg-mtabi-error/10 border border-mtabi-error/30 rounded-xl flex items-start gap-3 text-mtabi-error text-sm">
+          <div className="mb-6 p-4 bg-mtabi-error/10 border border-mtabi-error/30 rounded-xl flex items-start gap-3 text-mtabi-error text-sm animate-in fade-in slide-in-from-top-2 duration-300">
             <AlertCircle className="shrink-0 mt-0.5" size={16} />
             <p>{errorMsg}</p>
           </div>
         )}
 
         {successMsg && (
-          <div className="mb-6 p-4 bg-mtabi-success/10 border border-mtabi-success/30 rounded-xl flex items-start gap-3 text-mtabi-success text-sm">
+          <div className="mb-6 p-4 bg-mtabi-success/10 border border-mtabi-success/30 rounded-xl flex items-start gap-3 text-mtabi-success text-sm animate-in fade-in slide-in-from-top-2 duration-300">
             <CheckCircle2 className="shrink-0 mt-0.5" size={16} />
             <p>{successMsg}</p>
           </div>
@@ -133,7 +146,7 @@ const Login: React.FC<Props> = () => {
         {view === 'login' && (
           <form onSubmit={handleLoginSubmit} className="space-y-5">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-mtabi-muted mb-2">
+              <label className="block text-xs font-bold uppercase tracking-widest text-mtabi-muted mb-2 font-display">
                 E-mail
               </label>
               <div className="relative">
@@ -144,20 +157,20 @@ const Login: React.FC<Props> = () => {
                   placeholder="seuemail@mtabi.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors font-sans"
+                  className="w-full pl-11 pr-4 py-3 bg-[#13151A]/85 border border-[#2A2F3D]/80 rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow focus:ring-1 focus:ring-mtabi-yellow/30 focus:shadow-[0_0_15px_rgba(232,163,61,0.12)] transition-all font-sans text-white placeholder-mtabi-muted/50"
                 />
               </div>
             </div>
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="block text-xs font-semibold uppercase tracking-wider text-mtabi-muted">
+                <label className="block text-xs font-bold uppercase tracking-widest text-mtabi-muted font-display">
                   Senha
                 </label>
                 <button
                   type="button"
                   onClick={() => setView('recovery')}
-                  className="text-xs text-mtabi-yellow hover:underline"
+                  className="text-xs text-mtabi-yellow/80 hover:text-mtabi-yellow transition-colors hover:underline"
                 >
                   Esqueceu a senha?
                 </button>
@@ -170,12 +183,12 @@ const Login: React.FC<Props> = () => {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-11 pr-11 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors font-sans"
+                  className="w-full pl-11 pr-11 py-3 bg-[#13151A]/85 border border-[#2A2F3D]/80 rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow focus:ring-1 focus:ring-mtabi-yellow/30 focus:shadow-[0_0_15px_rgba(232,163,61,0.12)] transition-all font-sans text-white placeholder-mtabi-muted/50"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-3 text-mtabi-muted hover:text-white"
+                  className="absolute right-3.5 top-3 text-mtabi-muted hover:text-white transition-colors"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -185,7 +198,7 @@ const Login: React.FC<Props> = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black font-bold font-display rounded-xl tracking-wide transition-all shadow-lg hover:shadow-mtabi-yellow/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 bg-gradient-to-r from-mtabi-yellow to-[#D38B29] hover:shadow-[0_0_20px_rgba(232,163,61,0.35)] text-black font-black font-display rounded-xl tracking-wider transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <Loader2 className="animate-spin" size={18} />
@@ -200,7 +213,7 @@ const Login: React.FC<Props> = () => {
                 <button
                   type="button"
                   onClick={() => setView('signup')}
-                  className="text-mtabi-yellow hover:underline font-medium"
+                  className="text-mtabi-yellow hover:text-mtabi-yellow/80 hover:underline font-bold transition-colors"
                 >
                   Criar conta
                 </button>
@@ -213,7 +226,7 @@ const Login: React.FC<Props> = () => {
         {view === 'signup' && (
           <form onSubmit={handleSignupSubmit} className="space-y-5">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-mtabi-muted mb-2">
+              <label className="block text-xs font-bold uppercase tracking-widest text-mtabi-muted mb-2 font-display">
                 E-mail
               </label>
               <div className="relative">
@@ -224,13 +237,13 @@ const Login: React.FC<Props> = () => {
                   placeholder="exemplo@mtabi.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors font-sans"
+                  className="w-full pl-11 pr-4 py-3 bg-[#13151A]/85 border border-[#2A2F3D]/80 rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow focus:ring-1 focus:ring-mtabi-yellow/30 focus:shadow-[0_0_15px_rgba(232,163,61,0.12)] transition-all font-sans text-white placeholder-mtabi-muted/50"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-mtabi-muted mb-2">
+              <label className="block text-xs font-bold uppercase tracking-widest text-mtabi-muted mb-2 font-display">
                 Senha (mínimo 6 caracteres)
               </label>
               <div className="relative">
@@ -242,12 +255,12 @@ const Login: React.FC<Props> = () => {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-11 pr-11 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors font-sans"
+                  className="w-full pl-11 pr-11 py-3 bg-[#13151A]/85 border border-[#2A2F3D]/80 rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow focus:ring-1 focus:ring-mtabi-yellow/30 focus:shadow-[0_0_15px_rgba(232,163,61,0.12)] transition-all font-sans text-white placeholder-mtabi-muted/50"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-3 text-mtabi-muted hover:text-white"
+                  className="absolute right-3.5 top-3 text-mtabi-muted hover:text-white transition-colors"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -257,7 +270,7 @@ const Login: React.FC<Props> = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black font-bold font-display rounded-xl tracking-wide transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full py-3 bg-gradient-to-r from-mtabi-yellow to-[#D38B29] hover:shadow-[0_0_20px_rgba(232,163,61,0.35)] text-black font-black font-display rounded-xl tracking-wider transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <Loader2 className="animate-spin" size={18} />
@@ -270,7 +283,7 @@ const Login: React.FC<Props> = () => {
               <button
                 type="button"
                 onClick={() => setView('login')}
-                className="text-xs text-mtabi-yellow hover:underline"
+                className="text-xs text-mtabi-yellow hover:underline font-bold transition-colors"
               >
                 Voltar para o Login
               </button>
@@ -281,11 +294,11 @@ const Login: React.FC<Props> = () => {
         {/* FORMULÁRIO DE RECUPERAÇÃO */}
         {view === 'recovery' && (
           <form onSubmit={handleRecoverySubmit} className="space-y-5">
-            <p className="text-xs text-mtabi-muted leading-relaxed">
+            <p className="text-xs text-mtabi-muted leading-relaxed font-sans">
               Insira seu e-mail cadastrado. Enviaremos um link seguro para redefinir sua senha.
             </p>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-mtabi-muted mb-2">
+              <label className="block text-xs font-bold uppercase tracking-widest text-mtabi-muted mb-2 font-display">
                 E-mail
               </label>
               <div className="relative">
@@ -296,7 +309,7 @@ const Login: React.FC<Props> = () => {
                   placeholder="seuemail@mtabi.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors font-sans"
+                  className="w-full pl-11 pr-4 py-3 bg-[#13151A]/85 border border-[#2A2F3D]/80 rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow focus:ring-1 focus:ring-mtabi-yellow/30 focus:shadow-[0_0_15px_rgba(232,163,61,0.12)] transition-all font-sans text-white placeholder-mtabi-muted/50"
                 />
               </div>
             </div>
@@ -304,12 +317,12 @@ const Login: React.FC<Props> = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black font-bold font-display rounded-xl tracking-wide transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full py-3 bg-gradient-to-r from-mtabi-yellow to-[#D38B29] hover:shadow-[0_0_20px_rgba(232,163,61,0.35)] text-black font-black font-display rounded-xl tracking-wider transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <Loader2 className="animate-spin" size={18} />
               ) : (
-                'ENVIAR E-MAIL DE RECUPERAÇÃO'
+                'ENVIAR LINK DE RECUPERAÇÃO'
               )}
             </button>
 
@@ -317,7 +330,7 @@ const Login: React.FC<Props> = () => {
               <button
                 type="button"
                 onClick={() => setView('login')}
-                className="text-xs text-mtabi-yellow hover:underline font-medium"
+                className="text-xs text-mtabi-yellow hover:underline font-bold transition-colors"
               >
                 Voltar para o Login
               </button>
