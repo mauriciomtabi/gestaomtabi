@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import ReactCrop, { type Crop, type PixelCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import { Building2, Plus, Search, Filter, Phone, User, Landmark, HelpCircle, Edit2, Trash2, Calendar, FileText, ChevronRight, X, AlertTriangle, ArrowUpRight, Upload } from 'lucide-react';
 import { getClientes, createCliente, updateCliente, deleteCliente, getProjetos, createProjeto, getFinanceiroMovimentos, uploadClientLogo } from '../services/supabaseService';
 import { Cliente, Projeto, FinanceiroMovimento } from '../types';
@@ -23,6 +25,15 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   // Modais CRUD Cliente
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Crop & Zoom Logo
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [tempLogoSrc, setTempLogoSrc] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [crop, setCrop] = useState<Crop>({ unit: '%', width: 80, height: 80, x: 10, y: 10 });
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
   const [clientForm, setClientForm] = useState({
     nome_empresa: '',
     logo_url: '',
@@ -86,6 +97,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   }, []);
 
   const openNewClientModal = () => {
+    setErrorMsg(null);
     setEditingCliente(null);
     setClientForm({
       nome_empresa: '',
@@ -101,6 +113,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   };
 
   const openEditClientModal = (c: Cliente) => {
+    setErrorMsg(null);
     setEditingCliente(c);
     setClientForm({
       nome_empresa: c.nome_empresa,
@@ -117,15 +130,17 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
 
   const handleClientSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg(null);
     try {
       let finalForm = { ...clientForm };
       
       if (editingCliente) {
         if (clientForm.logo_url && clientForm.logo_url.startsWith('data:')) {
           const uploadedUrl = await uploadClientLogo(editingCliente.id, clientForm.logo_url);
-          if (uploadedUrl) {
-            finalForm.logo_url = uploadedUrl;
+          if (!uploadedUrl) {
+            throw new Error('Falha ao fazer upload do logotipo. O bucket "documents" existe no seu Supabase e está configurado como público?');
           }
+          finalForm.logo_url = uploadedUrl;
         }
         await updateCliente(editingCliente.id, finalForm);
       } else {
@@ -135,10 +150,11 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         
         if (logoBase64 && logoBase64.startsWith('data:')) {
           const uploadedUrl = await uploadClientLogo(created.id, logoBase64);
-          if (uploadedUrl) {
-            await updateCliente(created.id, { logo_url: uploadedUrl });
-            created.logo_url = uploadedUrl;
+          if (!uploadedUrl) {
+            throw new Error('Cliente cadastrado, mas falhou ao fazer upload do logotipo. Verifique se o bucket "documents" existe no seu Supabase e está configurado como público.');
           }
+          await updateCliente(created.id, { logo_url: uploadedUrl });
+          created.logo_url = uploadedUrl;
         }
         setSelectedCliente(created);
       }
@@ -146,6 +162,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       await loadData();
     } catch (err) {
       console.error('Erro ao salvar cliente:', err);
+      setErrorMsg(err instanceof Error ? err.message : 'Erro interno ao salvar cliente.');
     }
   };
 
@@ -154,9 +171,100 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setClientForm(prev => ({ ...prev, logo_url: reader.result as string }));
+        setTempLogoSrc(reader.result as string);
+        setZoom(1);
+        setIsCropModalOpen(true);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const onImageLoad = (img: HTMLImageElement) => {
+    imageRef.current = img;
+    const minDimension = Math.min(img.width, img.height);
+    const widthPercent = (minDimension / img.width) * 80;
+    const heightPercent = (minDimension / img.height) * 80;
+    
+    const initialCrop: Crop = {
+      unit: '%',
+      width: widthPercent,
+      height: heightPercent,
+      x: (100 - widthPercent) / 2,
+      y: (100 - heightPercent) / 2
+    };
+    setCrop(initialCrop);
+    
+    setCompletedCrop({
+      unit: 'px',
+      width: (widthPercent / 100) * img.width,
+      height: (heightPercent / 100) * img.height,
+      x: ((100 - widthPercent) / 2 / 100) * img.width,
+      y: ((100 - heightPercent) / 2 / 100) * img.height
+    });
+  };
+
+  const handleZoomChange = (newZoom: number) => {
+    setZoom(newZoom);
+    if (!imageRef.current) return;
+    const img = imageRef.current;
+    
+    const minDimension = Math.min(img.width, img.height);
+    const cropSize = minDimension / newZoom;
+    const cropSizePercentW = (cropSize / img.width) * 100;
+    const cropSizePercentH = (cropSize / img.height) * 100;
+    
+    const newCrop: Crop = {
+      unit: '%',
+      width: cropSizePercentW,
+      height: cropSizePercentH,
+      x: (100 - cropSizePercentW) / 2,
+      y: (100 - cropSizePercentH) / 2
+    };
+    setCrop(newCrop);
+    setCompletedCrop({
+      unit: 'px',
+      width: (cropSizePercentW / 100) * img.width,
+      height: (cropSizePercentH / 100) * img.height,
+      x: ((100 - cropSizePercentW) / 2 / 100) * img.width,
+      y: ((100 - cropSizePercentH) / 2 / 100) * img.height
+    });
+  };
+
+  const getCroppedImg = (image: HTMLImageElement, pixelCrop: PixelCrop): string => {
+    const canvas = document.createElement('canvas');
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    
+    const width = pixelCrop.width || image.width;
+    const height = pixelCrop.height || image.height;
+    
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    
+    if (ctx) {
+      ctx.drawImage(
+        image,
+        (pixelCrop.x || 0) * scaleX,
+        (pixelCrop.y || 0) * scaleY,
+        width * scaleX,
+        height * scaleY,
+        0,
+        0,
+        width,
+        height
+      );
+    }
+    
+    return canvas.toDataURL('image/png');
+  };
+
+  const handleConfirmCrop = () => {
+    if (imageRef.current && completedCrop) {
+      const croppedBase64 = getCroppedImg(imageRef.current, completedCrop);
+      setClientForm(prev => ({ ...prev, logo_url: croppedBase64 }));
+      setIsCropModalOpen(false);
+      setTempLogoSrc(null);
     }
   };
 
@@ -606,6 +714,13 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
             
             <form onSubmit={handleClientSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
               
+              {errorMsg && (
+                <div className="p-3 bg-red-950/80 border border-red-800 text-red-200 rounded-xl text-xs flex items-center gap-2 font-semibold font-sans">
+                  <AlertTriangle size={16} className="text-red-400 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+              
               {/* LOGOTIPO */}
               <div className="mb-4 bg-mtabi-bg/30 p-3 rounded-xl border border-mtabi-border/60">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2.5">
@@ -763,6 +878,85 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Cortar / Ajustar Enquadramento */}
+      {isCropModalOpen && tempLogoSrc && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-mtabi-card border border-mtabi-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden font-sans">
+            <div className="flex justify-between items-center p-5 border-b border-mtabi-border">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white">
+                Ajustar Enquadramento do Logo
+              </h3>
+              <button 
+                onClick={() => {
+                  setIsCropModalOpen(false);
+                  setTempLogoSrc(null);
+                }} 
+                className="text-mtabi-muted hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="p-5 space-y-4">
+              <div className="flex justify-center bg-[#13151A] p-4 rounded-xl border border-mtabi-border overflow-hidden max-h-[50vh]">
+                <ReactCrop 
+                  crop={crop} 
+                  onChange={(c) => setCrop(c)}
+                  onComplete={(c) => setCompletedCrop(c)}
+                  aspect={1}
+                  keepSelection
+                >
+                  <img 
+                    ref={imageRef}
+                    src={tempLogoSrc} 
+                    alt="Logo Crop Preview" 
+                    onLoad={(e) => onImageLoad(e.currentTarget)}
+                    className="max-h-[40vh] object-contain"
+                  />
+                </ReactCrop>
+              </div>
+
+              {/* Slider de Zoom */}
+              <div className="space-y-2 bg-mtabi-bg/40 p-3.5 rounded-xl border border-mtabi-border/60">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
+                  <span>Zoom / Enquadramento</span>
+                  <span className="text-mtabi-yellow">{zoom.toFixed(1)}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.1"
+                  value={zoom}
+                  onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
+                  className="w-full h-1.5 bg-mtabi-border rounded-lg appearance-none cursor-pointer accent-mtabi-yellow focus:outline-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCropModalOpen(false);
+                    setTempLogoSrc(null);
+                  }}
+                  className="w-1/2 py-2.5 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border text-white text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmCrop}
+                  className="w-1/2 py-2.5 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
