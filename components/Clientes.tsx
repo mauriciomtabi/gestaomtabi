@@ -21,6 +21,10 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   const [statusFilter, setStatusFilter] = useState<string>('todos');
 
   // Modais CRUD Cliente
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   // Crop & Zoom Logo (WhatsApp Style)
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [tempLogoSrc, setTempLogoSrc] = useState<string | null>(null);
