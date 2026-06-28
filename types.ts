@@ -55,6 +55,7 @@ export interface Projeto {
   repositorio_url?: string;
   hospedagem_imagens?: string;
   hospedagem_geral?: string;
+  link_supabase?: string;
   data_inicio?: string; // YYYY-MM-DD
   data_entrega_prevista?: string; // YYYY-MM-DD
   valor_projeto?: number;

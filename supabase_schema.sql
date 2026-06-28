@@ -47,6 +47,7 @@ create table if not exists public.projetos (
   repositorio_url text,
   hospedagem_imagens text,
   hospedagem_geral text,
+  link_supabase text,
   data_inicio date,
   data_entrega_prevista date,
   valor_projeto numeric(12,2),

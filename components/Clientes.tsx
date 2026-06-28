@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import ReactCrop, { type Crop, type PixelCrop } from 'react-image-crop';
-import 'react-image-crop/dist/ReactCrop.css';
 import { Building2, Plus, Search, Filter, Phone, User, Landmark, HelpCircle, Edit2, Trash2, Calendar, FileText, ChevronRight, X, AlertTriangle, ArrowUpRight, Upload } from 'lucide-react';
 import { getClientes, createCliente, updateCliente, deleteCliente, getProjetos, createProjeto, getFinanceiroMovimentos, uploadClientLogo } from '../services/supabaseService';
 import { Cliente, Projeto, FinanceiroMovimento } from '../types';
@@ -23,17 +21,13 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   const [statusFilter, setStatusFilter] = useState<string>('todos');
 
   // Modais CRUD Cliente
-  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
-  const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  // Crop & Zoom Logo
+  // Crop & Zoom Logo (WhatsApp Style)
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [tempLogoSrc, setTempLogoSrc] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
-  const [crop, setCrop] = useState<Crop>({ unit: '%', width: 80, height: 80, x: 10, y: 10 });
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
-  const imageRef = useRef<HTMLImageElement | null>(null);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [clientForm, setClientForm] = useState({
     nome_empresa: '',
     logo_url: '',
@@ -58,12 +52,16 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     repositorio_url: '',
     hospedagem_imagens: '',
     hospedagem_geral: '',
+    link_supabase: '',
     data_inicio: new Date().toISOString().split('T')[0],
     data_entrega_prevista: '',
     valor_projeto: 0,
     valor_mensal: 0,
     observacoes: ''
   });
+
+  const [selectedProjectTools, setSelectedProjectTools] = useState<string[]>([]);
+  const [newProjectToolInput, setNewProjectToolInput] = useState('');
 
   // Modal de Confirmação de Exclusão
   const [clientToDelete, setClientToDelete] = useState<Cliente | null>(null);
@@ -173,105 +171,135 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       reader.onloadend = () => {
         setTempLogoSrc(reader.result as string);
         setZoom(1);
+        setPosition({ x: 0, y: 0 });
         setIsCropModalOpen(true);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const onImageLoad = (img: HTMLImageElement) => {
-    imageRef.current = img;
-    const minDimension = Math.min(img.width, img.height);
-    const widthPercent = (minDimension / img.width) * 80;
-    const heightPercent = (minDimension / img.height) * 80;
-    
-    const initialCrop: Crop = {
-      unit: '%',
-      width: widthPercent,
-      height: heightPercent,
-      x: (100 - widthPercent) / 2,
-      y: (100 - heightPercent) / 2
-    };
-    setCrop(initialCrop);
-    
-    setCompletedCrop({
-      unit: 'px',
-      width: (widthPercent / 100) * img.width,
-      height: (heightPercent / 100) * img.height,
-      x: ((100 - widthPercent) / 2 / 100) * img.width,
-      y: ((100 - heightPercent) / 2 / 100) * img.height
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return;
+    setPosition({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
     });
   };
 
-  const handleZoomChange = (newZoom: number) => {
-    setZoom(newZoom);
-    if (!imageRef.current) return;
-    const img = imageRef.current;
-    
-    const minDimension = Math.min(img.width, img.height);
-    const cropSize = minDimension / newZoom;
-    const cropSizePercentW = (cropSize / img.width) * 100;
-    const cropSizePercentH = (cropSize / img.height) * 100;
-    
-    const newCrop: Crop = {
-      unit: '%',
-      width: cropSizePercentW,
-      height: cropSizePercentH,
-      x: (100 - cropSizePercentW) / 2,
-      y: (100 - cropSizePercentH) / 2
-    };
-    setCrop(newCrop);
-    setCompletedCrop({
-      unit: 'px',
-      width: (cropSizePercentW / 100) * img.width,
-      height: (cropSizePercentH / 100) * img.height,
-      x: ((100 - cropSizePercentW) / 2 / 100) * img.width,
-      y: ((100 - cropSizePercentH) / 2 / 100) * img.height
-    });
+  const handleMouseUpOrLeave = () => {
+    setIsDragging(false);
   };
 
-  const getCroppedImg = (image: HTMLImageElement, pixelCrop: PixelCrop): string => {
-    if (!pixelCrop.width || !pixelCrop.height) {
-      return image.src;
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      setDragStart({ 
+        x: e.touches[0].clientX - position.x, 
+        y: e.touches[0].clientY - position.y 
+      });
     }
-    
-    const canvas = document.createElement('canvas');
-    const displayWidth = image.width || 1;
-    const displayHeight = image.height || 1;
-    
-    const scaleX = image.naturalWidth / displayWidth;
-    const scaleY = image.naturalHeight / displayHeight;
-    
-    const cropWidth = pixelCrop.width * scaleX;
-    const cropHeight = pixelCrop.height * scaleY;
-    
-    canvas.width = cropWidth;
-    canvas.height = cropHeight;
-    const ctx = canvas.getContext('2d');
-    
-    if (ctx) {
-      ctx.drawImage(
-        image,
-        (pixelCrop.x || 0) * scaleX,
-        (pixelCrop.y || 0) * scaleY,
-        cropWidth,
-        cropHeight,
-        0,
-        0,
-        cropWidth,
-        cropHeight
-      );
-    }
-    
-    return canvas.toDataURL('image/png');
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    setPosition({
+      x: e.touches[0].clientX - dragStart.x,
+      y: e.touches[0].clientY - dragStart.y
+    });
   };
 
   const handleConfirmCrop = () => {
-    if (imageRef.current && completedCrop) {
-      const croppedBase64 = getCroppedImg(imageRef.current, completedCrop);
+    if (!tempLogoSrc) return;
+    
+    const img = new Image();
+    img.src = tempLogoSrc;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 300;
+      canvas.height = 300;
+      const ctx = canvas.getContext('2d');
+      
+      if (ctx) {
+        ctx.clearRect(0, 0, 300, 300);
+        
+        ctx.save();
+        ctx.translate(150, 150);
+        
+        const renderScale = 300 / 256;
+        ctx.translate(position.x * renderScale, position.y * renderScale);
+        ctx.scale(zoom, zoom);
+        
+        const imgRatio = img.width / img.height;
+        let drawWidth = 300;
+        let drawHeight = 300;
+        
+        if (imgRatio > 1) {
+          drawHeight = 300 / imgRatio;
+        } else {
+          drawWidth = 300 * imgRatio;
+        }
+        
+        ctx.drawImage(
+          img,
+          -drawWidth / 2,
+          -drawHeight / 2,
+          drawWidth,
+          drawHeight
+        );
+        
+        ctx.restore();
+      }
+      
+      const croppedBase64 = canvas.toDataURL('image/png');
       setClientForm(prev => ({ ...prev, logo_url: croppedBase64 }));
       setIsCropModalOpen(false);
       setTempLogoSrc(null);
+    };
+  };
+
+  const openQuickProjectModal = () => {
+    setSelectedProjectTools([]);
+    setNewProjectToolInput('');
+    setProjectForm({
+      nome_solucao: '',
+      descricao: '',
+      status: 'Em desenvolvimento',
+      link_acesso: '',
+      ferramenta_dev_input: '',
+      ferramenta_dev: [],
+      banco_dados: '',
+      repositorio_url: '',
+      hospedagem_imagens: '',
+      hospedagem_geral: '',
+      link_supabase: '',
+      data_inicio: new Date().toISOString().split('T')[0],
+      data_entrega_prevista: '',
+      valor_projeto: 0,
+      valor_mensal: 0,
+      observacoes: ''
+    });
+    setIsQuickProjectModalOpen(true);
+  };
+
+  const toggleProjectTool = (tool: string) => {
+    setSelectedProjectTools(prev =>
+      prev.includes(tool) ? prev.filter(t => t !== tool) : [...prev, tool]
+    );
+  };
+
+  const handleAddCustomProjectTool = () => {
+    const trimmed = newProjectToolInput.trim();
+    if (trimmed) {
+      if (!selectedProjectTools.includes(trimmed)) {
+        setSelectedProjectTools(prev => [...prev, trimmed]);
+      }
+      setNewProjectToolInput('');
     }
   };
 
@@ -293,19 +321,14 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     e.preventDefault();
     if (!selectedCliente) return;
     try {
-      const devTools = projectForm.ferramenta_dev_input
-        ? projectForm.ferramenta_dev_input.split(',').map(s => s.trim()).filter(Boolean)
-        : [];
-        
       await createProjeto({
         ...projectForm,
         cliente_id: selectedCliente.id,
-        ferramenta_dev: devTools,
+        ferramenta_dev: selectedProjectTools,
         valor_projeto: Number(projectForm.valor_projeto),
         valor_mensal: Number(projectForm.valor_mensal)
       });
       setIsQuickProjectModalOpen(false);
-      // Reset form
       setProjectForm({
         nome_solucao: '',
         descricao: '',
@@ -317,19 +340,21 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         repositorio_url: '',
         hospedagem_imagens: '',
         hospedagem_geral: '',
+        link_supabase: '',
         data_inicio: new Date().toISOString().split('T')[0],
         data_entrega_prevista: '',
         valor_projeto: 0,
         valor_mensal: 0,
         observacoes: ''
       });
+      setSelectedProjectTools([]);
+      setNewProjectToolInput('');
       await loadData();
     } catch (err) {
-      console.error('Erro ao cadastrar projeto:', err);
+      console.error('Erro ao criar projeto rápido:', err);
     }
   };
 
-  // Filtragem dos Clientes
   const filteredClientes = clientes.filter(c => {
     const matchesSearch = c.nome_empresa.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c.segmento && c.segmento.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -340,12 +365,10 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     return matchesSearch && matchesStatus;
   });
 
-  // Projetos vinculados ao cliente selecionado
   const clienteProjetos = selectedCliente
     ? projetos.filter(p => p.cliente_id === selectedCliente.id)
     : [];
 
-  // Faturamento e Receitas do cliente selecionado
   const clienteMovimentos = selectedCliente
     ? movimentos.filter(m => m.cliente_id === selectedCliente.id)
     : [];
@@ -360,7 +383,6 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
 
   return (
     <div className="space-y-6">
-      {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold font-display text-white tracking-tight flex items-center gap-2">
@@ -377,13 +399,9 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         </button>
       </div>
 
-      {/* Grid Principal: Lista à esquerda e Detalhes à direita */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Lado Esquerdo: Filtros e Lista */}
         <div className="lg:col-span-1 space-y-4">
           <div className="bg-mtabi-card border border-mtabi-border p-4 rounded-2xl space-y-3">
-            {/* Campo de Busca */}
             <div className="relative">
               <Search className="absolute left-3 top-2.5 text-mtabi-muted" size={16} />
               <input
@@ -394,8 +412,6 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 className="w-full pl-9 pr-4 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs focus:outline-none focus:border-mtabi-yellow transition-colors font-sans text-white placeholder-mtabi-muted"
               />
             </div>
-
-            {/* Filtro de Status */}
             <div>
               <label className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted block mb-1.5">
                 Filtrar Status
@@ -418,7 +434,6 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
             </div>
           </div>
 
-          {/* Lista de Clientes */}
           <div className="space-y-2 max-h-[60vh] lg:max-h-[70vh] overflow-y-auto pr-1">
             {loading ? (
               <div className="text-center py-8 text-mtabi-muted text-xs animate-pulse uppercase tracking-wider">
@@ -486,12 +501,9 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
           </div>
         </div>
 
-        {/* Lado Direito: Detalhes do Cliente Selecionado */}
         <div className="lg:col-span-2">
           {selectedCliente ? (
             <div className="bg-mtabi-card border border-mtabi-border rounded-2xl p-6 space-y-6 font-sans">
-              
-              {/* Cabeçalho do Detalhe */}
               <div className="flex justify-between items-start border-b border-mtabi-border pb-5 gap-4">
                 <div className="flex items-center gap-4 min-w-0">
                   {selectedCliente.logo_url ? (
@@ -531,21 +543,18 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                   <button
                     onClick={() => openEditClientModal(selectedCliente)}
                     className="p-2 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border text-white hover:text-mtabi-yellow rounded-xl transition-all cursor-pointer"
-                    title="Editar Cliente"
                   >
                     <Edit2 size={14} />
                   </button>
                   <button
                     onClick={() => setClientToDelete(selectedCliente)}
                     className="p-2 bg-mtabi-bg hover:bg-mtabi-error/10 border border-mtabi-border text-white hover:text-mtabi-error rounded-xl transition-all cursor-pointer"
-                    title="Excluir Cliente"
                   >
                     <Trash2 size={14} />
                   </button>
                 </div>
               </div>
 
-              {/* Informações de Contato / Observações */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-mtabi-bg border border-mtabi-border p-4 rounded-xl space-y-2">
                   <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Contatos principais</h4>
@@ -582,7 +591,6 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 </div>
               </div>
 
-              {/* Observações */}
               {selectedCliente.observacoes && (
                 <div className="bg-mtabi-bg/40 border border-mtabi-border p-4 rounded-xl">
                   <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1">Observações / Anotações</h4>
@@ -590,13 +598,12 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 </div>
               )}
 
-              {/* Lista de Projetos Vinculados */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center border-b border-mtabi-border pb-2">
                   <h3 className="text-xs font-bold uppercase tracking-widest text-white">Projetos & Soluções ({clienteProjetos.length})</h3>
                   <button
-                    onClick={() => setIsQuickProjectModalOpen(true)}
-                    className="flex items-center gap-1 text-[10px] font-bold text-mtabi-yellow uppercase tracking-wider hover:underline"
+                    onClick={openQuickProjectModal}
+                    className="flex items-center gap-1 text-[10px] font-bold text-mtabi-yellow uppercase tracking-wider hover:underline cursor-pointer"
                   >
                     <Plus size={12} /> Novo Projeto
                   </button>
@@ -622,11 +629,6 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                               {proj.status}
                             </span>
                           </div>
-                          {proj.descricao && (
-                            <p className="text-[10px] text-mtabi-muted mt-1 line-clamp-2 leading-relaxed">
-                              {proj.descricao}
-                            </p>
-                          )}
                         </div>
                         
                         <div className="flex justify-between items-center mt-3 pt-2 border-t border-mtabi-border/50 text-[9px] text-mtabi-muted font-mono">
@@ -642,12 +644,11 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                   </div>
                 ) : (
                   <div className="text-center py-6 bg-mtabi-bg/20 border border-dashed border-mtabi-border rounded-xl text-mtabi-muted text-xs">
-                    Nenhum projeto cadastrado para este cliente.
+                    Nenhum projeto cadastrado.
                   </div>
                 )}
               </div>
 
-              {/* Movimentações Financeiras */}
               <div className="space-y-3">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-white border-b border-mtabi-border pb-2">
                   Histórico de Faturamento
@@ -677,7 +678,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                               <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
                                 mov.status === 'Confirmado' ? 'bg-emerald-950 text-mtabi-success' :
                                 mov.status === 'Previsto' ? 'bg-zinc-800 text-mtabi-muted' :
-                                mov.status === 'Atrasado' ? 'bg-red-950 text-mtabi-error animate-pulse' :
+                                mov.status === 'Atrasado' ? 'bg-red-950 text-mtabi-error' :
                                 'bg-zinc-900 text-zinc-600'
                               }`}>
                                 {mov.status}
@@ -690,23 +691,20 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                   </div>
                 ) : (
                   <div className="text-center py-6 bg-mtabi-bg/20 border border-dashed border-mtabi-border rounded-xl text-mtabi-muted text-xs">
-                    Nenhum movimento financeiro lançado para este cliente.
+                    Nenhum movimento financeiro lançado.
                   </div>
                 )}
               </div>
-
             </div>
           ) : (
             <div className="h-96 bg-mtabi-card border border-mtabi-border rounded-2xl flex flex-col items-center justify-center text-mtabi-muted text-sm space-y-3 font-sans">
               <Building2 size={48} className="text-mtabi-border" />
-              <p>Selecione um cliente para visualizar o perfil completo.</p>
+              <p>Selecione um cliente para visualizar o perfil.</p>
             </div>
           )}
         </div>
-
       </div>
 
-      {/* MODAL: Criar / Editar Cliente */}
       {isClientModalOpen && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
           <div className="bg-mtabi-card border border-mtabi-border rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden font-sans">
@@ -720,7 +718,6 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
             </div>
             
             <form onSubmit={handleClientSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
-              
               {errorMsg && (
                 <div className="p-3 bg-red-950/80 border border-red-800 text-red-200 rounded-xl text-xs flex items-center gap-2 font-semibold font-sans">
                   <AlertTriangle size={16} className="text-red-400 shrink-0" />
@@ -728,7 +725,6 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 </div>
               )}
               
-              {/* LOGOTIPO */}
               <div className="mb-4 bg-mtabi-bg/30 p-3 rounded-xl border border-mtabi-border/60">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2.5">
                   Logotipo do Cliente
@@ -761,18 +757,12 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                       />
                     </label>
                   )}
-                  <div className="text-left">
-                    <span className="text-xs text-white font-bold block">Carregar imagem</span>
-                    <span className="text-[9px] text-mtabi-muted block mt-0.5 leading-normal max-w-xs">
-                      Selecione um arquivo PNG, JPG ou SVG. Proporção quadrada recomendada.
-                    </span>
-                  </div>
                 </div>
               </div>
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
-                  Nome da Empresa / Marca *
+                  Nome da Empresa *
                 </label>
                 <input
                   type="text"
@@ -787,7 +777,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
-                    Contato Principal (Decisor)
+                    Contato Principal
                   </label>
                   <input
                     type="text"
@@ -799,7 +789,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
-                    Contato Interno (Facilitador)
+                    Contato Interno
                   </label>
                   <input
                     type="text"
@@ -814,11 +804,11 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
-                    Segmento / Setor
+                    Segmento
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: Tecnologia, Finanças, Saúde"
+                    placeholder="Ex: Tecnologia"
                     value={clientForm.segmento}
                     onChange={(e) => setClientForm({ ...clientForm, segmento: e.target.value })}
                     className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
@@ -856,19 +846,6 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
-                  Observações / Histórico comercial
-                </label>
-                <textarea
-                  rows={4}
-                  placeholder="Digite anotações ou detalhes sobre a relação..."
-                  value={clientForm.observacoes}
-                  onChange={(e) => setClientForm({ ...clientForm, observacoes: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans resize-none"
-                />
-              </div>
-
               <div className="flex gap-3 pt-3 border-t border-mtabi-border">
                 <button
                   type="button"
@@ -889,92 +866,64 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         </div>
       )}
 
-      {/* MODAL: Cortar / Ajustar Enquadramento */}
       {isCropModalOpen && tempLogoSrc && (
-        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-mtabi-card border border-mtabi-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden font-sans">
             <div className="flex justify-between items-center p-5 border-b border-mtabi-border">
               <h3 className="text-sm font-bold uppercase tracking-wider text-white">
-                Ajustar Enquadramento do Logo
+                Ajustar Enquadramento
               </h3>
               <button 
-                onClick={() => {
-                  setIsCropModalOpen(false);
-                  setTempLogoSrc(null);
-                }} 
+                onClick={() => { setIsCropModalOpen(false); setTempLogoSrc(null); }} 
                 className="text-mtabi-muted hover:text-white transition-colors cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
-            
             <div className="p-5 space-y-4">
-              <div className="flex justify-center bg-[#13151A] p-4 rounded-xl border border-mtabi-border overflow-hidden">
-                <ReactCrop 
-                  crop={crop} 
-                  onChange={(c) => setCrop(c)}
-                  onComplete={(c) => setCompletedCrop(c)}
-                  aspect={1}
-                  keepSelection
-                >
-                  <img 
-                    ref={imageRef}
-                    src={tempLogoSrc} 
-                    alt="Logo Crop Preview" 
-                    onLoad={(e) => onImageLoad(e.currentTarget)}
-                    style={{
-                      display: 'block',
-                      maxWidth: '100%',
-                      maxHeight: '300px',
-                      width: 'auto',
-                      height: 'auto'
-                    }}
-                  />
-                </ReactCrop>
-              </div>
-
-              {/* Slider de Zoom */}
-              <div className="space-y-2 bg-mtabi-bg/40 p-3.5 rounded-xl border border-mtabi-border/60">
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
-                  <span>Zoom / Enquadramento</span>
-                  <span className="text-mtabi-yellow">{zoom.toFixed(1)}x</span>
-                </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="3"
-                  step="0.1"
-                  value={zoom}
-                  onChange={(e) => handleZoomChange(parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-mtabi-border rounded-lg appearance-none cursor-pointer accent-mtabi-yellow focus:outline-none"
+              <div 
+                className="w-64 h-64 mx-auto rounded-2xl border-2 border-mtabi-yellow relative overflow-hidden bg-[#13151A] cursor-move select-none"
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUpOrLeave}
+                onMouseLeave={handleMouseUpOrLeave}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleMouseUpOrLeave}
+              >
+                <img
+                  src={tempLogoSrc}
+                  alt="Logo Preview"
+                  className="absolute pointer-events-none select-none"
+                  style={{
+                    transform: `translate(${position.x}px, ${position.y}px) scale(${zoom})`,
+                    transformOrigin: 'center center',
+                    left: '0',
+                    top: '0',
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain'
+                  }}
                 />
               </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsCropModalOpen(false);
-                    setTempLogoSrc(null);
-                  }}
-                  className="w-1/2 py-2.5 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border text-white text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmCrop}
-                  className="w-1/2 py-2.5 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors"
-                >
-                  Confirmar
-                </button>
+              <input
+                type="range"
+                min="1"
+                max="4"
+                step="0.1"
+                value={zoom}
+                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                className="w-full h-1.5 bg-mtabi-border rounded-lg appearance-none cursor-pointer accent-mtabi-yellow"
+              />
+              <div className="flex gap-3">
+                <button onClick={() => { setIsCropModalOpen(false); setTempLogoSrc(null); }} className="w-1/2 py-2.5 bg-mtabi-bg border border-mtabi-border text-white text-xs font-bold uppercase rounded-xl cursor-pointer">Cancelar</button>
+                <button onClick={handleConfirmCrop} className="w-1/2 py-2.5 bg-mtabi-yellow text-black text-xs font-bold uppercase rounded-xl cursor-pointer">Confirmar</button>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: Criar Projeto Direto (Rápido) */}
       {isQuickProjectModalOpen && selectedCliente && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
           <div className="bg-mtabi-card border border-mtabi-border rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden font-sans">
@@ -988,38 +937,19 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
             </div>
             
             <form onSubmit={handleQuickProjectSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
-              
               <div className="sm:col-span-2">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Nome da Solução / Produto *
-                </label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">Nome da Solução *</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Dashboard Operacional V2"
                   value={projectForm.nome_solucao}
                   onChange={(e) => setProjectForm({ ...projectForm, nome_solucao: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
                 />
               </div>
 
-              <div className="sm:col-span-2">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Descrição do Escopo / Objetivos
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Descreva brevemente o projeto..."
-                  value={projectForm.descricao}
-                  onChange={(e) => setProjectForm({ ...projectForm, descricao: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans resize-none"
-                />
-              </div>
-
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Status do Desenvolvimento
-                </label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">Status</label>
                 <select
                   value={projectForm.status}
                   onChange={(e) => setProjectForm({ ...projectForm, status: e.target.value as any })}
@@ -1030,32 +960,15 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                   <option value="Em produção">Em produção</option>
                   <option value="Manutenção">Manutenção</option>
                   <option value="Pausado">Pausado</option>
-                  <option value="Encerrado">Encerrado</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Link de Produção (Acesso Web)
-                </label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">Link de Acesso Web</label>
                 <input
                   type="url"
-                  placeholder="https://app.cliente.com"
                   value={projectForm.link_acesso}
                   onChange={(e) => setProjectForm({ ...projectForm, link_acesso: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Ferramentas Dev (Separe por vírgula)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Antigravity, AI Studio, Supabase, Lovable"
-                  value={projectForm.ferramenta_dev_input}
-                  onChange={(e) => setProjectForm({ ...projectForm, ferramenta_dev_input: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
                 />
               </div>
@@ -1082,6 +995,19 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                   placeholder="Ex: Vercel"
                   value={projectForm.hospedagem_geral}
                   onChange={(e) => setProjectForm({ ...projectForm, hospedagem_geral: e.target.value })}
+                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                  Hospedagem de Imagens (Storage)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Cloudinary, Supabase Storage"
+                  value={projectForm.hospedagem_imagens}
+                  onChange={(e) => setProjectForm({ ...projectForm, hospedagem_imagens: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
                 />
               </div>

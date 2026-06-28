@@ -37,12 +37,16 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
     repositorio_url: '',
     hospedagem_imagens: '',
     hospedagem_geral: '',
+    link_supabase: '',
     data_inicio: new Date().toISOString().split('T')[0],
     data_entrega_prevista: '',
     valor_projeto: 0,
     valor_mensal: 0,
     observacoes: ''
   });
+
+  const [selectedTools, setSelectedTools] = useState<string[]>([]);
+  const [newToolInput, setNewToolInput] = useState('');
 
   // Confirmação de Exclusão
   const [projectToDelete, setProjectToDelete] = useState<Projeto | null>(null);
@@ -91,12 +95,15 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
       repositorio_url: '',
       hospedagem_imagens: '',
       hospedagem_geral: '',
+      link_supabase: '',
       data_inicio: new Date().toISOString().split('T')[0],
       data_entrega_prevista: '',
       valor_projeto: 0,
       valor_mensal: 0,
       observacoes: ''
     });
+    setSelectedTools([]);
+    setNewToolInput('');
     setIsProjectModalOpen(true);
   };
 
@@ -108,35 +115,49 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
       descricao: p.descricao || '',
       status: p.status,
       link_acesso: p.link_acesso || '',
-      ferramenta_dev_input: p.ferramenta_dev ? p.ferramenta_dev.join(', ') : '',
+      ferramenta_dev_input: '',
       banco_dados: p.banco_dados || '',
       repositorio_url: p.repositorio_url || '',
       hospedagem_imagens: p.hospedagem_imagens || '',
       hospedagem_geral: p.hospedagem_geral || '',
+      link_supabase: p.link_supabase || '',
       data_inicio: p.data_inicio || '',
       data_entrega_prevista: p.data_entrega_prevista || '',
       valor_projeto: Number(p.valor_projeto || 0),
       valor_mensal: Number(p.valor_mensal || 0),
       observacoes: p.observacoes || ''
     });
+    setSelectedTools(p.ferramenta_dev || []);
+    setNewToolInput('');
     setIsProjectModalOpen(true);
+  };
+
+  const toggleTool = (tool: string) => {
+    setSelectedTools(prev => 
+      prev.includes(tool) ? prev.filter(t => t !== tool) : [...prev, tool]
+    );
+  };
+
+  const handleAddCustomTool = () => {
+    const trimmed = newToolInput.trim();
+    if (trimmed) {
+      if (!selectedTools.includes(trimmed)) {
+        setSelectedTools(prev => [...prev, trimmed]);
+      }
+      setNewToolInput('');
+    }
   };
 
   const handleProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const devTools = projectForm.ferramenta_dev_input
-        ? projectForm.ferramenta_dev_input.split(',').map(s => s.trim()).filter(Boolean)
-        : [];
-      
       const payload = {
         ...projectForm,
-        ferramenta_dev: devTools,
+        ferramenta_dev: selectedTools,
         valor_projeto: Number(projectForm.valor_projeto),
         valor_mensal: Number(projectForm.valor_mensal)
       };
       
-      // Remove input auxiliar que não vai pro banco
       delete (payload as any).ferramenta_dev_input;
 
       if (editingProjeto) {
@@ -442,6 +463,19 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                       <span className="text-mtabi-muted block flex items-center gap-1.5"><Globe size={12} /> Sem link de produção</span>
                     )}
 
+                    {selectedProjeto.link_supabase ? (
+                      <a
+                        href={selectedProjeto.link_supabase}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 hover:underline"
+                      >
+                        <Database size={12} /> Console Supabase <ExternalLink size={10} />
+                      </a>
+                    ) : (
+                      <span className="text-mtabi-muted block flex items-center gap-1.5"><Database size={12} /> Sem link do Supabase</span>
+                    )}
+
                     {selectedProjeto.repositorio_url ? (
                       <a
                         href={selectedProjeto.repositorio_url}
@@ -667,15 +701,65 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Ferramentas Utilizadas (Separe por vírgula)
+                  Link do Supabase (Painel)
                 </label>
                 <input
-                  type="text"
-                  placeholder="Antigravity, Lovable, Claude Code, Vercel"
-                  value={projectForm.ferramenta_dev_input}
-                  onChange={(e) => setProjectForm({ ...projectForm, herramienta_dev_input: e.target.value })}
+                  type="url"
+                  placeholder="https://supabase.com/dashboard/project/..."
+                  value={projectForm.link_supabase}
+                  onChange={(e) => setProjectForm({ ...projectForm, link_supabase: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
                 />
+              </div>
+
+              <div className="sm:col-span-2 space-y-2">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
+                  Ferramentas Utilizadas (Selecione na lista)
+                </label>
+                
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-mtabi-bg/30 border border-mtabi-border/60 rounded-xl">
+                  {Array.from(
+                    new Set([
+                      'React', 'Vite', 'TypeScript', 'Tailwind CSS', 'Supabase', 'Node.js', 
+                      'PostgreSQL', 'Cloudinary', 'Vercel', 'Next.js', 'Lovable', 'Antigravity', 
+                      'AI Studio', 'Firebase',
+                      ...projetos.flatMap(p => p.ferramenta_dev || [])
+                    ])
+                  ).sort().map(tool => {
+                    const isSelected = selectedTools.includes(tool);
+                    return (
+                      <button
+                        type="button"
+                        key={tool}
+                        onClick={() => toggleTool(tool)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer ${
+                          isSelected 
+                            ? 'bg-mtabi-yellow/20 border-mtabi-yellow text-mtabi-yellow' 
+                            : 'bg-mtabi-bg border-mtabi-border text-mtabi-muted hover:text-white'
+                        }`}
+                      >
+                        {tool}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Adicionar nova ferramenta..."
+                    value={newToolInput}
+                    onChange={e => setNewToolInput(e.target.value)}
+                    className="flex-1 px-3 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs text-white focus:outline-none focus:border-mtabi-yellow"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomTool}
+                    className="px-3 py-1.5 bg-mtabi-border hover:bg-mtabi-border/80 border border-mtabi-border text-white text-xs font-bold uppercase rounded-xl cursor-pointer transition-colors"
+                  >
+                    Adicionar
+                  </button>
+                </div>
               </div>
 
               <div>
