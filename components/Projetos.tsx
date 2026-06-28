@@ -450,6 +450,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                 <div className="bg-mtabi-bg border border-mtabi-border p-4 rounded-xl space-y-2">
                   <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Links Operacionais</h4>
                   <div className="space-y-1.5 text-xs">
+                    {/* 1. Link de Acesso */}
                     {selectedProjeto.link_acesso ? (
                       <a
                         href={selectedProjeto.link_acesso}
@@ -463,6 +464,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                       <span className="text-mtabi-muted block flex items-center gap-1.5"><Globe size={12} /> Sem link de produção</span>
                     )}
 
+                    {/* 2. Link Banco de Dados */}
                     {selectedProjeto.link_supabase ? (
                       <a
                         href={selectedProjeto.link_supabase}
@@ -476,6 +478,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                       <span className="text-mtabi-muted block flex items-center gap-1.5"><Database size={12} /> Sem link do Supabase</span>
                     )}
 
+                    {/* 3. Link Repositório */}
                     {selectedProjeto.repositorio_url ? (
                       <a
                         href={selectedProjeto.repositorio_url}
@@ -488,6 +491,20 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                     ) : (
                       <span className="text-mtabi-muted block flex items-center gap-1.5"><Github size={12} /> Sem repositório público</span>
                     )}
+
+                    {/* 4. Link Banco de Imagens */}
+                    {selectedProjeto.hospedagem_imagens ? (
+                      <a
+                        href={selectedProjeto.hospedagem_imagens.startsWith('http') ? selectedProjeto.hospedagem_imagens : `https://${selectedProjeto.hospedagem_imagens}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 hover:underline"
+                      >
+                        <Image size={12} /> Banco de Imagens <ExternalLink size={10} />
+                      </a>
+                    ) : (
+                      <span className="text-mtabi-muted block flex items-center gap-1.5"><Image size={12} /> Sem link de imagens</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -498,31 +515,13 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                   Arquitetura & Infraestrutura
                 </h4>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="bg-mtabi-bg/50 border border-mtabi-border p-3 rounded-xl flex flex-col justify-between">
-                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider flex items-center gap-1">
-                      <Database size={10} className="text-mtabi-yellow" /> Banco de Dados
-                    </span>
-                    <span className="text-xs text-white font-bold mt-1.5 truncate">
-                      {selectedProjeto.banco_dados || 'Não Informado'}
-                    </span>
-                  </div>
-
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="bg-mtabi-bg/50 border border-mtabi-border p-3 rounded-xl flex flex-col justify-between">
                     <span className="text-[9px] text-mtabi-muted uppercase tracking-wider flex items-center gap-1">
                       <Server size={10} className="text-mtabi-yellow" /> Hospedagem Geral
                     </span>
                     <span className="text-xs text-white font-bold mt-1.5 truncate">
                       {selectedProjeto.hospedagem_geral || 'Não Informado'}
-                    </span>
-                  </div>
-
-                  <div className="bg-mtabi-bg/50 border border-mtabi-border p-3 rounded-xl flex flex-col justify-between">
-                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider flex items-center gap-1">
-                      <Image size={10} className="text-mtabi-yellow" /> Hospedagem Mídias
-                    </span>
-                    <span className="text-xs text-white font-bold mt-1.5 truncate">
-                      {selectedProjeto.hospedagem_imagens || 'Não Informado'}
                     </span>
                   </div>
 
@@ -560,7 +559,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                     Assinaturas vinculadas a este projeto
                   </h4>
                   <span className="text-[10px] font-bold text-mtabi-yellow">
-                    Mensal Total: R$ {totalCustoProjetoMes.toFixed(2)}
+                    Mensal Total: R$ {totalCustoProjetoMes.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
 
@@ -574,7 +573,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                         </div>
                         <div className="text-right">
                           <span className="font-bold text-white block">
-                            {custo.moeda === 'USD' ? '$' : 'R$'} {Number(custo.valor).toFixed(2)} <span className="text-[9px] text-mtabi-muted font-normal">({custo.tipo_custo})</span>
+                            {custo.moeda === 'USD' ? '$' : 'R$'} {Number(custo.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[9px] text-mtabi-muted font-normal">({custo.tipo_custo})</span>
                           </span>
                           {!custo.ativo && (
                             <span className="text-[8px] px-1.5 bg-zinc-800 text-mtabi-muted uppercase rounded">Inativo</span>
@@ -712,6 +711,45 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                 />
               </div>
 
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                  URL do Repositório Git
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://github.com/empresa/projeto"
+                  value={projectForm.repositorio_url}
+                  onChange={(e) => setProjectForm({ ...projectForm, repositorio_url: e.target.value })}
+                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                  Link do Banco de Imagens (Storage)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://cloudinary.com/... ou Supabase Storage"
+                  value={projectForm.hospedagem_imagens}
+                  onChange={(e) => setProjectForm({ ...projectForm, hospedagem_imagens: e.target.value })}
+                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                  Hospedagem Geral (Frontend/Backend)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Netlify, Railway"
+                  value={projectForm.hospedagem_geral}
+                  onChange={(e) => setProjectForm({ ...projectForm, hospedagem_geral: e.target.value })}
+                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
+                />
+              </div>
+
               <div className="sm:col-span-2 space-y-2">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
                   Ferramentas Utilizadas (Selecione na lista)
@@ -760,58 +798,6 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                     Adicionar
                   </button>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Banco de Dados
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: Firebase Firestore, PostgreSQL"
-                  value={projectForm.banco_dados}
-                  onChange={(e) => setProjectForm({ ...projectForm, banco_dados: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Hospedagem Geral (Frontend/Backend)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: Netlify, Railway"
-                  value={projectForm.hospedagem_geral}
-                  onChange={(e) => setProjectForm({ ...projectForm, hospedagem_geral: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Armazenamento de Imagens / Storage
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: Supabase Storage, Cloudinary"
-                  value={projectForm.hospedagem_imagens}
-                  onChange={(e) => setProjectForm({ ...projectForm, hospedagem_imagens: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  URL do Repositório Git
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://github.com/empresa/projeto"
-                  value={projectForm.repositorio_url}
-                  onChange={(e) => setProjectForm({ ...projectForm, repositorio_url: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                />
               </div>
 
               <div>

@@ -638,9 +638,9 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                         <div className="flex justify-between items-center mt-3 pt-2 border-t border-mtabi-border/50 text-[9px] text-mtabi-muted font-mono">
                           <span>Início: {proj.data_inicio ? new Date(proj.data_inicio).toLocaleDateString('pt-BR') : 'N/D'}</span>
                           {proj.valor_mensal ? (
-                            <span className="text-mtabi-yellow font-bold">R$ {Number(proj.valor_mensal).toFixed(0)}/mês</span>
+                            <span className="text-mtabi-yellow font-bold">R$ {Number(proj.valor_mensal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mês</span>
                           ) : proj.valor_projeto ? (
-                            <span className="text-white font-bold">R$ {Number(proj.valor_projeto).toFixed(0)}</span>
+                            <span className="text-white font-bold">R$ {Number(proj.valor_projeto).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                           ) : null}
                         </div>
                       </div>
@@ -971,6 +971,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">Link de Acesso Web</label>
                 <input
                   type="url"
+                  placeholder="https://app.cliente.com"
                   value={projectForm.link_acesso}
                   onChange={(e) => setProjectForm({ ...projectForm, link_acesso: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
@@ -978,38 +979,32 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Banco de Dados
-                </label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">Link do Supabase (Painel)</label>
                 <input
-                  type="text"
-                  placeholder="Ex: Supabase Postgres"
-                  value={projectForm.banco_dados}
-                  onChange={(e) => setProjectForm({ ...projectForm, banco_dados: e.target.value })}
+                  type="url"
+                  placeholder="https://supabase.com/dashboard/project/..."
+                  value={projectForm.link_supabase}
+                  onChange={(e) => setProjectForm({ ...projectForm, link_supabase: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Hospedagem Geral (Servidor)
-                </label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">Repositório URL (GitHub/GitLab)</label>
                 <input
-                  type="text"
-                  placeholder="Ex: Vercel"
-                  value={projectForm.hospedagem_geral}
-                  onChange={(e) => setProjectForm({ ...projectForm, hospedagem_geral: e.target.value })}
+                  type="url"
+                  placeholder="https://github.com/usuario/repo"
+                  value={projectForm.repositorio_url}
+                  onChange={(e) => setProjectForm({ ...projectForm, repositorio_url: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Hospedagem de Imagens (Storage)
-                </label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">Link do Banco de Imagens (Storage)</label>
                 <input
-                  type="text"
-                  placeholder="Ex: Cloudinary, Supabase Storage"
+                  type="url"
+                  placeholder="https://cloudinary.com/... ou Supabase Storage"
                   value={projectForm.hospedagem_imagens}
                   onChange={(e) => setProjectForm({ ...projectForm, hospedagem_imagens: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
@@ -1017,14 +1012,12 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Repositório URL (GitHub/GitLab)
-                </label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">Hospedagem Geral (Servidor)</label>
                 <input
-                  type="url"
-                  placeholder="https://github.com/usuario/repo"
-                  value={projectForm.repositorio_url}
-                  onChange={(e) => setProjectForm({ ...projectForm, repositorio_url: e.target.value })}
+                  type="text"
+                  placeholder="Ex: Vercel"
+                  value={projectForm.hospedagem_geral}
+                  onChange={(e) => setProjectForm({ ...projectForm, hospedagem_geral: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
                 />
               </div>
