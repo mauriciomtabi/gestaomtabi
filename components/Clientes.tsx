@@ -231,15 +231,22 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   };
 
   const getCroppedImg = (image: HTMLImageElement, pixelCrop: PixelCrop): string => {
+    if (!pixelCrop.width || !pixelCrop.height) {
+      return image.src;
+    }
+    
     const canvas = document.createElement('canvas');
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
+    const displayWidth = image.width || 1;
+    const displayHeight = image.height || 1;
     
-    const width = pixelCrop.width || image.width;
-    const height = pixelCrop.height || image.height;
+    const scaleX = image.naturalWidth / displayWidth;
+    const scaleY = image.naturalHeight / displayHeight;
     
-    canvas.width = width;
-    canvas.height = height;
+    const cropWidth = pixelCrop.width * scaleX;
+    const cropHeight = pixelCrop.height * scaleY;
+    
+    canvas.width = cropWidth;
+    canvas.height = cropHeight;
     const ctx = canvas.getContext('2d');
     
     if (ctx) {
@@ -247,12 +254,12 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         image,
         (pixelCrop.x || 0) * scaleX,
         (pixelCrop.y || 0) * scaleY,
-        width * scaleX,
-        height * scaleY,
+        cropWidth,
+        cropHeight,
         0,
         0,
-        width,
-        height
+        cropWidth,
+        cropHeight
       );
     }
     
@@ -902,7 +909,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
             </div>
             
             <div className="p-5 space-y-4">
-              <div className="flex justify-center bg-[#13151A] p-4 rounded-xl border border-mtabi-border overflow-hidden max-h-[50vh]">
+              <div className="flex justify-center bg-[#13151A] p-4 rounded-xl border border-mtabi-border overflow-hidden">
                 <ReactCrop 
                   crop={crop} 
                   onChange={(c) => setCrop(c)}
@@ -915,7 +922,13 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                     src={tempLogoSrc} 
                     alt="Logo Crop Preview" 
                     onLoad={(e) => onImageLoad(e.currentTarget)}
-                    className="max-h-[40vh] object-contain"
+                    style={{
+                      display: 'block',
+                      maxWidth: '100%',
+                      maxHeight: '300px',
+                      width: 'auto',
+                      height: 'auto'
+                    }}
                   />
                 </ReactCrop>
               </div>
