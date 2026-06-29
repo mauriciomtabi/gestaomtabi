@@ -75,6 +75,15 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     observacoes: ''
   });
 
+  // Custom Toast & Confirms
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [contractToDelete, setContractToDelete] = useState<string | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
   // Modal para Criar Projeto DIRETO no Cliente
   const [isQuickProjectModalOpen, setIsQuickProjectModalOpen] = useState(false);
   const [projectForm, setProjectForm] = useState({
@@ -213,13 +222,24 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         m.tipo === 'Entrada recorrente mensal'
       );
 
+      const inicioMes = `${mesStr}-01`;
+      const fimMes = `${mesStr}-31`;
+      const contratosValidos = contratos.filter(contr => 
+        contr.cliente_id === c.id &&
+        contr.status !== 'Cancelado' &&
+        contr.data_inicio <= fimMes &&
+        (!contr.data_fim || contr.data_fim >= inicioMes)
+      );
+      const contratoDoMes = contratosValidos.find(contr => contr.status === 'Ativo') || contratosValidos[0];
+      const valorContrato = contratoDoMes ? Number(contratoDoMes.valor_recorrente) : 0;
+
       const hojeStr = new Date().toISOString().slice(0, 7);
       const isPastOrPresent = mesStr <= hojeStr;
       
       return {
         mesRef: mesStr,
         label,
-        valor: existing ? Number(existing.valor) : 0,
+        valor: existing ? Number(existing.valor) : valorContrato,
         status: existing ? existing.status : (isPastOrPresent ? 'Confirmado' : 'Previsto'),
         originalId: existing ? existing.id : undefined
       };
@@ -276,13 +296,102 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       await Promise.all(promises);
       setIsProjectionModalOpen(false);
       await loadData();
-      alert('Projeção financeira salva com sucesso!');
+      showToast('Projeção financeira salva com sucesso!');
     } catch (err) {
       console.error(err);
-      alert('Erro ao salvar projeção.');
+      showToast('Erro ao salvar projeção.', 'error');
     } finally {
       setLoading(false);
     }
+  };
+  const sincronizarMovimentosContrato = async (
+    clienteId: string,
+    nomeEmpresa: string
+  ) => {
+    // Busca dados mais recentes diretamente do Supabase
+    const [dbContratos, dbMovimentos] = await Promise.all([
+      getContratos(clienteId),
+      getFinanceiroMovimentos()
+    ]);
+
+    const movsExistentes = dbMovimentos.filter(m => 
+      m.cliente_id === clienteId && 
+      m.tipo === 'Entrada recorrente mensal'
+    );
+
+    const hoje = new Date();
+    const mesesParaProcessar: string[] = [];
+    
+    // Determina o intervalo de meses
+    let minData = new Date(hoje.getFullYear() - 1, hoje.getMonth(), 1); // 1 ano atrás
+    let maxData = new Date(hoje.getFullYear() + 1, hoje.getMonth(), 1); // 1 ano no futuro
+
+    dbContratos.forEach(c => {
+      if (c.status === 'Cancelado') return;
+      const start = new Date(c.data_inicio + 'T12:00:00');
+      if (start < minData) minData = new Date(start.getFullYear(), start.getMonth(), 1);
+      if (c.data_fim) {
+        const end = new Date(c.data_fim + 'T12:00:00');
+        if (end > maxData) maxData = new Date(end.getFullYear(), end.getMonth(), 1);
+      }
+    });
+
+    let current = new Date(minData.getFullYear(), minData.getMonth(), 1);
+    const endLimit = new Date(maxData.getFullYear(), maxData.getMonth(), 1);
+    while (current <= endLimit) {
+      mesesParaProcessar.push(current.toISOString().slice(0, 7));
+      current.setMonth(current.getMonth() + 1);
+    }
+
+    const promises = [];
+
+    for (const mesStr of mesesParaProcessar) {
+      const inicioMes = `${mesStr}-01`;
+      const fimMes = `${mesStr}-31`;
+
+      const contratosValidos = dbContratos.filter(c => 
+        c.status !== 'Cancelado' &&
+        c.data_inicio <= fimMes &&
+        (!c.data_fim || c.data_fim >= inicioMes)
+      );
+
+      // Prioridade para contrato 'Ativo', senão pega o mais recente
+      const contratoDoMes = contratosValidos.find(c => c.status === 'Ativo') || contratosValidos[0];
+
+      const valorDevido = contratoDoMes ? Number(contratoDoMes.valor_recorrente) : 0;
+      const existente = movsExistentes.find(m => m.mes_referencia === mesStr);
+
+      const hojeStr = hoje.toISOString().slice(0, 7);
+      const dataRef = `${mesStr}-10`;
+
+      if (valorDevido > 0) {
+        const status = mesStr <= hojeStr ? 'Confirmado' : 'Previsto';
+        if (existente) {
+          if (Number(existente.valor) !== valorDevido || existente.status !== status) {
+            promises.push(updateFinanceiroMovimento(existente.id, {
+              valor: valorDevido,
+              status: status
+            }));
+          }
+        } else {
+          promises.push(createFinanceiroMovimento({
+            cliente_id: clienteId,
+            tipo: 'Entrada recorrente mensal',
+            descricao: `Consultoria Recorrente - ${nomeEmpresa}`,
+            valor: valorDevido,
+            data_movimento: dataRef,
+            mes_referencia: mesStr,
+            status: status
+          }));
+        }
+      } else {
+        if (existente && existente.status === 'Previsto') {
+          promises.push(deleteFinanceiroMovimento(existente.id));
+        }
+      }
+    }
+
+    await Promise.all(promises);
   };
 
   // Funções de Gestão de Contratos
@@ -346,43 +455,22 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         savedContract = await createContrato(payload);
       }
 
-      // Encerramento de contrato: deleta futuros 'Previsto' após data_fim se preenchido
-      if (payload.data_fim) {
-        const dataFimStr = payload.data_fim;
-        const futurosPrevistos = movimentos.filter(m => 
-          m.cliente_id === selectedCliente.id && 
-          m.tipo === 'Entrada recorrente mensal' && 
-          m.status === 'Previsto' && 
-          m.data_movimento > dataFimStr
-        );
-        const deletePromises = futurosPrevistos.map(m => deleteFinanceiroMovimento(m.id));
-        await Promise.all(deletePromises);
-      }
+      // Sincroniza faturamentos mensais com base no histórico de contratos
+      await sincronizarMovimentosContrato(selectedCliente.id, selectedCliente.nome_empresa);
 
       setIsContractModalOpen(false);
       await loadData();
-      alert('Contrato salvo com sucesso!');
+      showToast('Contrato salvo com sucesso!');
     } catch (err) {
       console.error(err);
-      alert('Erro ao salvar contrato.');
+      showToast('Erro ao salvar contrato.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteContract = async (id: string) => {
-    if (!window.confirm('Tem certeza que deseja excluir permanentemente este contrato?')) return;
-    try {
-      setLoading(true);
-      await deleteContrato(id);
-      await loadData();
-      alert('Contrato excluído com sucesso!');
-    } catch (err) {
-      console.error(err);
-      alert('Erro ao excluir contrato.');
-    } finally {
-      setLoading(false);
-    }
+  const handleDeleteContract = (id: string) => {
+    setContractToDelete(id);
   };
 
   const handleClientSubmit = async (e: React.FormEvent) => {
@@ -1303,32 +1391,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 </select>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
-                    Consultoria Recorrente (R$ / mês)
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="0"
-                    value={clientForm.valor_recorrente || ''}
-                    onChange={(e) => setClientForm({ ...clientForm, valor_recorrente: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
-                    Contrato (PDF, imagem ou link)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="https://drive.google.com/..."
-                    value={clientForm.link_contrato}
-                    onChange={(e) => setClientForm({ ...clientForm, link_contrato: e.target.value })}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                  />
-                </div>
-              </div>
+
 
 
 
@@ -1985,6 +2048,66 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
               </button>
               <button
                 onClick={handleDeleteClient}
+                className="w-1/2 py-2.5 bg-mtabi-error hover:bg-mtabi-error/90 text-white text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors"
+              >
+                CONFIRMAR EXCLUSÃO
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[2000] animate-bounce">
+          <div className={`px-5 py-3.5 rounded-xl border text-xs font-bold uppercase tracking-wider shadow-2xl flex items-center gap-2.5 font-sans ${
+            toast.type === 'success' 
+              ? 'bg-emerald-950/90 border-mtabi-success/40 text-mtabi-success' 
+              : 'bg-red-950/90 border-mtabi-error/40 text-mtabi-error'
+          }`}>
+            <span>{toast.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMAÇÃO DE EXCLUSÃO DE CONTRATO */}
+      {contractToDelete && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+          <div className="bg-mtabi-card border border-mtabi-border rounded-2xl w-full max-w-md shadow-2xl p-6 font-sans">
+            <div className="flex items-center gap-3 text-mtabi-error mb-4">
+              <AlertTriangle size={28} />
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white">EXCLUIR CONTRATO</h3>
+            </div>
+            
+            <p className="text-xs text-mtabi-muted leading-relaxed">
+              Você está prestes a excluir permanentemente este contrato de consultoria de forma irreversível.
+            </p>
+            
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setContractToDelete(null)}
+                className="w-1/2 py-2.5 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border text-white text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors"
+              >
+                CANCELAR
+              </button>
+              <button
+                onClick={async () => {
+                  const id = contractToDelete;
+                  setContractToDelete(null);
+                  try {
+                    setLoading(true);
+                    await deleteContrato(id);
+                    if (selectedCliente) {
+                      await sincronizarMovimentosContrato(selectedCliente.id, selectedCliente.nome_empresa);
+                    }
+                    await loadData();
+                    showToast('Contrato excluído com sucesso!');
+                  } catch (err) {
+                    console.error(err);
+                    showToast('Erro ao excluir contrato.', 'error');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
                 className="w-1/2 py-2.5 bg-mtabi-error hover:bg-mtabi-error/90 text-white text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors"
               >
                 CONFIRMAR EXCLUSÃO
