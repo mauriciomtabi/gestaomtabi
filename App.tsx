@@ -53,7 +53,16 @@ const App: React.FC = () => {
   const [isBooting, setIsBooting] = useState(true);
   const [bootProgress, setBootProgress] = useState(0);
   const [bootStatus, setBootStatus] = useState("Iniciando...");
-  const [view, setView] = useState<'dashboard' | 'clientes' | 'projetos' | 'pipeline' | 'ferramentas' | 'financeiro'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'clientes' | 'projetos' | 'pipeline' | 'ferramentas' | 'financeiro'>(() => {
+    const saved = localStorage.getItem('mtabi_last_view');
+    const valid = ['dashboard', 'clientes', 'projetos', 'pipeline', 'ferramentas', 'financeiro'];
+    return (saved && valid.includes(saved) ? saved : 'dashboard') as any;
+  });
+
+  // Persiste a view ativa sempre que mudar
+  useEffect(() => {
+    localStorage.setItem('mtabi_last_view', view);
+  }, [view]);
   
   // Sincronizar navegação direta de sub-telas (ex: ir para projetos a partir de um cliente)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
