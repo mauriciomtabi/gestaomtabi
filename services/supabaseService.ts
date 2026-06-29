@@ -972,6 +972,75 @@ export const deleteContrato = async (id: string): Promise<void> => {
   if (error) throw error;
 };
 
+/**
+ * Calcula valor pro-rata e data de movimento para um mês de referência,
+ * levando em conta data de início e fim do contrato.
+ * Regras:
+ *  - Meses parciais usam base de 30 dias
+ *  - Primeiro mês parcial (início > dia_pagamento): pagamento no mês seguinte
+ *  - Último mês parcial (término >= dia_pagamento): pagamento no mês seguinte
+ *  - Demais casos: pagamento no mesmo mês
+ */
+const calcularProRata = (
+  mesStr: string,
+  valorRecorrente: number,
+  diaVencimento: number,
+  dataInicio: string,
+  dataFim?: string | null
+): { valor: number; dataMovimento: string } => {
+  const [anoStr, mesNumStr] = mesStr.split('-');
+  const anoNum = parseInt(anoStr, 10);
+  const mesNum = parseInt(mesNumStr, 10); // 1-12
+
+  const diaVencStr = String(diaVencimento).padStart(2, '0');
+  let valor = valorRecorrente;
+  let dataMovimento = `${mesStr}-${diaVencStr}`;
+
+  const mesInicioContrato = dataInicio.substring(0, 7);
+  const mesFimContrato = dataFim ? dataFim.substring(0, 7) : null;
+
+  const diaInicio = parseInt(dataInicio.split('-')[2] || '1', 10);
+  const diaFim = dataFim ? parseInt(dataFim.split('-')[2] || '30', 10) : null;
+
+  const nextMonthDate = new Date(anoNum, mesNum, 1); // 1st day of next month
+  const nextAno = nextMonthDate.getFullYear();
+  const nextMes = String(nextMonthDate.getMonth() + 1).padStart(2, '0');
+  const dataMovProximoMes = `${nextAno}-${nextMes}-${diaVencStr}`;
+
+  // Mês de início E fim ao mesmo tempo (contrato curtíssimo)
+  if (mesStr === mesInicioContrato && mesFimContrato && mesStr === mesFimContrato && diaFim !== null) {
+    const diasTrabalhados = Math.max(1, diaFim - diaInicio + 1);
+    valor = Math.round((valorRecorrente / 30) * diasTrabalhados * 100) / 100;
+    if (diaInicio > diaVencimento) {
+      dataMovimento = dataMovProximoMes;
+    }
+    return { valor, dataMovimento };
+  }
+
+  // Primeiro mês parcial (início depois do dia 1)
+  if (mesStr === mesInicioContrato && diaInicio > 1) {
+    const diasTrabalhados = 30 - diaInicio + 1;
+    valor = Math.round((valorRecorrente / 30) * diasTrabalhados * 100) / 100;
+    if (diaInicio > diaVencimento) {
+      dataMovimento = dataMovProximoMes;
+    }
+    return { valor, dataMovimento };
+  }
+
+  // Último mês parcial (término antes do dia 30)
+  if (mesFimContrato && mesStr === mesFimContrato && diaFim !== null && diaFim < 30) {
+    const diasTrabalhados = diaFim;
+    valor = Math.round((valorRecorrente / 30) * diasTrabalhados * 100) / 100;
+    if (diaFim >= diaVencimento) {
+      dataMovimento = dataMovProximoMes;
+    }
+    return { valor, dataMovimento };
+  }
+
+  // Mês completo
+  return { valor, dataMovimento };
+};
+
 export const sincronizarTodosOsContratos = async (): Promise<void> => {
   if (isMockMode()) {
     const clientes = getLocalData('mtabi_mock_clientes', []);
@@ -1023,10 +1092,20 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
         );
 
         const contratoDoMes = contratosValidos.find(c => c.status === 'Ativo') || contratosValidos[0];
-        const valorDevido = contratoDoMes ? Number(contratoDoMes.valor_recorrente) : 0;
+        if (!contratoDoMes) continue;
+
+        const diaVencCont = contratoDoMes.dia_pagamento ?? 10;
+        const { valor: valorMes, dataMovimento: dataMovMes } = calcularProRata(
+          mesStr,
+          Number(contratoDoMes.valor_recorrente),
+          diaVencCont,
+          contratoDoMes.data_inicio,
+          contratoDoMes.data_fim
+        );
+
         const indexExistente = movimentos.findIndex(m => m.cliente_id === cli.id && m.mes_referencia === mesStr && m.tipo === 'Entrada recorrente mensal');
 
-        if (valorDevido > 0) {
+        if (valorMes > 0) {
           let status: 'Confirmado' | 'Atrasado' | 'Previsto' = 'Previsto';
 
           if (indexExistente !== -1 && movimentos[indexExistente].status === 'Confirmado') {
@@ -1034,42 +1113,28 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
           } else if (indexExistente !== -1 && movimentos[indexExistente].status === 'Cancelado') {
             status = 'Cancelado' as any;
           } else {
-            const diaVenc = contratoDoMes.dia_pagamento ?? 10;
-            const diaVencStr = String(diaVenc).padStart(2, '0');
-            const dataVencStr = `${mesStr}-${diaVencStr}`;
-
-            if (hojeLocalStr > dataVencStr) {
-              status = 'Atrasado';
-            } else {
-              status = 'Previsto';
-            }
+            status = hojeLocalStr > dataMovMes ? 'Atrasado' : 'Previsto';
           }
 
           if (indexExistente !== -1) {
             const existente = movimentos[indexExistente];
-            // Nunca tocar movimentos Confirmados ou Cancelados (editados pelo usuário)
             if (existente.status === 'Confirmado' || existente.status === 'Cancelado') {
               // preservar sem alterar
             } else if (existente.status === 'Previsto') {
-              // Previsto: atualiza valor do contrato e status
-              if (Number(existente.valor) !== valorDevido || existente.status !== status) {
-                movimentos[indexExistente] = { ...existente, valor: valorDevido, status };
+              if (Number(existente.valor) !== valorMes || existente.status !== status || existente.data_movimento !== dataMovMes) {
+                movimentos[indexExistente] = { ...existente, valor: valorMes, status, data_movimento: dataMovMes };
                 alterado = true;
               }
-            } else if (existente.status === 'Atrasado') {
-              // Atrasado: pode ter sido editado manualmente — preserva valor, mantém Atrasado
-              // (nada a fazer, já está Atrasado e o valor é do usuário)
             }
+            // Atrasado: preserva valor editado pelo usuário
           } else {
-            const diaVencCriar = contratoDoMes.dia_pagamento ?? 10;
-            const diaVencCriarStr = String(diaVencCriar).padStart(2, '0');
             movimentos.push({
               id: 'mov-' + Math.random().toString(36).substring(2, 9),
               cliente_id: cli.id,
               tipo: 'Entrada recorrente mensal',
               descricao: `Consultoria Recorrente - ${cli.nome_empresa}`,
-              valor: valorDevido,
-              data_movimento: `${mesStr}-${diaVencCriarStr}`,
+              valor: valorMes,
+              data_movimento: dataMovMes,
               mes_referencia: mesStr,
               status: status
             });
@@ -1142,13 +1207,20 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
         );
 
         const contratoDoMes = contratosValidos.find(c => c.status === 'Ativo') || contratosValidos[0];
-        const valorDevido = contratoDoMes ? Number(contratoDoMes.valor_recorrente) : 0;
-        const existente = movsExistentes.find(m => m.mes_referencia === mesStr);
-        const diaVenc = contratoDoMes?.dia_pagamento ?? 10;
-        const diaVencStr = String(diaVenc).padStart(2, '0');
-        const dataRef = `${mesStr}-${diaVencStr}`;
+        if (!contratoDoMes) continue;
 
-        if (valorDevido > 0) {
+        const diaVencCont = contratoDoMes.dia_pagamento ?? 10;
+        const { valor: valorMes, dataMovimento: dataMovMes } = calcularProRata(
+          mesStr,
+          Number(contratoDoMes.valor_recorrente),
+          diaVencCont,
+          contratoDoMes.data_inicio,
+          contratoDoMes.data_fim
+        );
+
+        const existente = movsExistentes.find(m => m.mes_referencia === mesStr);
+
+        if (valorMes > 0) {
           let status: 'Confirmado' | 'Atrasado' | 'Previsto' = 'Previsto';
 
           if (existente && existente.status === 'Confirmado') {
@@ -1156,40 +1228,25 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
           } else if (existente && existente.status === 'Cancelado') {
             status = 'Cancelado' as any;
           } else {
-            const diaVenc = contratoDoMes.dia_pagamento ?? 10;
-            const diaVencStr = String(diaVenc).padStart(2, '0');
-            const dataVencStr = `${mesStr}-${diaVencStr}`;
-
-            if (hojeLocalStr > dataVencStr) {
-              status = 'Atrasado';
-            } else {
-              status = 'Previsto';
-            }
+            status = hojeLocalStr > dataMovMes ? 'Atrasado' : 'Previsto';
           }
 
           if (existente) {
-            // Nunca tocar movimentos Confirmados ou Cancelados (editados pelo usuário)
             if (existente.status === 'Confirmado' || existente.status === 'Cancelado') {
               // preservar sem alterar
             } else if (existente.status === 'Previsto') {
-              // Previsto: atualiza valor do contrato, status e data_movimento (dia de vencimento)
-              if (Number(existente.valor) !== valorDevido || existente.status !== status || existente.data_movimento !== dataRef) {
-                promises.push(updateFinanceiroMovimento(existente.id, { valor: valorDevido, status, data_movimento: dataRef }));
+              if (Number(existente.valor) !== valorMes || existente.status !== status || existente.data_movimento !== dataMovMes) {
+                promises.push(updateFinanceiroMovimento(existente.id, { valor: valorMes, status, data_movimento: dataMovMes }));
               }
-            } else if (existente.status === 'Atrasado') {
-              // Atrasado: pode ter sido editado manualmente — preserva valor, mantém Atrasado
-              // (nada a fazer)
             }
+            // Atrasado: preserva valor editado pelo usuário
           } else {
-            const diaVencCriar = contratoDoMes.dia_pagamento ?? 10;
-            const diaVencCriarStr = String(diaVencCriar).padStart(2, '0');
-            const dataMovCriar = `${mesStr}-${diaVencCriarStr}`;
             promises.push(createFinanceiroMovimento({
               cliente_id: cli.id,
               tipo: 'Entrada recorrente mensal',
               descricao: `Consultoria Recorrente - ${cli.nome_empresa}`,
-              valor: valorDevido,
-              data_movimento: dataMovCriar,
+              valor: valorMes,
+              data_movimento: dataMovMes,
               mes_referencia: mesStr,
               status: status
             }));
