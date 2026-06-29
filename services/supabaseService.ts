@@ -1034,9 +1034,7 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
           } else if (indexExistente !== -1 && movimentos[indexExistente].status === 'Cancelado') {
             status = 'Cancelado' as any;
           } else {
-            const diaVenc = contratoDoMes.data_inicio
-              ? parseInt(contratoDoMes.data_inicio.split('-')[2], 10)
-              : 10;
+            const diaVenc = contratoDoMes.dia_pagamento ?? 10;
             const diaVencStr = String(diaVenc).padStart(2, '0');
             const dataVencStr = `${mesStr}-${diaVencStr}`;
 
@@ -1149,9 +1147,7 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
           } else if (existente && existente.status === 'Cancelado') {
             status = 'Cancelado' as any;
           } else {
-            const diaVenc = contratoDoMes.data_inicio
-              ? parseInt(contratoDoMes.data_inicio.split('-')[2], 10)
-              : 10;
+            const diaVenc = contratoDoMes.dia_pagamento ?? 10;
             const diaVencStr = String(diaVenc).padStart(2, '0');
             const dataVencStr = `${mesStr}-${diaVencStr}`;
 

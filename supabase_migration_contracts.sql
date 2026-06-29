@@ -21,3 +21,11 @@ create policy "Allow all operations on contratos" on public.contratos
 -- Colunas de pagamento e parcelamento na tabela de projetos
 alter table public.projetos add column if not exists forma_pagamento text;
 alter table public.projetos add column if not exists parcelas integer default 1;
+
+-- Coluna de dia de pagamento mensal na tabela de contratos
+alter table public.contratos add column if not exists dia_pagamento integer check (dia_pagamento >= 1 and dia_pagamento <= 31);
+
+-- Campos de implantação movidos do cadastro de projetos para contratos
+alter table public.contratos add column if not exists valor_implantacao numeric(12,2) default 0.00;
+alter table public.contratos add column if not exists forma_pagamento text;
+alter table public.contratos add column if not exists parcelas integer default 1;

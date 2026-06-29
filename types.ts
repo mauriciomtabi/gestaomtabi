@@ -84,6 +84,10 @@ export interface Contrato {
   link_contrato?: string;
   data_inicio: string;
   data_fim?: string;
+  dia_pagamento?: number;       // 1-31: dia do mês em que o pagamento recorrente vence
+  valor_implantacao?: number;   // valor único de implantação/desenvolvimento
+  forma_pagamento?: string;     // PIX | Boleto | Cartão de Crédito | Débito | Dinheiro | TED
+  parcelas?: number;            // número de parcelas (para boleto)
   status: 'Ativo' | 'Histórico' | 'Cancelado';
   observacoes?: string;
   data_criacao?: string;

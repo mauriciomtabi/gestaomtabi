@@ -17,6 +17,10 @@ const Financeiro: React.FC = () => {
   const [monthFilter, setMonthFilter] = useState<string>('todos');
   const [clientFilter, setClientFilter] = useState<string>('todos');
 
+  // Filtros específicos para o Gráfico
+  const [chartYear, setChartYear] = useState<number>(new Date().getFullYear());
+  const [chartClient, setChartClient] = useState<string>('todos');
+
   // Modais CRUD Movimento
   const [isMovModalOpen, setIsMovModalOpen] = useState(false);
   const [editingMov, setEditingMov] = useState<FinanceiroMovimento | null>(null);
@@ -160,18 +164,31 @@ const Financeiro: React.FC = () => {
   const margemLiquidaValor = receitaMesAtual - custosMensaisFerramentas;
   const margemPercentual = receitaMesAtual > 0 ? (margemLiquidaValor / receitaMesAtual) * 100 : 0;
 
-  // --- EVOLUÇÃO MRR (Últimos 6 Meses) ---
-  const obterUltimos6Meses = () => {
+  // --- EVOLUÇÃO MRR (Todos os 12 meses do Ano Selecionado) ---
+  const obterMesesDoAno = (ano: number) => {
     const meses = [];
-    const d = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const m = new Date(d.getFullYear(), d.getMonth() - i, 1);
+    for (let i = 0; i < 12; i++) {
+      const m = new Date(ano, i, 1);
       meses.push(m.toISOString().slice(0, 7));
     }
     return meses;
   };
 
-  const mesesGrafico = obterUltimos6Meses();
+  const obterAnosDisponiveis = () => {
+    const anos = new Set<number>();
+    anos.add(new Date().getFullYear()); // Garante o ano atual
+    movimentos.forEach(m => {
+      if (m.mes_referencia) {
+        const y = parseInt(m.mes_referencia.split('-')[0], 10);
+        if (!isNaN(y)) anos.add(y);
+      }
+    });
+    return Array.from(anos).sort((a, b) => b - a); // Decrescente
+  };
+
+  const anosDisponiveis = obterAnosDisponiveis();
+  const mesesGrafico = obterMesesDoAno(chartYear);
+
   const formatarMes = (mesAno: string) => {
     const [ano, mes] = mesAno.split('-');
     const nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -179,16 +196,25 @@ const Financeiro: React.FC = () => {
   };
 
   const dadosMRR = mesesGrafico.map(mStr => {
-    const pago = movimentos
-      .filter(m => m.mes_referencia === mStr && m.tipo === 'Entrada recorrente mensal' && m.status === 'Confirmado')
+    let filteredMovs = movimentos.filter(m => 
+      m.mes_referencia === mStr && 
+      m.tipo === 'Entrada recorrente mensal'
+    );
+
+    if (chartClient !== 'todos') {
+      filteredMovs = filteredMovs.filter(m => m.cliente_id === chartClient);
+    }
+
+    const pago = filteredMovs
+      .filter(m => m.status === 'Confirmado')
       .reduce((acc, curr) => acc + Number(curr.valor), 0);
 
-    const pendente = movimentos
-      .filter(m => m.mes_referencia === mStr && m.tipo === 'Entrada recorrente mensal' && m.status === 'Atrasado')
+    const pendente = filteredMovs
+      .filter(m => m.status === 'Atrasado')
       .reduce((acc, curr) => acc + Number(curr.valor), 0);
 
-    const projetado = movimentos
-      .filter(m => m.mes_referencia === mStr && m.tipo === 'Entrada recorrente mensal' && m.status === 'Previsto')
+    const projetado = filteredMovs
+      .filter(m => m.status === 'Previsto')
       .reduce((acc, curr) => acc + Number(curr.valor), 0);
 
     return {
@@ -283,24 +309,51 @@ const Financeiro: React.FC = () => {
 
       {/* Gráfico de Evolução MRR */}
       <div className="bg-mtabi-card border border-mtabi-border p-5 rounded-2xl">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div>
             <h3 className="text-sm font-bold uppercase tracking-wider text-white">Evolução do MRR (Receita Recorrente Mensal)</h3>
             <p className="text-xs text-mtabi-muted mt-0.5">Visão histórica de estabilidade e contratos fixos</p>
           </div>
-          {/* Legenda Customizada */}
-          <div className="flex gap-4 text-[10px] font-bold uppercase tracking-wider font-sans">
-            <div className="flex items-center gap-1.5 text-mtabi-success">
-              <span className="w-2.5 h-2.5 rounded-full bg-mtabi-success" />
-              <span>Pago</span>
+          
+          <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+            {/* Filtros do Gráfico */}
+            <div className="flex items-center gap-2">
+              <select
+                value={chartClient}
+                onChange={(e) => setChartClient(e.target.value)}
+                className="p-1.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-[10px] font-bold text-white focus:outline-none focus:border-mtabi-yellow uppercase cursor-pointer"
+              >
+                <option value="todos">Todos Clientes</option>
+                {clientes.map(c => (
+                  <option key={c.id} value={c.id}>{c.nome_empresa}</option>
+                ))}
+              </select>
+
+              <select
+                value={chartYear}
+                onChange={(e) => setChartYear(Number(e.target.value))}
+                className="p-1.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-[10px] font-bold text-white focus:outline-none focus:border-mtabi-yellow cursor-pointer"
+              >
+                {anosDisponiveis.map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
             </div>
-            <div className="flex items-center gap-1.5 text-mtabi-error">
-              <span className="w-2.5 h-2.5 rounded-full bg-mtabi-error" />
-              <span>Pendente</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-mtabi-yellow">
-              <span className="w-2.5 h-2.5 rounded-full bg-mtabi-yellow" />
-              <span>Projetado</span>
+
+            {/* Legenda Customizada */}
+            <div className="flex gap-3 text-[10px] font-bold uppercase tracking-wider font-sans">
+              <div className="flex items-center gap-1 text-mtabi-success">
+                <span className="w-2 h-2 rounded-full bg-mtabi-success" />
+                <span>Pago</span>
+              </div>
+              <div className="flex items-center gap-1 text-mtabi-error">
+                <span className="w-2 h-2 rounded-full bg-mtabi-error" />
+                <span>Pendente</span>
+              </div>
+              <div className="flex items-center gap-1 text-mtabi-yellow">
+                <span className="w-2 h-2 rounded-full bg-mtabi-yellow" />
+                <span>Projetado</span>
+              </div>
             </div>
           </div>
         </div>

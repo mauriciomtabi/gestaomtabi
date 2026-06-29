@@ -71,6 +71,10 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     link_contrato: '',
     data_inicio: '',
     data_fim: '',
+    dia_pagamento: 10,
+    valor_implantacao: 0,
+    forma_pagamento: 'PIX',
+    parcelas: 1,
     status: 'Ativo' as Contrato['status'],
     observacoes: ''
   });
@@ -107,9 +111,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     user_supabase: '',
     user_repositorio: '',
     user_imagens: '',
-    user_hospedagem: '',
-    forma_pagamento: 'Boleto',
-    parcelas: 1
+    user_hospedagem: ''
   });
 
   const [selectedProjectTools, setSelectedProjectTools] = useState<string[]>([]);
@@ -403,6 +405,10 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       link_contrato: '',
       data_inicio: new Date().toISOString().split('T')[0],
       data_fim: '',
+      dia_pagamento: 10,
+      valor_implantacao: 0,
+      forma_pagamento: 'PIX',
+      parcelas: 1,
       status: 'Ativo',
       observacoes: ''
     });
@@ -416,6 +422,10 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       link_contrato: c.link_contrato || '',
       data_inicio: c.data_inicio,
       data_fim: c.data_fim || '',
+      dia_pagamento: c.dia_pagamento ?? 10,
+      valor_implantacao: c.valor_implantacao ?? 0,
+      forma_pagamento: c.forma_pagamento || 'PIX',
+      parcelas: c.parcelas ?? 1,
       status: c.status,
       observacoes: c.observacoes || ''
     });
@@ -433,6 +443,10 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         link_contrato: contractForm.link_contrato || null,
         data_inicio: contractForm.data_inicio,
         data_fim: contractForm.data_fim || null,
+        dia_pagamento: contractForm.dia_pagamento || 10,
+        valor_implantacao: Number(contractForm.valor_implantacao) || 0,
+        forma_pagamento: contractForm.forma_pagamento || 'PIX',
+        parcelas: contractForm.parcelas || 1,
         status: contractForm.status,
         observacoes: contractForm.observacoes || null
       };
@@ -737,9 +751,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         valor_projeto: Number(projectForm.valor_projeto),
         valor_mensal: Number(projectForm.valor_mensal),
         data_inicio: projectForm.data_inicio || null,
-        data_entrega_prevista: projectForm.data_entrega_prevista || null,
-        forma_pagamento: projectForm.forma_pagamento,
-        parcelas: Number(projectForm.parcelas || 1)
+        data_entrega_prevista: projectForm.data_entrega_prevista || null
       };
 
       delete (payload as any).ferramenta_dev_input;
@@ -1655,62 +1667,9 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Valor Único do Desenvolvimento (R$)
-                </label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={projectForm.valor_projeto || ''}
-                  onChange={(e) => setProjectForm({ ...projectForm, valor_projeto: Number(e.target.value) })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Forma de Pagamento (Implantação)
-                </label>
-                <select
-                  value={projectForm.forma_pagamento}
-                  onChange={(e) => setProjectForm({ ...projectForm, forma_pagamento: e.target.value })}
-                  className="w-full px-3 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                >
-                  <option value="PIX">PIX</option>
-                  <option value="Boleto">Boleto</option>
-                  <option value="Cartão de Crédito">Cartão de Crédito</option>
-                  <option value="débito">Débito</option>
-                  <option value="Dinheiro">Dinheiro</option>
-                  <option value="TED">TED</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Número de Parcelas (Implantação)
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={48}
-                  value={projectForm.parcelas || 1}
-                  onChange={(e) => setProjectForm({ ...projectForm, parcelas: Math.max(1, Number(e.target.value)) })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Mensalidade / Manutenção Recorrente (R$)
-                </label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={projectForm.valor_mensal || ''}
-                  onChange={(e) => setProjectForm({ ...projectForm, valor_mensal: Number(e.target.value) })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                />
+              <div className="sm:col-span-2 bg-mtabi-yellow/5 border border-mtabi-yellow/20 rounded-xl px-3 py-2 text-[10px] text-mtabi-yellow flex items-start gap-2">
+                <span className="mt-0.5 shrink-0">💡</span>
+                <span>Valor de implantação, forma e condições de pagamento são definidos no <strong>Contrato</strong> do cliente.</span>
               </div>
 
               <div className="sm:col-span-2 flex gap-3 pt-3 border-t border-mtabi-border">
@@ -1959,17 +1918,96 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Link do Contrato (PDF, Drive ou imagem)
-                </label>
-                <input
-                  type="text"
-                  placeholder="https://drive.google.com/..."
-                  value={contractForm.link_contrato}
-                  onChange={(e) => setContractForm({ ...contractForm, link_contrato: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                />
+              {/* Separador - Recorrência */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                    Dia de Pagamento (1-31) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    max={31}
+                    placeholder="Ex: 10"
+                    value={contractForm.dia_pagamento || ''}
+                    onChange={(e) => setContractForm({ ...contractForm, dia_pagamento: Math.min(31, Math.max(1, Number(e.target.value))) })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  />
+                  <p className="text-[9px] text-mtabi-muted mt-1">Dia do mês em que o pagamento mensal vence</p>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                    Link do Contrato (PDF / Drive)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="https://drive.google.com/..."
+                    value={contractForm.link_contrato}
+                    onChange={(e) => setContractForm({ ...contractForm, link_contrato: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  />
+                </div>
+              </div>
+
+              {/* Separador - Implantação */}
+              <div className="border-t border-mtabi-border/50 pt-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-3 flex items-center gap-1.5">
+                  <span className="w-1 h-3 bg-mtabi-yellow/50 rounded-full" />
+                  Implantação / Desenvolvimento (pagamento único)
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                      Valor (R$)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="0"
+                      value={contractForm.valor_implantacao || ''}
+                      onChange={(e) => setContractForm({ ...contractForm, valor_implantacao: Number(e.target.value) })}
+                      className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                      Forma de Pagamento
+                    </label>
+                    <select
+                      value={contractForm.forma_pagamento}
+                      onChange={(e) => setContractForm({ ...contractForm, forma_pagamento: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    >
+                      <option value="PIX">PIX</option>
+                      <option value="TED">TED</option>
+                      <option value="Dinheiro">Dinheiro</option>
+                      <option value="Boleto">Boleto</option>
+                      <option value="Cartão de Crédito">Cartão de Crédito</option>
+                      <option value="Débito">Débito</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-1">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                      Nº de Parcelas
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={48}
+                      value={contractForm.parcelas || 1}
+                      onChange={(e) => setContractForm({ ...contractForm, parcelas: Math.max(1, Number(e.target.value)) })}
+                      className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    />
+                    {contractForm.forma_pagamento !== 'Boleto' && contractForm.parcelas > 1 && (
+                      <p className="text-[9px] text-mtabi-yellow mt-1">⚠ Parcelamento disponível apenas no Boleto</p>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
