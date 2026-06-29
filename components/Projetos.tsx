@@ -410,15 +410,15 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
               <div
                 key={p.id}
                 onClick={() => setSelectedProjeto(p)}
-                className="p-5 bg-mtabi-card border border-mtabi-border rounded-2xl transition-all hover:border-mtabi-yellow/50 hover:scale-[1.02] cursor-pointer flex flex-col justify-between group font-sans relative overflow-hidden h-56"
+                className="p-4 bg-mtabi-card border border-mtabi-border rounded-2xl transition-all hover:border-mtabi-yellow/50 hover:scale-[1.02] cursor-pointer flex flex-col group font-sans relative overflow-hidden"
               >
                 <div>
                   <div className="flex justify-between items-start gap-2">
                     <span className="text-[9px] font-bold text-mtabi-muted uppercase tracking-wider flex items-center gap-1.5 min-w-0 font-sans">
                       {p.cliente?.logo_url ? (
-                        <img 
-                          src={p.cliente.logo_url} 
-                          alt={p.cliente.nome_empresa} 
+                        <img
+                          src={p.cliente.logo_url}
+                          alt={p.cliente.nome_empresa}
                           className="w-4 h-4 object-contain rounded bg-[#13151A] p-0.5 border border-mtabi-border/40 shrink-0"
                         />
                       ) : (
@@ -439,12 +439,12 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                     </span>
                   </div>
 
-                  <h3 className="text-sm font-bold text-white group-hover:text-mtabi-yellow transition-colors uppercase tracking-wider mt-3 truncate font-display">
+                  <h3 className="text-xs font-bold text-white group-hover:text-mtabi-yellow transition-colors uppercase tracking-wider mt-2 truncate font-display">
                     {p.nome_solucao}
                   </h3>
-                  
+
                   {p.descricao && (
-                    <p className="text-[11px] text-mtabi-muted mt-2 font-sans line-clamp-2 leading-relaxed">
+                    <p className="text-[10px] text-mtabi-muted mt-1.5 font-sans line-clamp-2 leading-relaxed">
                       {p.descricao}
                     </p>
                   )}
@@ -452,9 +452,9 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
 
                 {/* Badge de Ferramentas */}
                 {p.ferramenta_dev && p.ferramenta_dev.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-4">
+                  <div className="flex flex-wrap gap-1 mt-3">
                     {p.ferramenta_dev.slice(0, 3).map(tool => (
-                      <span key={tool} className="text-[8px] font-mono px-2 py-0.5 bg-mtabi-bg/60 border border-mtabi-border text-white rounded">
+                      <span key={tool} className="text-[8px] font-mono px-1.5 py-0.5 bg-mtabi-bg/60 border border-mtabi-border text-white rounded">
                         {tool}
                       </span>
                     ))}
@@ -479,22 +479,15 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
       {selectedProjeto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
           <div className="bg-mtabi-card border border-mtabi-border rounded-2xl max-w-5xl w-full p-6 space-y-6 relative max-h-[90vh] overflow-y-auto font-sans shadow-2xl">
-            <button 
-              onClick={() => setSelectedProjeto(null)}
-              className="absolute top-4 right-4 p-2 text-mtabi-muted hover:text-white hover:bg-mtabi-border/60 rounded-xl transition-all cursor-pointer"
-            >
-              <X size={18} />
-            </button>
-
             {/* Cabeçalho */}
             <div className="flex justify-between items-start border-b border-mtabi-border pb-5 gap-4">
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-mtabi-yellow font-bold uppercase tracking-wider flex items-center gap-1.5">
                     {selectedProjeto.cliente?.logo_url ? (
-                      <img 
-                        src={selectedProjeto.cliente.logo_url} 
-                        alt={selectedProjeto.cliente.nome_empresa} 
+                      <img
+                        src={selectedProjeto.cliente.logo_url}
+                        alt={selectedProjeto.cliente.nome_empresa}
                         className="w-5 h-5 object-contain rounded bg-[#13151A] p-0.5 border border-mtabi-border/40 shrink-0"
                       />
                     ) : (
@@ -505,18 +498,19 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                     {selectedProjeto.cliente?.nome_empresa}
                   </span>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-white font-display uppercase tracking-tight mt-2">
+                <h2 className="text-lg sm:text-xl font-extrabold text-white font-display uppercase tracking-tight mt-1.5">
                   {selectedProjeto.nome_solucao}
                 </h2>
-                <p className="text-xs text-mtabi-muted mt-1">
+                <p className="text-[11px] text-mtabi-muted mt-0.5">
                   Iniciado em: <span className="text-white">{selectedProjeto.data_inicio ? new Date(selectedProjeto.data_inicio).toLocaleDateString('pt-BR') : 'N/D'}</span>
                   {selectedProjeto.data_entrega_prevista && (
-                    <> • Entrega prevista: <span className="text-white">{new Date(selectedProjeto.data_entrega_prevista).toLocaleDateString('pt-BR')}</span></>
+                    <> • Entrega: <span className="text-white">{new Date(selectedProjeto.data_entrega_prevista).toLocaleDateString('pt-BR')}</span></>
                   )}
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 mr-8">
+              {/* Ações: Editar, Excluir, Fechar — todos no mesmo row */}
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   onClick={() => openEditProjectModal(selectedProjeto)}
                   className="p-2 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border text-white hover:text-mtabi-yellow rounded-xl transition-all cursor-pointer"
@@ -530,6 +524,14 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                   title="Excluir Projeto"
                 >
                   <Trash2 size={14} />
+                </button>
+                <div className="w-px h-6 bg-mtabi-border mx-0.5" />
+                <button
+                  onClick={() => setSelectedProjeto(null)}
+                  className="p-2 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border text-mtabi-muted hover:text-white rounded-xl transition-all cursor-pointer"
+                  title="Fechar"
+                >
+                  <X size={14} />
                 </button>
               </div>
             </div>
