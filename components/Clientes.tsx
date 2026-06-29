@@ -880,7 +880,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
               <div className="flex justify-between items-start border-b border-mtabi-border pb-5 gap-4">
                 <div className="flex items-center gap-4 min-w-0">
                   {selectedCliente.logo_url ? (
-                    <div className="w-14 h-14 rounded-2xl bg-[#13151A] border border-mtabi-border flex items-center justify-center p-1.5 shrink-0">
+                    <div className="w-20 h-20 rounded-2xl bg-[#13151A] border border-mtabi-border flex items-center justify-center p-2.5 shrink-0">
                       <img 
                         src={selectedCliente.logo_url} 
                         alt={selectedCliente.nome_empresa} 
@@ -888,7 +888,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                       />
                     </div>
                   ) : (
-                    <div className="w-14 h-14 rounded-2xl bg-mtabi-border/30 border border-mtabi-border flex items-center justify-center text-mtabi-yellow font-display font-extrabold text-lg shrink-0 uppercase select-none">
+                    <div className="w-20 h-20 rounded-2xl bg-mtabi-border/30 border border-mtabi-border flex items-center justify-center text-mtabi-yellow font-display font-extrabold text-2xl shrink-0 uppercase select-none">
                       {selectedCliente.nome_empresa.substring(0, 2)}
                     </div>
                   )}
