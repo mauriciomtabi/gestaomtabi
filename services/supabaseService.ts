@@ -1047,13 +1047,18 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
 
           if (indexExistente !== -1) {
             const existente = movimentos[indexExistente];
-            if (Number(existente.valor) !== valorDevido || existente.status !== status) {
-              movimentos[indexExistente] = {
-                ...existente,
-                valor: valorDevido,
-                status: status
-              };
-              alterado = true;
+            // Nunca tocar movimentos Confirmados ou Cancelados (editados pelo usuário)
+            if (existente.status === 'Confirmado' || existente.status === 'Cancelado') {
+              // preservar sem alterar
+            } else if (existente.status === 'Previsto') {
+              // Previsto: atualiza valor do contrato e status
+              if (Number(existente.valor) !== valorDevido || existente.status !== status) {
+                movimentos[indexExistente] = { ...existente, valor: valorDevido, status };
+                alterado = true;
+              }
+            } else if (existente.status === 'Atrasado') {
+              // Atrasado: pode ter sido editado manualmente — preserva valor, mantém Atrasado
+              // (nada a fazer, já está Atrasado e o valor é do usuário)
             }
           } else {
             movimentos.push({
@@ -1159,11 +1164,17 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
           }
 
           if (existente) {
-            if (Number(existente.valor) !== valorDevido || existente.status !== status) {
-              promises.push(updateFinanceiroMovimento(existente.id, {
-                valor: valorDevido,
-                status: status
-              }));
+            // Nunca tocar movimentos Confirmados ou Cancelados (editados pelo usuário)
+            if (existente.status === 'Confirmado' || existente.status === 'Cancelado') {
+              // preservar sem alterar
+            } else if (existente.status === 'Previsto') {
+              // Previsto: atualiza valor do contrato e status
+              if (Number(existente.valor) !== valorDevido || existente.status !== status) {
+                promises.push(updateFinanceiroMovimento(existente.id, { valor: valorDevido, status }));
+              }
+            } else if (existente.status === 'Atrasado') {
+              // Atrasado: pode ter sido editado manualmente — preserva valor, mantém Atrasado
+              // (nada a fazer)
             }
           } else {
             promises.push(createFinanceiroMovimento({

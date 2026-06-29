@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, Users, TrendingUp, AlertTriangle, Calendar, Wrench, ArrowRight, RefreshCw, DollarSign, Activity } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LabelList } from 'recharts';
 import { getClientes, getPipeline, getFerramentas, getFinanceiroMovimentos } from '../services/supabaseService';
 import { Cliente, PipelineLead, FerramentaCusto, FinanceiroMovimento } from '../types';
 
@@ -299,18 +299,57 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={dadosGraficoReceita}
-                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                margin={{ top: 32, right: 10, left: -20, bottom: 0 }}
               >
-                <XAxis dataKey="name" stroke="#8A8A8F" tickLine={false} />
-                <YAxis stroke="#8A8A8F" tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v}`} />
+                <XAxis dataKey="name" stroke="#8A8A8F" tickLine={false} tick={{ fontSize: 11 }} />
+                <YAxis
+                  stroke="#8A8A8F"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 10 }}
+                  tickFormatter={(v) => {
+                    if (v >= 1000000) return `R$ ${(v / 1000000).toFixed(1)}M`;
+                    if (v >= 1000) return `R$ ${(v / 1000).toFixed(0)}k`;
+                    return `R$ ${v}`;
+                  }}
+                />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#17171A', borderColor: '#2A2A2E', borderRadius: '12px' }}
                   labelStyle={{ fontWeight: 'bold', color: '#FFF' }}
                 />
                 <Legend iconType="rect" iconSize={10} wrapperStyle={{ paddingTop: '10px' }} />
-                {/* Barras retas com cantos quase retos estilo logotipo MTABI */}
                 <Bar dataKey="Recorrente" stackId="a" fill="#F5B324" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="Pontual" stackId="a" fill="#60A5FA" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="Pontual" stackId="a" fill="#60A5FA" radius={[2, 2, 0, 0]}>
+                  <LabelList
+                    dataKey="Pontual"
+                    position="top"
+                    content={(props: any) => {
+                      const { x, y, width, index } = props;
+                      const entry = dadosGraficoReceita[index];
+                      if (!entry) return null;
+                      const total = (entry.Recorrente || 0) + (entry.Pontual || 0);
+                      if (!total) return null;
+                      const label = total >= 1000000
+                        ? `${(total / 1000000).toFixed(1)}M`
+                        : total >= 1000
+                        ? `${(total / 1000).toFixed(0)}k`
+                        : `${total}`;
+                      return (
+                        <text
+                          x={x + width / 2}
+                          y={y - 5}
+                          textAnchor="middle"
+                          fill="#BCBCC0"
+                          fontSize={10}
+                          fontWeight="bold"
+                          fontFamily="sans-serif"
+                        >
+                          {label}
+                        </text>
+                      );
+                    }}
+                  />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -359,7 +359,7 @@ const Financeiro: React.FC = () => {
         </div>
         <div className="h-72 w-full mt-6 font-sans text-xs">
           <ResponsiveContainer width="100%" height="100%">
-            <RechartsBarChart data={dadosMRR} margin={{ top: 28, right: 10, left: -20, bottom: 0 }}>
+            <RechartsBarChart data={dadosMRR} margin={{ top: 32, right: 10, left: -20, bottom: 0 }}>
               <XAxis dataKey="name" stroke="#8A8A8F" tickLine={false} tick={{ fontSize: 11 }} />
               <YAxis
                 stroke="#8A8A8F"
@@ -380,15 +380,33 @@ const Financeiro: React.FC = () => {
               <Bar dataKey="Pendente" stackId="a" fill="#ef4444" name="Pendente" radius={[0, 0, 0, 0]} />
               <Bar dataKey="Projetado" stackId="a" fill="#F5B324" name="Projetado" radius={[4, 4, 0, 0]}>
                 <LabelList
-                  valueAccessor={(entry: any) => {
-                    const total = (entry.Pago || 0) + (entry.Pendente || 0) + (entry.Projetado || 0);
-                    if (total === 0) return '';
-                    if (total >= 1000000) return `${(total / 1000000).toFixed(1)}M`;
-                    if (total >= 1000) return `${(total / 1000).toFixed(0)}k`;
-                    return `${total}`;
-                  }}
+                  dataKey="Projetado"
                   position="top"
-                  style={{ fill: '#BCBCC0', fontSize: 9, fontWeight: 700, fontFamily: 'sans-serif' }}
+                  content={(props: any) => {
+                    const { x, y, width, index } = props;
+                    const entry = dadosMRR[index];
+                    if (!entry) return null;
+                    const total = (entry.Pago || 0) + (entry.Pendente || 0) + (entry.Projetado || 0);
+                    if (!total) return null;
+                    const label = total >= 1000000
+                      ? `${(total / 1000000).toFixed(1)}M`
+                      : total >= 1000
+                      ? `${(total / 1000).toFixed(0)}k`
+                      : `${total}`;
+                    return (
+                      <text
+                        x={x + width / 2}
+                        y={y - 5}
+                        textAnchor="middle"
+                        fill="#BCBCC0"
+                        fontSize={10}
+                        fontWeight="bold"
+                        fontFamily="sans-serif"
+                      >
+                        {label}
+                      </text>
+                    );
+                  }}
                 />
               </Bar>
             </RechartsBarChart>
@@ -580,7 +598,7 @@ const Financeiro: React.FC = () => {
                     onChange={(e) => setMovForm({ ...movForm, projeto_id: e.target.value })}
                     className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white font-sans"
                   >
-                    <option value="">-- Lançamento Geral do Cliente (Nenhum) --</option>
+                    <option value="">— Geral —</option>
                     {projetos
                       .filter(p => p.cliente_id === movForm.cliente_id)
                       .map(p => (
