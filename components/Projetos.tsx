@@ -25,6 +25,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
   // Modais CRUD Projeto
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [editingProjeto, setEditingProjeto] = useState<Projeto | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   const [projectForm, setProjectForm] = useState({
     cliente_id: '',
@@ -84,6 +85,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
 
   const openNewProjectModal = () => {
     setEditingProjeto(null);
+    setErrorMsg(null);
     setProjectForm({
       cliente_id: clientes[0]?.id || '',
       nome_solucao: '',
@@ -109,6 +111,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
 
   const openEditProjectModal = (p: Projeto) => {
     setEditingProjeto(p);
+    setErrorMsg(null);
     setProjectForm({
       cliente_id: p.cliente_id,
       nome_solucao: p.nome_solucao,
@@ -150,6 +153,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
 
   const handleProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg(null);
     try {
       const payload = {
         ...projectForm,
@@ -171,6 +175,10 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
       await loadData();
     } catch (err) {
       console.error('Erro ao salvar projeto:', err);
+      const detailMsg = err && typeof err === 'object' && 'message' in err 
+        ? String((err as any).message) 
+        : JSON.stringify(err);
+      setErrorMsg(`Erro: ${detailMsg}`);
     }
   };
 
@@ -622,6 +630,12 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
             </div>
             
             <form onSubmit={handleProjectSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {errorMsg && (
+                <div className="sm:col-span-2 p-3 bg-red-950/80 border border-red-800 text-red-200 rounded-xl text-xs flex items-center gap-2 font-semibold font-sans">
+                  <AlertTriangle size={16} className="text-red-400 shrink-0" />
+                  {errorMsg}
+                </div>
+              )}
               
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">

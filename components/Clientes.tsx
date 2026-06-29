@@ -164,7 +164,10 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       await loadData();
     } catch (err) {
       console.error('Erro ao salvar cliente:', err);
-      setErrorMsg(err instanceof Error ? err.message : 'Erro interno ao salvar cliente.');
+      const detailMsg = err && typeof err === 'object' && 'message' in err 
+        ? String((err as any).message) 
+        : JSON.stringify(err);
+      setErrorMsg(`Erro: ${detailMsg}`);
     }
   };
 
