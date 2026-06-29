@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Plus, Search, Calendar, ChevronRight, X, AlertTriangle, User, ShieldAlert, Award, ArrowRight, ArrowLeft, MoreVertical, Edit2, Trash2 } from 'lucide-react';
+import { TrendingUp, Plus, Search, Calendar, ChevronRight, X, AlertTriangle, User, ShieldAlert, Award, ArrowRight, ArrowLeft, MoreVertical, Edit2, Trash2, ExternalLink, Link } from 'lucide-react';
 import { getPipeline, createPipelineLead, updatePipelineLead, deletePipelineLead, getClientes, createCliente } from '../services/supabaseService';
 import { PipelineLead, Cliente } from '../types';
 
@@ -37,6 +37,8 @@ const Pipeline: React.FC = () => {
     nome_lead: '',
     etapa: 'Primeiro contato' as EtapaType,
     valor_estimado: 0,
+    valor_recorrente: 0,
+    link_proposta: '',
     decisor_nome: '',
     campeao_interno_nome: '',
     proxima_acao: '',
@@ -93,6 +95,8 @@ const Pipeline: React.FC = () => {
       nome_lead: '',
       etapa: 'Primeiro contato',
       valor_estimado: 0,
+      valor_recorrente: 0,
+      link_proposta: '',
       decisor_nome: '',
       campeao_interno_nome: '',
       proxima_acao: '',
@@ -110,6 +114,8 @@ const Pipeline: React.FC = () => {
       nome_lead: lead.nome_lead || '',
       etapa: lead.etapa,
       valor_estimado: Number(lead.valor_estimado),
+      valor_recorrente: Number(lead.valor_recorrente || 0),
+      link_proposta: lead.link_proposta || '',
       decisor_nome: lead.decisor_nome || '',
       campeao_interno_nome: lead.campeao_interno_nome || '',
       proxima_acao: lead.proxima_acao || '',
@@ -128,6 +134,9 @@ const Pipeline: React.FC = () => {
         cliente_id: leadForm.cliente_id || undefined,
         nome_lead: leadForm.cliente_id ? undefined : leadForm.nome_lead, // se tem cliente, zera nome_lead
         valor_estimado: Number(leadForm.valor_estimado),
+        valor_recorrente: Number(leadForm.valor_recorrente) || 0,
+        link_proposta: leadForm.link_proposta || null,
+        data_proxima_acao: leadForm.data_proxima_acao || null,
         probabilidade: Number(leadForm.probabilidade)
       };
 
@@ -394,8 +403,16 @@ const Pipeline: React.FC = () => {
                   </span>
                   <span className="text-mtabi-muted">•</span>
                   <span className="text-xs text-white font-mono font-bold">
-                    Est. {Number(selectedLead.valor_estimado).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    Desenv.: {Number(selectedLead.valor_estimado).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </span>
+                  {selectedLead.valor_recorrente && Number(selectedLead.valor_recorrente) > 0 ? (
+                    <>
+                      <span className="text-mtabi-muted">•</span>
+                      <span className="text-xs text-mtabi-yellow font-mono font-bold">
+                        Recorrente: {Number(selectedLead.valor_recorrente).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
+                      </span>
+                    </>
+                  ) : null}
                 </div>
               </div>
 
@@ -410,6 +427,23 @@ const Pipeline: React.FC = () => {
                   <span className="text-xs text-white font-bold mt-1 block">{selectedLead.campeao_interno_nome || 'Não mapeado'}</span>
                 </div>
               </div>
+
+              {/* Proposta Comercial Link */}
+              {selectedLead.link_proposta && (
+                <div className="bg-mtabi-bg/50 border border-mtabi-border p-3.5 rounded-xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider block">Link da Proposta</span>
+                    <a
+                      href={selectedLead.link_proposta.startsWith('http') ? selectedLead.link_proposta : `https://${selectedLead.link_proposta}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-mtabi-yellow hover:underline flex items-center gap-1 mt-1 font-bold"
+                    >
+                      <Link size={12} /> Ver Proposta Comercial <ExternalLink size={10} />
+                    </a>
+                  </div>
+                </div>
+              )}
 
               {/* Ação Pendente */}
               <div className="bg-mtabi-bg/50 border border-mtabi-border p-4 rounded-xl space-y-2">
@@ -504,16 +538,28 @@ const Pipeline: React.FC = () => {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                    Valor Comercial Estimado (R$)
+                    Valor Desenv. Estimado (R$)
                   </label>
                   <input
                     type="number"
                     placeholder="0"
                     value={leadForm.valor_estimado || ''}
                     onChange={(e) => setLeadForm({ ...leadForm, valor_estimado: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                    Valor Recorrente Mensal (R$)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={leadForm.valor_recorrente || ''}
+                    onChange={(e) => setLeadForm({ ...leadForm, valor_recorrente: Number(e.target.value) })}
                     className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
                   />
                 </div>
@@ -586,6 +632,19 @@ const Pipeline: React.FC = () => {
                     className="w-full h-2 bg-mtabi-bg border border-mtabi-border rounded-xl appearance-none cursor-pointer accent-mtabi-yellow mt-3"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                  Link da Proposta Comercial
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/... ou link do PDF da proposta Carton Pack"
+                  value={leadForm.link_proposta}
+                  onChange={(e) => setLeadForm({ ...leadForm, link_proposta: e.target.value })}
+                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white mb-4"
+                />
               </div>
 
               <div>

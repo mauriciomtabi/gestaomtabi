@@ -107,6 +107,8 @@ export interface PipelineLead {
   observacoes?: string;
   data_ultima_atualizacao?: string;
   data_criacao?: string;
+  link_proposta?: string;
+  valor_recorrente?: number;
   
   // Carregado por join
   cliente?: Cliente;
