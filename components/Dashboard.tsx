@@ -314,6 +314,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                   }}
                 />
                 <Tooltip
+                  cursor={false}
                   contentStyle={{ backgroundColor: '#17171A', borderColor: '#2A2A2E', borderRadius: '12px' }}
                   labelStyle={{ fontWeight: 'bold', color: '#FFF' }}
                 />
@@ -329,11 +330,16 @@ const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
                       if (!entry) return null;
                       const total = (entry.Recorrente || 0) + (entry.Pontual || 0);
                       if (!total) return null;
-                      const label = total >= 1000000
-                        ? `${(total / 1000000).toFixed(1)}M`
-                        : total >= 1000
-                        ? `${(total / 1000).toFixed(0)}k`
-                        : `${total}`;
+                      let label = '';
+                      if (total >= 1000000) {
+                        const val = total / 1000000;
+                        label = val % 1 === 0 ? `${val.toFixed(0)}M` : `${val.toFixed(1).replace('.', ',')}M`;
+                      } else if (total >= 1000) {
+                        const val = total / 1000;
+                        label = val % 1 === 0 ? `${val.toFixed(0)}k` : `${val.toFixed(1).replace('.', ',')}k`;
+                      } else {
+                        label = `${total}`;
+                      }
                       return (
                         <text
                           x={x + width / 2}
