@@ -825,15 +825,15 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 >
                   <div className="flex items-center gap-3 min-w-0 pr-2">
                     {c.logo_url ? (
-                      <div className="w-10 h-10 rounded-xl bg-[#13151A] border border-mtabi-border flex items-center justify-center p-1 shrink-0">
+                      <div className="w-20 h-20 rounded-2xl bg-[#13151A] border border-mtabi-border flex items-center justify-center p-2.5 shrink-0">
                         <img 
                           src={c.logo_url} 
                           alt={c.nome_empresa} 
-                          className="w-full h-full object-contain rounded-lg"
+                          className="w-full h-full object-contain rounded-xl"
                         />
                       </div>
                     ) : (
-                      <div className="w-10 h-10 rounded-xl bg-mtabi-border/35 border border-mtabi-border flex items-center justify-center text-mtabi-yellow font-display font-extrabold text-sm shrink-0 uppercase select-none">
+                      <div className="w-20 h-20 rounded-2xl bg-mtabi-border/35 border border-mtabi-border flex items-center justify-center text-mtabi-yellow font-display font-extrabold text-2xl shrink-0 uppercase select-none">
                         {c.nome_empresa.substring(0, 2)}
                       </div>
                     )}
