@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Landmark, Plus, Search, Filter, Calendar, DollarSign, Edit2, Trash2, X, AlertTriangle, ArrowUpRight, ArrowDownRight, TrendingUp, RefreshCw, BarChart } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { getFinanceiroMovimentos, createFinanceiroMovimento, updateFinanceiroMovimento, deleteFinanceiroMovimento, getClientes, getProjetos, getFerramentas, sincronizarTodosOsContratos } from '../services/supabaseService';
 import { FinanceiroMovimento, Cliente, Projeto, FerramentaCusto } from '../types';
 
@@ -306,17 +306,17 @@ const Financeiro: React.FC = () => {
         </div>
         <div className="h-48 w-full mt-6 font-sans text-xs">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={dadosMRR} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+            <RechartsBarChart data={dadosMRR} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
               <XAxis dataKey="name" stroke="#8A8A8F" tickLine={false} />
               <YAxis stroke="#8A8A8F" tickLine={false} axisLine={false} tickFormatter={(v) => `R$ ${v}`} />
               <Tooltip
                 contentStyle={{ backgroundColor: '#17171A', borderColor: '#2A2A2E', borderRadius: '12px' }}
                 formatter={(value, name) => [`R$ ${Number(value).toLocaleString('pt-BR')}`, name]}
               />
-              <Line type="monotone" dataKey="Pago" stroke="#10b981" strokeWidth={3} dot={{ fill: '#10b981', r: 4 }} name="Pago" />
-              <Line type="monotone" dataKey="Pendente" stroke="#ef4444" strokeWidth={3} dot={{ fill: '#ef4444', r: 4 }} name="Pendente" />
-              <Line type="monotone" dataKey="Projetado" stroke="#F5B324" strokeWidth={3} dot={{ fill: '#F5B324', r: 4 }} name="Projetado" />
-            </LineChart>
+              <Bar dataKey="Pago" stackId="a" fill="#10b981" name="Pago" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="Pendente" stackId="a" fill="#ef4444" name="Pendente" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="Projetado" stackId="a" fill="#F5B324" name="Projetado" radius={[4, 4, 0, 0]} />
+            </RechartsBarChart>
           </ResponsiveContainer>
         </div>
       </div>
