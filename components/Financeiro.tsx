@@ -492,7 +492,7 @@ const Financeiro: React.FC = () => {
               {filteredMovimentos.length > 0 ? (
                 filteredMovimentos.map(mov => (
                   <tr key={mov.id} className="hover:bg-mtabi-border/10">
-                    <td className="py-3 font-mono">{new Date(mov.data_movimento).toLocaleDateString('pt-BR')}</td>
+                    <td className="py-3 font-mono">{new Date(mov.data_movimento + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
                     <td className="py-3 font-bold truncate max-w-[120px]">{mov.cliente?.nome_empresa || 'Empresa Geral'}</td>
                     <td className="py-3 truncate max-w-[200px]">{mov.descricao}</td>
                     <td className="py-3 font-mono">{formatarMes(mov.mes_referencia)}</td>
