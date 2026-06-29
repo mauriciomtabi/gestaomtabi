@@ -369,12 +369,15 @@ export const createCliente = async (cliente: Partial<Cliente>): Promise<Cliente>
     const newClient: Cliente = {
       id: 'c-' + Math.random().toString(36).substring(2, 9),
       nome_empresa: cliente.nome_empresa || 'Empresa Nova',
+      logo_url: cliente.logo_url,
       nome_contato_principal: cliente.nome_contato_principal,
       nome_contato_interno: cliente.nome_contato_interno,
       segmento: cliente.segmento,
       status: cliente.status || 'Ativo',
       tipo_relacao: cliente.tipo_relacao || 'Projeto único',
       observacoes: cliente.observacoes,
+      valor_recorrente: cliente.valor_recorrente,
+      link_contrato: cliente.link_contrato,
       data_criacao: new Date().toISOString()
     };
     data.push(newClient);

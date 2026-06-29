@@ -41,8 +41,11 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     segmento: '',
     status: 'Ativo' as Cliente['status'],
     tipo_relacao: 'Projeto único' as Cliente['tipo_relacao'],
-    observacoes: ''
+    observacoes: '',
+    valor_recorrente: 0,
+    link_contrato: ''
   });
+  const [shouldProject, setShouldProject] = useState(false);
 
   // Modal para Criar Projeto DIRETO no Cliente
   const [isQuickProjectModalOpen, setIsQuickProjectModalOpen] = useState(false);
@@ -115,8 +118,11 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       segmento: '',
       status: 'Ativo',
       tipo_relacao: 'Projeto único',
-      observacoes: ''
+      observacoes: '',
+      valor_recorrente: 0,
+      link_contrato: ''
     });
+    setShouldProject(false);
     setIsClientModalOpen(true);
   };
 
@@ -131,8 +137,11 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       segmento: c.segmento || '',
       status: c.status,
       tipo_relacao: c.tipo_relacao,
-      observacoes: c.observacoes || ''
+      observacoes: c.observacoes || '',
+      valor_recorrente: Number(c.valor_recorrente || 0),
+      link_contrato: c.link_contrato || ''
     });
+    setShouldProject(false);
     setIsClientModalOpen(true);
   };
 
@@ -164,8 +173,33 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
           await updateCliente(created.id, { logo_url: uploadedUrl });
           created.logo_url = uploadedUrl;
         }
-        setSelectedCliente(created);
       }
+      
+      const savedClientId = editingCliente ? editingCliente.id : created.id;
+      const savedClientName = editingCliente ? finalForm.nome_empresa : created.nome_empresa;
+      
+      if (shouldProject && Number(finalForm.valor_recorrente) > 0) {
+        const hoje = new Date();
+        const promises = [];
+        for (let i = 0; i < 12; i++) {
+          const dataRef = new Date(hoje.getFullYear(), hoje.getMonth() + i, 10);
+          const mesStr = dataRef.toISOString().slice(0, 7);
+          const dataMovStr = dataRef.toISOString().split('T')[0];
+          const status = i === 0 ? 'Confirmado' : 'Previsto';
+          
+          promises.push(createFinanceiroMovimento({
+            cliente_id: savedClientId,
+            tipo: 'Entrada recorrente mensal',
+            descricao: `Consultoria Recorrente - ${savedClientName}`,
+            valor: Number(finalForm.valor_recorrente),
+            data_movimento: dataMovStr,
+            mes_referencia: mesStr,
+            status: status
+          }));
+        }
+        await Promise.all(promises);
+      }
+
       setIsClientModalOpen(false);
       await loadData();
     } catch (err) {
@@ -412,9 +446,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     .filter(m => m.tipo !== 'Saída/custo' && m.status === 'Confirmado')
     .reduce((acc, curr) => acc + Number(curr.valor), 0);
 
-  const valorRecorrenteAtivo = clienteProjetos
-    .filter(p => ['Em desenvolvimento', 'Em produção', 'Manutenção'].includes(p.status))
-    .reduce((acc, curr) => acc + Number(curr.valor_mensal || 0), 0);
+  const valorRecorrenteAtivo = selectedCliente?.valor_recorrente ? Number(selectedCliente.valor_recorrente) : 0;
 
   return (
     <div className="space-y-6">
@@ -623,7 +655,67 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                       </span>
                     </div>
                   </div>
+
+                  {selectedCliente.valor_recorrente && Number(selectedCliente.valor_recorrente) > 0 ? (
+                    <div className="mt-3.5 pt-3 border-t border-mtabi-border/60 flex justify-between items-center">
+                      <span className="text-[9px] text-mtabi-muted">Deseja simular/gerar lançamentos?</span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (window.confirm(`Deseja gerar 12 meses de lançamentos recorrentes (R$ ${Number(selectedCliente.valor_recorrente).toLocaleString('pt-BR')}/mês) para o cliente ${selectedCliente.nome_empresa} no financeiro?`)) {
+                            try {
+                              setLoading(true);
+                              const hoje = new Date();
+                              const promises = [];
+                              for (let i = 0; i < 12; i++) {
+                                const dataRef = new Date(hoje.getFullYear(), hoje.getMonth() + i, 10);
+                                const mesStr = dataRef.toISOString().slice(0, 7);
+                                const dataMovStr = dataRef.toISOString().split('T')[0];
+                                const status = i === 0 ? 'Confirmado' : 'Previsto';
+                                promises.push(createFinanceiroMovimento({
+                                  cliente_id: selectedCliente.id,
+                                  tipo: 'Entrada recorrente mensal',
+                                  descricao: `Consultoria Recorrente - ${selectedCliente.nome_empresa}`,
+                                  valor: Number(selectedCliente.valor_recorrente),
+                                  data_movimento: dataMovStr,
+                                  mes_referencia: mesStr,
+                                  status: status
+                                }));
+                              }
+                              await Promise.all(promises);
+                              await loadData();
+                              alert('12 meses de lançamentos projetados com sucesso!');
+                            } catch (err) {
+                              console.error(err);
+                              alert('Erro ao projetar valores.');
+                            } finally {
+                              setLoading(false);
+                            }
+                          }
+                        }}
+                        className="px-2.5 py-1 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                      >
+                        Projetar 12 Meses
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
+
+                {selectedCliente.link_contrato && (
+                  <div className="bg-mtabi-bg border border-mtabi-border p-3 rounded-xl flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted flex items-center gap-1.5">
+                      <FileText size={12} className="text-mtabi-yellow" /> Contrato Ativo
+                    </span>
+                    <a
+                      href={selectedCliente.link_contrato.startsWith('http') ? selectedCliente.link_contrato : `https://${selectedCliente.link_contrato}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1 text-[10px] font-bold text-mtabi-yellow uppercase tracking-wider hover:underline"
+                    >
+                      Visualizar Contrato <ArrowUpRight size={10} />
+                    </a>
+                  </div>
+                )}
               </div>
 
               {selectedCliente.observacoes && (
@@ -880,6 +972,49 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                   <option value="Inativo">Inativo</option>
                 </select>
               </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
+                    Consultoria Recorrente (R$ / mês)
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={clientForm.valor_recorrente || ''}
+                    onChange={(e) => setClientForm({ ...clientForm, valor_recorrente: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
+                    Contrato (PDF, imagem ou link)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="https://drive.google.com/..."
+                    value={clientForm.link_contrato}
+                    onChange={(e) => setClientForm({ ...clientForm, link_contrato: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  />
+                </div>
+              </div>
+
+              {clientForm.valor_recorrente > 0 && (
+                <div className="flex items-start gap-2 bg-mtabi-bg/50 border border-mtabi-border p-3.5 rounded-xl mt-2 select-none">
+                  <input
+                    type="checkbox"
+                    id="shouldProject"
+                    checked={shouldProject}
+                    onChange={(e) => setShouldProject(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded border-mtabi-border text-mtabi-yellow focus:ring-mtabi-yellow bg-mtabi-bg accent-mtabi-yellow cursor-pointer"
+                  />
+                  <label htmlFor="shouldProject" className="text-xs text-white leading-snug cursor-pointer">
+                    <span className="font-bold block">Projetar Faturamentos no Financeiro</span>
+                    <span className="text-[10px] text-mtabi-muted block mt-0.5">Gerar 12 meses de lançamentos recorrentes automáticos (status 'Confirmado' para o mês atual, 'Previsto' para os seguintes).</span>
+                  </label>
+                </div>
+              )}
 
               <div className="flex gap-3 pt-3 border-t border-mtabi-border">
                 <button

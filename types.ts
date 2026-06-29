@@ -40,6 +40,8 @@ export interface Cliente {
   tipo_relacao: 'Projeto único' | 'Consultoria recorrente' | 'Ambos';
   observacoes?: string;
   data_criacao?: string;
+  valor_recorrente?: number;
+  link_contrato?: string;
 }
 
 // 2. Projetos
