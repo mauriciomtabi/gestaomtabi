@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Landmark, Plus, Search, Filter, Calendar, DollarSign, Edit2, Trash2, X, AlertTriangle, ArrowUpRight, ArrowDownRight, TrendingUp, RefreshCw, BarChart } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { getFinanceiroMovimentos, createFinanceiroMovimento, updateFinanceiroMovimento, deleteFinanceiroMovimento, getClientes, getProjetos, getFerramentas } from '../services/supabaseService';
+import { getFinanceiroMovimentos, createFinanceiroMovimento, updateFinanceiroMovimento, deleteFinanceiroMovimento, getClientes, getProjetos, getFerramentas, sincronizarTodosOsContratos } from '../services/supabaseService';
 import { FinanceiroMovimento, Cliente, Projeto, FerramentaCusto } from '../types';
 
 const Financeiro: React.FC = () => {
@@ -38,6 +38,7 @@ const Financeiro: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
+      await sincronizarTodosOsContratos();
       const [m, c, p, f] = await Promise.all([
         getFinanceiroMovimentos(),
         getClientes(),
@@ -178,12 +179,23 @@ const Financeiro: React.FC = () => {
   };
 
   const dadosMRR = mesesGrafico.map(mStr => {
-    const totalMRR = movimentos
-      .filter(m => m.mes_referencia === mStr && m.tipo === 'Entrada recorrente mensal' && m.status !== 'Cancelado')
+    const pago = movimentos
+      .filter(m => m.mes_referencia === mStr && m.tipo === 'Entrada recorrente mensal' && m.status === 'Confirmado')
       .reduce((acc, curr) => acc + Number(curr.valor), 0);
+
+    const pendente = movimentos
+      .filter(m => m.mes_referencia === mStr && m.tipo === 'Entrada recorrente mensal' && m.status === 'Atrasado')
+      .reduce((acc, curr) => acc + Number(curr.valor), 0);
+
+    const projetado = movimentos
+      .filter(m => m.mes_referencia === mStr && m.tipo === 'Entrada recorrente mensal' && m.status === 'Previsto')
+      .reduce((acc, curr) => acc + Number(curr.valor), 0);
+
     return {
       name: formatarMes(mStr),
-      MRR: totalMRR
+      Pago: pago,
+      Pendente: pendente,
+      Projetado: projetado
     };
   });
 
@@ -271,20 +283,39 @@ const Financeiro: React.FC = () => {
 
       {/* Gráfico de Evolução MRR */}
       <div className="bg-mtabi-card border border-mtabi-border p-5 rounded-2xl">
-        <div>
-          <h3 className="text-sm font-bold uppercase tracking-wider text-white">Evolução do MRR (Receita Recorrente Mensal)</h3>
-          <p className="text-xs text-mtabi-muted mt-0.5">Visão histórica de estabilidade e contratos fixos</p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-white">Evolução do MRR (Receita Recorrente Mensal)</h3>
+            <p className="text-xs text-mtabi-muted mt-0.5">Visão histórica de estabilidade e contratos fixos</p>
+          </div>
+          {/* Legenda Customizada */}
+          <div className="flex gap-4 text-[10px] font-bold uppercase tracking-wider font-sans">
+            <div className="flex items-center gap-1.5 text-mtabi-success">
+              <span className="w-2.5 h-2.5 rounded-full bg-mtabi-success" />
+              <span>Pago</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-mtabi-error">
+              <span className="w-2.5 h-2.5 rounded-full bg-mtabi-error" />
+              <span>Pendente</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-mtabi-yellow">
+              <span className="w-2.5 h-2.5 rounded-full bg-mtabi-yellow" />
+              <span>Projetado</span>
+            </div>
+          </div>
         </div>
         <div className="h-48 w-full mt-6 font-sans text-xs">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={dadosMRR} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
               <XAxis dataKey="name" stroke="#8A8A8F" tickLine={false} />
-              <YAxis stroke="#8A8A8F" tickLine={false} axisLine={false} tickFormatter={(v) => `R$${v}`} />
+              <YAxis stroke="#8A8A8F" tickLine={false} axisLine={false} tickFormatter={(v) => `R$ ${v}`} />
               <Tooltip
                 contentStyle={{ backgroundColor: '#17171A', borderColor: '#2A2A2E', borderRadius: '12px' }}
-                formatter={(value) => [`R$ ${value},00`, 'MRR Estável']}
+                formatter={(value, name) => [`R$ ${Number(value).toLocaleString('pt-BR')}`, name]}
               />
-              <Line type="monotone" dataKey="MRR" stroke="#F5B324" strokeWidth={3} dot={{ fill: '#F5B324', strokeWidth: 2 }} />
+              <Line type="monotone" dataKey="Pago" stroke="#10b981" strokeWidth={3} dot={{ fill: '#10b981', r: 4 }} name="Pago" />
+              <Line type="monotone" dataKey="Pendente" stroke="#ef4444" strokeWidth={3} dot={{ fill: '#ef4444', r: 4 }} name="Pendente" />
+              <Line type="monotone" dataKey="Projetado" stroke="#F5B324" strokeWidth={3} dot={{ fill: '#F5B324', r: 4 }} name="Projetado" />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -377,14 +408,33 @@ const Financeiro: React.FC = () => {
                       {mov.tipo === 'Saída/custo' ? '-' : '+'} R$ {Number(mov.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="py-3">
-                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                        mov.status === 'Confirmado' ? 'bg-emerald-950 text-mtabi-success' :
-                        mov.status === 'Previsto' ? 'bg-zinc-800 text-mtabi-muted' :
-                        mov.status === 'Atrasado' ? 'bg-red-950 text-mtabi-error' :
-                        'bg-zinc-900 text-zinc-500'
-                      }`}>
-                        {mov.status}
-                      </span>
+                      <select
+                        value={mov.status}
+                        onChange={async (e) => {
+                          try {
+                            setLoading(true);
+                            await updateFinanceiroMovimento(mov.id, {
+                              status: e.target.value as any
+                            });
+                            await loadData();
+                          } catch (err) {
+                            console.error(err);
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded bg-mtabi-bg border cursor-pointer uppercase transition-colors outline-none ${
+                          mov.status === 'Confirmado' ? 'border-mtabi-success/40 text-mtabi-success bg-emerald-950/30' :
+                          mov.status === 'Previsto' ? 'border-mtabi-muted/40 text-mtabi-muted bg-zinc-800/40' :
+                          mov.status === 'Atrasado' ? 'border-mtabi-error/40 text-mtabi-error bg-red-950/30' :
+                          'border-zinc-800 text-zinc-550 bg-zinc-900/40'
+                        }`}
+                      >
+                        <option value="Confirmado" className="bg-mtabi-card text-mtabi-success font-bold text-[9px]">PAGO</option>
+                        <option value="Atrasado" className="bg-mtabi-card text-mtabi-error font-bold text-[9px]">PENDENTE</option>
+                        <option value="Previsto" className="bg-mtabi-card text-mtabi-muted font-bold text-[9px]">PROJETADO</option>
+                        <option value="Cancelado" className="bg-mtabi-card text-zinc-500 font-bold text-[9px]">CANCELADO</option>
+                      </select>
                     </td>
                     <td className="py-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">

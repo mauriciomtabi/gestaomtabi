@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Building2, Plus, Search, Filter, Phone, User, Landmark, HelpCircle, Edit2, Trash2, Calendar, FileText, ChevronRight, X, AlertTriangle, ArrowUpRight, Upload } from 'lucide-react';
-import { getClientes, createCliente, updateCliente, deleteCliente, getProjetos, createProjeto, getFinanceiroMovimentos, uploadClientLogo, getContratos, createContrato, updateContrato, deleteContrato, createFinanceiroMovimento, updateFinanceiroMovimento, deleteFinanceiroMovimento } from '../services/supabaseService';
+import { getClientes, createCliente, updateCliente, deleteCliente, getProjetos, createProjeto, getFinanceiroMovimentos, uploadClientLogo, getContratos, createContrato, updateContrato, deleteContrato, createFinanceiroMovimento, updateFinanceiroMovimento, deleteFinanceiroMovimento, sincronizarTodosOsContratos } from '../services/supabaseService';
 import { Cliente, Projeto, FinanceiroMovimento, Contrato } from '../types';
 
 interface MonthProjection {
@@ -121,6 +121,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   const loadData = async () => {
     try {
       setLoading(true);
+      await sincronizarTodosOsContratos();
       const [c, p, f, ct] = await Promise.all([
         getClientes(),
         getProjetos(),
@@ -1220,14 +1221,35 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                               {mov.tipo === 'Saída/custo' ? '-' : '+'} R$ {Number(mov.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </td>
                             <td className="py-2.5 text-right">
-                              <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                                mov.status === 'Confirmado' ? 'bg-emerald-950 text-mtabi-success' :
-                                mov.status === 'Previsto' ? 'bg-zinc-800 text-mtabi-muted' :
-                                mov.status === 'Atrasado' ? 'bg-red-950 text-mtabi-error' :
-                                'bg-zinc-900 text-zinc-600'
-                              }`}>
-                                {mov.status}
-                              </span>
+                              <select
+                                value={mov.status}
+                                onChange={async (e) => {
+                                  try {
+                                    setLoading(true);
+                                    await updateFinanceiroMovimento(mov.id, {
+                                      status: e.target.value as any
+                                    });
+                                    await loadData();
+                                    showToast('Status do faturamento atualizado!');
+                                  } catch (err) {
+                                    console.error(err);
+                                    showToast('Erro ao atualizar status.', 'error');
+                                  } finally {
+                                    setLoading(false);
+                                  }
+                                }}
+                                className={`text-[9px] font-bold px-1.5 py-0.5 rounded bg-mtabi-bg border cursor-pointer uppercase transition-colors outline-none ${
+                                  mov.status === 'Confirmado' ? 'border-mtabi-success/40 text-mtabi-success bg-emerald-950/30' :
+                                  mov.status === 'Previsto' ? 'border-mtabi-muted/40 text-mtabi-muted bg-zinc-800/40' :
+                                  mov.status === 'Atrasado' ? 'border-mtabi-error/40 text-mtabi-error bg-red-950/30' :
+                                  'border-zinc-800 text-zinc-600 bg-zinc-900/40'
+                                }`}
+                              >
+                                <option value="Confirmado" className="bg-mtabi-card text-mtabi-success font-bold text-[9px]">PAGO</option>
+                                <option value="Atrasado" className="bg-mtabi-card text-mtabi-error font-bold text-[9px]">PENDENTE</option>
+                                <option value="Previsto" className="bg-mtabi-card text-mtabi-muted font-bold text-[9px]">PROJETADO</option>
+                                <option value="Cancelado" className="bg-mtabi-card text-zinc-600 font-bold text-[9px]">CANCELADO</option>
+                              </select>
                             </td>
                           </tr>
                         ))}

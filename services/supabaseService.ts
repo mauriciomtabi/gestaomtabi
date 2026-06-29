@@ -972,3 +972,227 @@ export const deleteContrato = async (id: string): Promise<void> => {
   if (error) throw error;
 };
 
+export const sincronizarTodosOsContratos = async (): Promise<void> => {
+  if (isMockMode()) {
+    const clientes = getLocalData('mtabi_mock_clientes', []);
+    const contratos = getLocalData('mtabi_mock_contratos', MOCK_CONTRATOS);
+    let movimentos = getLocalData('mtabi_mock_financeiro', []);
+
+    const hoje = new Date();
+    const hojeLocalStr = hoje.toISOString().split('T')[0];
+    let alterado = false;
+
+    for (const cli of clientes) {
+      const contratosCli = contratos.filter(c => c.cliente_id === cli.id);
+      const movsExistentes = movimentos.filter(m => 
+        m.cliente_id === cli.id && 
+        m.tipo === 'Entrada recorrente mensal'
+      );
+
+      if (contratosCli.length === 0) continue;
+
+      const mesesParaProcessar: string[] = [];
+      let minData = new Date(hoje.getFullYear() - 1, hoje.getMonth(), 1);
+      let maxData = new Date(hoje.getFullYear() + 1, hoje.getMonth(), 1);
+
+      contratosCli.forEach(c => {
+        if (c.status === 'Cancelado') return;
+        const start = new Date(c.data_inicio + 'T12:00:00');
+        if (start < minData) minData = new Date(start.getFullYear(), start.getMonth(), 1);
+        if (c.data_fim) {
+          const end = new Date(c.data_fim + 'T12:00:00');
+          if (end > maxData) maxData = new Date(end.getFullYear(), end.getMonth(), 1);
+        }
+      });
+
+      let current = new Date(minData.getFullYear(), minData.getMonth(), 1);
+      const endLimit = new Date(maxData.getFullYear(), maxData.getMonth(), 1);
+      while (current <= endLimit) {
+        mesesParaProcessar.push(current.toISOString().slice(0, 7));
+        current.setMonth(current.getMonth() + 1);
+      }
+
+      for (const mesStr of mesesParaProcessar) {
+        const inicioMes = `${mesStr}-01`;
+        const fimMes = `${mesStr}-31`;
+
+        const contratosValidos = contratosCli.filter(c => 
+          c.status !== 'Cancelado' &&
+          c.data_inicio <= fimMes &&
+          (!c.data_fim || c.data_fim >= inicioMes)
+        );
+
+        const contratoDoMes = contratosValidos.find(c => c.status === 'Ativo') || contratosValidos[0];
+        const valorDevido = contratoDoMes ? Number(contratoDoMes.valor_recorrente) : 0;
+        const indexExistente = movimentos.findIndex(m => m.cliente_id === cli.id && m.mes_referencia === mesStr && m.tipo === 'Entrada recorrente mensal');
+
+        if (valorDevido > 0) {
+          let status: 'Confirmado' | 'Atrasado' | 'Previsto' = 'Previsto';
+
+          if (indexExistente !== -1 && movimentos[indexExistente].status === 'Confirmado') {
+            status = 'Confirmado';
+          } else if (indexExistente !== -1 && movimentos[indexExistente].status === 'Cancelado') {
+            status = 'Cancelado' as any;
+          } else {
+            const diaVenc = contratoDoMes.data_inicio
+              ? parseInt(contratoDoMes.data_inicio.split('-')[2], 10)
+              : 10;
+            const diaVencStr = String(diaVenc).padStart(2, '0');
+            const dataVencStr = `${mesStr}-${diaVencStr}`;
+
+            if (hojeLocalStr > dataVencStr) {
+              status = 'Atrasado';
+            } else {
+              status = 'Previsto';
+            }
+          }
+
+          if (indexExistente !== -1) {
+            const existente = movimentos[indexExistente];
+            if (Number(existente.valor) !== valorDevido || existente.status !== status) {
+              movimentos[indexExistente] = {
+                ...existente,
+                valor: valorDevido,
+                status: status
+              };
+              alterado = true;
+            }
+          } else {
+            movimentos.push({
+              id: 'mov-' + Math.random().toString(36).substring(2, 9),
+              cliente_id: cli.id,
+              tipo: 'Entrada recorrente mensal',
+              descricao: `Consultoria Recorrente - ${cli.nome_empresa}`,
+              valor: valorDevido,
+              data_movimento: `${mesStr}-10`,
+              mes_referencia: mesStr,
+              status: status
+            });
+            alterado = true;
+          }
+        } else {
+          if (indexExistente !== -1 && movimentos[indexExistente].status === 'Previsto') {
+            movimentos = movimentos.filter((_, idx) => idx !== indexExistente);
+            alterado = true;
+          }
+        }
+      }
+    }
+
+    if (alterado) {
+      saveLocalData('mtabi_mock_financeiro', movimentos);
+    }
+    return;
+  }
+
+  try {
+    const [clientes, contratos, movimentos] = await Promise.all([
+      getClientes(),
+      getContratos(),
+      getFinanceiroMovimentos()
+    ]);
+
+    const hoje = new Date();
+    const hojeLocalStr = hoje.toISOString().split('T')[0];
+    const promises: Promise<any>[] = [];
+
+    for (const cli of clientes) {
+      const contratosCli = contratos.filter(c => c.cliente_id === cli.id);
+      const movsExistentes = movimentos.filter(m => 
+        m.cliente_id === cli.id && 
+        m.tipo === 'Entrada recorrente mensal'
+      );
+
+      if (contratosCli.length === 0) continue;
+
+      const mesesParaProcessar: string[] = [];
+      let minData = new Date(hoje.getFullYear() - 1, hoje.getMonth(), 1);
+      let maxData = new Date(hoje.getFullYear() + 1, hoje.getMonth(), 1);
+
+      contratosCli.forEach(c => {
+        if (c.status === 'Cancelado') return;
+        const start = new Date(c.data_inicio + 'T12:00:00');
+        if (start < minData) minData = new Date(start.getFullYear(), start.getMonth(), 1);
+        if (c.data_fim) {
+          const end = new Date(c.data_fim + 'T12:00:00');
+          if (end > maxData) maxData = new Date(end.getFullYear(), end.getMonth(), 1);
+        }
+      });
+
+      let current = new Date(minData.getFullYear(), minData.getMonth(), 1);
+      const endLimit = new Date(maxData.getFullYear(), maxData.getMonth(), 1);
+      while (current <= endLimit) {
+        mesesParaProcessar.push(current.toISOString().slice(0, 7));
+        current.setMonth(current.getMonth() + 1);
+      }
+
+      for (const mesStr of mesesParaProcessar) {
+        const inicioMes = `${mesStr}-01`;
+        const fimMes = `${mesStr}-31`;
+
+        const contratosValidos = contratosCli.filter(c => 
+          c.status !== 'Cancelado' &&
+          c.data_inicio <= fimMes &&
+          (!c.data_fim || c.data_fim >= inicioMes)
+        );
+
+        const contratoDoMes = contratosValidos.find(c => c.status === 'Ativo') || contratosValidos[0];
+        const valorDevido = contratoDoMes ? Number(contratoDoMes.valor_recorrente) : 0;
+        const existente = movsExistentes.find(m => m.mes_referencia === mesStr);
+        const dataRef = `${mesStr}-10`;
+
+        if (valorDevido > 0) {
+          let status: 'Confirmado' | 'Atrasado' | 'Previsto' = 'Previsto';
+
+          if (existente && existente.status === 'Confirmado') {
+            status = 'Confirmado';
+          } else if (existente && existente.status === 'Cancelado') {
+            status = 'Cancelado' as any;
+          } else {
+            const diaVenc = contratoDoMes.data_inicio
+              ? parseInt(contratoDoMes.data_inicio.split('-')[2], 10)
+              : 10;
+            const diaVencStr = String(diaVenc).padStart(2, '0');
+            const dataVencStr = `${mesStr}-${diaVencStr}`;
+
+            if (hojeLocalStr > dataVencStr) {
+              status = 'Atrasado';
+            } else {
+              status = 'Previsto';
+            }
+          }
+
+          if (existente) {
+            if (Number(existente.valor) !== valorDevido || existente.status !== status) {
+              promises.push(updateFinanceiroMovimento(existente.id, {
+                valor: valorDevido,
+                status: status
+              }));
+            }
+          } else {
+            promises.push(createFinanceiroMovimento({
+              cliente_id: cli.id,
+              tipo: 'Entrada recorrente mensal',
+              descricao: `Consultoria Recorrente - ${cli.nome_empresa}`,
+              valor: valorDevido,
+              data_movimento: dataRef,
+              mes_referencia: mesStr,
+              status: status
+            }));
+          }
+        } else {
+          if (existente && existente.status === 'Previsto') {
+            promises.push(deleteFinanceiroMovimento(existente.id));
+          }
+        }
+      }
+    }
+
+    if (promises.length > 0) {
+      await Promise.all(promises);
+    }
+  } catch (err) {
+    console.error('Erro na sincronização global de contratos:', err);
+  }
+};
+
