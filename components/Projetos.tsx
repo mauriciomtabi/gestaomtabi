@@ -348,411 +348,420 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
         </button>
       </div>
 
-      {/* Grid Principal */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Lado Esquerdo: Busca, Filtros e Cards */}
-        <div className="lg:col-span-1 space-y-4">
-          
-          {/* Caixa de Busca e Filtros */}
-          <div className="bg-mtabi-card border border-mtabi-border p-4 rounded-2xl space-y-3 font-sans">
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 text-mtabi-muted" size={16} />
-              <input
-                type="text"
-                placeholder="Buscar projeto..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white placeholder-mtabi-muted"
-              />
-            </div>
+      {/* Barra de Busca e Filtros superior de largura total */}
+      <div className="bg-mtabi-card border border-mtabi-border p-4 rounded-2xl grid grid-cols-1 md:grid-cols-3 gap-4 font-sans mb-6">
+        {/* Campo de pesquisa */}
+        <div className="relative">
+          <Search className="absolute left-3 top-2.5 text-mtabi-muted" size={16} />
+          <input
+            type="text"
+            placeholder="Buscar projeto..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white placeholder-mtabi-muted font-sans"
+          />
+        </div>
+        {/* Filtro Status */}
+        <div className="flex items-center gap-2">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted shrink-0 font-sans">
+            Status:
+          </label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full p-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs text-white focus:outline-none focus:border-mtabi-yellow font-sans cursor-pointer"
+          >
+            <option value="todos">Todos</option>
+            <option value="Em negociação">Negociação</option>
+            <option value="Em desenvolvimento">Dev</option>
+            <option value="Em produção">Produção</option>
+            <option value="Manutenção">Manutenção</option>
+            <option value="Pausado">Pausado</option>
+            <option value="Encerrado">Encerrado</option>
+          </select>
+        </div>
+        {/* Filtro Ferramenta */}
+        <div className="flex items-center gap-2">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted shrink-0 font-sans">
+            Tecnologia:
+          </label>
+          <select
+            value={toolFilter}
+            onChange={(e) => setToolFilter(e.target.value)}
+            className="w-full p-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs text-white focus:outline-none focus:border-mtabi-yellow font-sans cursor-pointer"
+          >
+            <option value="todos">Todas</option>
+            {todasFerramentasDev.map(tool => (
+              <option key={tool} value={tool}>{tool}</option>
+            ))}
+          </select>
+        </div>
+      </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted block mb-1">
-                  Status
-                </label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full p-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs text-white focus:outline-none focus:border-mtabi-yellow"
-                >
-                  <option value="todos">Todos</option>
-                  <option value="Em negociação">Negociação</option>
-                  <option value="Em desenvolvimento">Dev</option>
-                  <option value="Em produção">Produção</option>
-                  <option value="Manutenção">Manutenção</option>
-                  <option value="Pausado">Pausado</option>
-                  <option value="Encerrado">Encerrado</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted block mb-1">
-                  Ferramenta Dev
-                </label>
-                <select
-                  value={toolFilter}
-                  onChange={(e) => setToolFilter(e.target.value)}
-                  className="w-full p-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs text-white focus:outline-none focus:border-mtabi-yellow"
-                >
-                  <option value="todos">Todas</option>
-                  {todasFerramentasDev.map(tool => (
-                    <option key={tool} value={tool}>{tool}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+      {/* Grid Principal de Projetos em Cards */}
+      <div className="w-full">
+        {loading ? (
+          <div className="text-center py-12 text-mtabi-muted text-xs animate-pulse uppercase tracking-wider">
+            Buscando projetos...
           </div>
-
-          {/* Cards de Projeto */}
-          <div className="space-y-3 max-h-[60vh] lg:max-h-[70vh] overflow-y-auto pr-1">
-            {loading ? (
-              <div className="text-center py-8 text-mtabi-muted text-xs animate-pulse">
-                BUSCANDO PROJETOS...
-              </div>
-            ) : filteredProjetos.length > 0 ? (
-              filteredProjetos.map(p => (
-                <div
-                  key={p.id}
-                  onClick={() => setSelectedProjeto(p)}
-                  className={`p-4 bg-mtabi-card border rounded-2xl transition-all cursor-pointer flex flex-col justify-between hover:scale-[1.01] group ${
-                    selectedProjeto?.id === p.id
-                      ? 'border-mtabi-yellow bg-mtabi-yellow/[0.01]'
-                      : 'border-mtabi-border hover:border-mtabi-border/80'
-                  }`}
-                >
-                  <div>
-                    <div className="flex justify-between items-start gap-2">
-                      <span className="text-[9px] font-bold text-mtabi-muted uppercase tracking-wider flex items-center gap-1">
-                        <Building2 size={10} className="text-mtabi-yellow" />
-                        {p.cliente?.nome_empresa}
-                      </span>
-                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
-                        p.status === 'Em produção' ? 'bg-emerald-950 text-mtabi-success border border-emerald-800/10' :
-                        p.status === 'Em desenvolvimento' ? 'bg-blue-950 text-mtabi-info border border-blue-800/10' :
-                        p.status === 'Manutenção' ? 'bg-purple-950 text-purple-400 border border-purple-800/10' :
-                        p.status === 'Em negociação' ? 'bg-amber-950 text-mtabi-yellow border border-amber-800/10' :
-                        'bg-zinc-800 text-mtabi-muted border border-zinc-700/50'
-                      }`}>
-                        {p.status}
-                      </span>
-                    </div>
-
-                    <h3 className="text-sm font-bold text-white group-hover:text-mtabi-yellow transition-colors uppercase tracking-wider mt-1.5">
-                      {p.nome_solucao}
-                    </h3>
-                    
-                    {p.descricao && (
-                      <p className="text-[11px] text-mtabi-muted mt-1 font-sans line-clamp-2 leading-relaxed">
-                        {p.descricao}
-                      </p>
-                    )}
+        ) : filteredProjetos.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {filteredProjetos.map(p => (
+              <div
+                key={p.id}
+                onClick={() => setSelectedProjeto(p)}
+                className="p-5 bg-mtabi-card border border-mtabi-border rounded-2xl transition-all hover:border-mtabi-yellow/50 hover:scale-[1.02] cursor-pointer flex flex-col justify-between group font-sans relative overflow-hidden h-56"
+              >
+                <div>
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-[9px] font-bold text-mtabi-muted uppercase tracking-wider flex items-center gap-1.5 min-w-0 font-sans">
+                      {p.cliente?.logo_url ? (
+                        <img 
+                          src={p.cliente.logo_url} 
+                          alt={p.cliente.nome_empresa} 
+                          className="w-4 h-4 object-contain rounded bg-[#13151A] p-0.5 border border-mtabi-border/40 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-4 h-4 rounded bg-mtabi-border/30 border border-mtabi-border flex items-center justify-center text-mtabi-yellow font-display font-extrabold text-[8px] shrink-0 uppercase select-none">
+                          {p.cliente?.nome_empresa?.substring(0, 2) || 'CL'}
+                        </div>
+                      )}
+                      <span className="truncate">{p.cliente?.nome_empresa}</span>
+                    </span>
+                    <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${
+                      p.status === 'Em produção' ? 'bg-emerald-950 text-mtabi-success border border-emerald-800/10' :
+                      p.status === 'Em desenvolvimento' ? 'bg-blue-950 text-mtabi-info border border-blue-800/10' :
+                      p.status === 'Manutenção' ? 'bg-purple-950 text-purple-400 border border-purple-800/10' :
+                      p.status === 'Em negociação' ? 'bg-amber-950 text-mtabi-yellow border border-amber-800/10' :
+                      'bg-zinc-800 text-mtabi-muted border border-zinc-700/50'
+                    }`}>
+                      {p.status}
+                    </span>
                   </div>
 
-                  {/* Badge de Ferramentas */}
-                  {p.ferramenta_dev && p.ferramenta_dev.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-3.5">
-                      {p.ferramenta_dev.slice(0, 3).map(tool => (
-                        <span key={tool} className="text-[8px] font-mono px-2 py-0.5 bg-mtabi-bg/60 border border-mtabi-border text-white rounded">
-                          {tool}
-                        </span>
-                      ))}
-                      {p.ferramenta_dev.length > 3 && (
-                        <span className="text-[8px] font-mono px-1.5 py-0.5 bg-mtabi-bg text-mtabi-muted rounded">
-                          +{p.ferramenta_dev.length - 3}
-                        </span>
-                      )}
-                    </div>
+                  <h3 className="text-sm font-bold text-white group-hover:text-mtabi-yellow transition-colors uppercase tracking-wider mt-3 truncate font-display">
+                    {p.nome_solucao}
+                  </h3>
+                  
+                  {p.descricao && (
+                    <p className="text-[11px] text-mtabi-muted mt-2 font-sans line-clamp-2 leading-relaxed">
+                      {p.descricao}
+                    </p>
                   )}
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8 bg-mtabi-card border border-mtabi-border rounded-2xl text-mtabi-muted text-xs">
-                Nenhum projeto encontrado
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* Lado Direito: Visualização Detalhada */}
-        <div className="lg:col-span-2">
-          {selectedProjeto ? (
-            <div className="bg-mtabi-card border border-mtabi-border rounded-2xl p-6 space-y-6 font-sans">
-              
-              {/* Cabeçalho */}
-              <div className="flex justify-between items-start border-b border-mtabi-border pb-5 gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-mtabi-yellow font-bold uppercase tracking-wider flex items-center gap-1">
-                      <Building2 size={12} />
-                      {selectedProjeto.cliente?.nome_empresa}
-                    </span>
-                  </div>
-                  <h2 className="text-xl sm:text-2xl font-extrabold text-white font-display uppercase tracking-tight mt-1">
-                    {selectedProjeto.nome_solucao}
-                  </h2>
-                  <p className="text-xs text-mtabi-muted mt-1">
-                    Iniciado em: <span className="text-white">{selectedProjeto.data_inicio ? new Date(selectedProjeto.data_inicio).toLocaleDateString('pt-BR') : 'N/D'}</span>
-                    {selectedProjeto.data_entrega_prevista && (
-                      <> • Entrega prevista: <span className="text-white">{new Date(selectedProjeto.data_entrega_prevista).toLocaleDateString('pt-BR')}</span></>
-                    )}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => openEditProjectModal(selectedProjeto)}
-                    className="p-2 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border text-white hover:text-mtabi-yellow rounded-xl transition-all cursor-pointer"
-                    title="Editar Projeto"
-                  >
-                    <Edit2 size={14} />
-                  </button>
-                  <button
-                    onClick={() => setProjectToDelete(selectedProjeto)}
-                    className="p-2 bg-mtabi-bg hover:bg-mtabi-error/10 border border-mtabi-border text-white hover:text-mtabi-error rounded-xl transition-all cursor-pointer"
-                    title="Excluir Projeto"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Descrição */}
-              {selectedProjeto.descricao && (
-                <div className="bg-mtabi-bg/30 border border-mtabi-border p-4 rounded-xl">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1">Escopo & Objetivo</h4>
-                  <p className="text-xs text-mtabi-text leading-relaxed whitespace-pre-wrap">{selectedProjeto.descricao}</p>
-                </div>
-              )}
-
-              {/* Informações Financeiras */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-mtabi-bg border border-mtabi-border p-4 rounded-xl space-y-2">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Faturamento do Projeto</h4>
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-mtabi-muted">Cobrança Única:</span>
-                      <span className="text-white font-bold">
-                        {selectedProjeto.valor_projeto ? Number(selectedProjeto.valor_projeto).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00'}
+                {/* Badge de Ferramentas */}
+                {p.ferramenta_dev && p.ferramenta_dev.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-4">
+                    {p.ferramenta_dev.slice(0, 3).map(tool => (
+                      <span key={tool} className="text-[8px] font-mono px-2 py-0.5 bg-mtabi-bg/60 border border-mtabi-border text-white rounded">
+                        {tool}
                       </span>
-                    </div>
-                    {selectedProjeto.valor_projeto && selectedProjeto.valor_projeto > 0 && (
-                      <>
-                        <div className="flex justify-between items-center text-[10px] text-mtabi-muted pl-2">
-                          <span>Forma de Pagamento:</span>
-                          <span className="text-white uppercase font-bold">{selectedProjeto.forma_pagamento || 'Boleto'}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] text-mtabi-muted pl-2">
-                          <span>Parcelamento:</span>
-                          <span className="text-white font-bold">{selectedProjeto.parcelas || 1}x</span>
-                        </div>
-                      </>
-                    )}
-                    <div className="flex justify-between items-center text-xs pt-1 border-t border-mtabi-border/40 mt-1">
-                      <span className="text-mtabi-muted">Manutenção Mensal:</span>
-                      <span className="text-mtabi-yellow font-bold">
-                        {selectedProjeto.valor_mensal ? Number(selectedProjeto.valor_mensal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + '/mês' : 'R$ 0,00'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-mtabi-bg border border-mtabi-border p-4 rounded-xl space-y-3">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Links Operacionais</h4>
-                  <div className="space-y-2 text-xs">
-                    {/* 1. Link de Acesso */}
-                    <div className="space-y-0.5">
-                      {selectedProjeto.link_acesso ? (
-                        <a
-                          href={selectedProjeto.link_acesso}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-1.5 text-mtabi-yellow hover:underline"
-                        >
-                          <Globe size={12} /> Acessar Aplicação <ExternalLink size={10} />
-                        </a>
-                      ) : (
-                        <span className="text-mtabi-muted block flex items-center gap-1.5"><Globe size={12} /> Sem link de produção</span>
-                      )}
-                      {selectedProjeto.link_acesso && selectedProjeto.user_acesso && (
-                        <span className="text-[10px] text-mtabi-muted block pl-4 font-sans">
-                          Usuário: <span className="text-white select-all font-mono">{selectedProjeto.user_acesso}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    {/* 2. Link Banco de Dados */}
-                    <div className="space-y-0.5">
-                      {selectedProjeto.link_supabase ? (
-                        <a
-                          href={selectedProjeto.link_supabase}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 hover:underline"
-                        >
-                          <Database size={12} /> Console Supabase <ExternalLink size={10} />
-                        </a>
-                      ) : (
-                        <span className="text-mtabi-muted block flex items-center gap-1.5"><Database size={12} /> Sem link do Supabase</span>
-                      )}
-                      {selectedProjeto.link_supabase && selectedProjeto.user_supabase && (
-                        <span className="text-[10px] text-mtabi-muted block pl-4 font-sans">
-                          Usuário: <span className="text-white select-all font-mono">{selectedProjeto.user_supabase}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    {/* 3. Link Repositório */}
-                    <div className="space-y-0.5">
-                      {selectedProjeto.repositorio_url ? (
-                        <a
-                          href={selectedProjeto.repositorio_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-1.5 text-white hover:text-mtabi-yellow hover:underline"
-                        >
-                          <Github size={12} /> Código Fonte <ExternalLink size={10} />
-                        </a>
-                      ) : (
-                        <span className="text-mtabi-muted block flex items-center gap-1.5"><Github size={12} /> Sem repositório público</span>
-                      )}
-                      {selectedProjeto.repositorio_url && selectedProjeto.user_repositorio && (
-                        <span className="text-[10px] text-mtabi-muted block pl-4 font-sans">
-                          Usuário: <span className="text-white select-all font-mono">{selectedProjeto.user_repositorio}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    {/* 4. Link Banco de Imagens */}
-                    <div className="space-y-0.5">
-                      {selectedProjeto.hospedagem_imagens ? (
-                        <a
-                          href={selectedProjeto.hospedagem_imagens.startsWith('http') ? selectedProjeto.hospedagem_imagens : `https://${selectedProjeto.hospedagem_imagens}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 hover:underline"
-                        >
-                          <Image size={12} /> Banco de Imagens <ExternalLink size={10} />
-                        </a>
-                      ) : (
-                        <span className="text-mtabi-muted block flex items-center gap-1.5"><Image size={12} /> Sem link de imagens</span>
-                      )}
-                      {selectedProjeto.hospedagem_imagens && selectedProjeto.user_imagens && (
-                        <span className="text-[10px] text-mtabi-muted block pl-4 font-sans">
-                          Usuário: <span className="text-white select-all font-mono">{selectedProjeto.user_imagens}</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stack Técnica / Infraestrutura */}
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted border-b border-mtabi-border pb-1">
-                  Arquitetura & Infraestrutura
-                </h4>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="bg-mtabi-bg/50 border border-mtabi-border p-3 rounded-xl flex flex-col justify-between">
-                    <div>
-                      <span className="text-[9px] text-mtabi-muted uppercase tracking-wider flex items-center gap-1">
-                        <Server size={10} className="text-mtabi-yellow" /> Hospedagem Geral
-                      </span>
-                      <span className="text-xs text-white font-bold mt-1.5 block truncate">
-                        {selectedProjeto.hospedagem_geral || 'Não Informado'}
-                      </span>
-                    </div>
-                    {selectedProjeto.hospedagem_geral && selectedProjeto.user_hospedagem && (
-                      <span className="text-[9px] text-mtabi-muted block mt-1 font-sans border-t border-mtabi-border/30 pt-1">
-                        Usuário: <span className="text-white select-all font-mono">{selectedProjeto.user_hospedagem}</span>
+                    ))}
+                    {p.ferramenta_dev.length > 3 && (
+                      <span className="text-[8px] font-mono px-1.5 py-0.5 bg-mtabi-bg text-mtabi-muted rounded">
+                        +{p.ferramenta_dev.length - 3}
                       </span>
                     )}
-                  </div>
-
-                  <div className="bg-mtabi-bg/50 border border-mtabi-border p-3 rounded-xl flex flex-col justify-between">
-                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider flex items-center gap-1">
-                      <Globe size={10} className="text-mtabi-yellow" /> Status Atual
-                    </span>
-                    <span className={`text-[10px] font-bold mt-1.5 uppercase ${
-                      selectedProjeto.status === 'Em produção' ? 'text-mtabi-success' : 'text-mtabi-info'
-                    }`}>
-                      {selectedProjeto.status}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Ferramentas de Desenvolvimento */}
-                {selectedProjeto.ferramenta_dev && selectedProjeto.ferramenta_dev.length > 0 && (
-                  <div className="mt-3">
-                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider block mb-1.5">Ferramentas de Codificação/IA</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedProjeto.ferramenta_dev.map(tool => (
-                        <span key={tool} className="text-[10px] font-mono px-2.5 py-1 bg-mtabi-bg border border-mtabi-border text-white rounded-lg">
-                          {tool}
-                        </span>
-                      ))}
-                    </div>
                   </div>
                 )}
               </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-mtabi-card border border-mtabi-border rounded-2xl text-mtabi-muted text-xs">
+            Nenhum projeto encontrado
+          </div>
+        )}
+      </div>
 
-              {/* Custos Vinculados Específicos */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center border-b border-mtabi-border pb-1">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
-                    Assinaturas vinculadas a este projeto
-                  </h4>
-                  <span className="text-[10px] font-bold text-mtabi-yellow">
-                    Mensal Total: R$ {totalCustoProjetoMes.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      {/* Modal de Detalhes do Projeto */}
+      {selectedProjeto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-mtabi-card border border-mtabi-border rounded-2xl max-w-5xl w-full p-6 space-y-6 relative max-h-[90vh] overflow-y-auto font-sans shadow-2xl">
+            <button 
+              onClick={() => setSelectedProjeto(null)}
+              className="absolute top-4 right-4 p-2 text-mtabi-muted hover:text-white hover:bg-mtabi-border/60 rounded-xl transition-all cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            {/* Cabeçalho */}
+            <div className="flex justify-between items-start border-b border-mtabi-border pb-5 gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-mtabi-yellow font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    {selectedProjeto.cliente?.logo_url ? (
+                      <img 
+                        src={selectedProjeto.cliente.logo_url} 
+                        alt={selectedProjeto.cliente.nome_empresa} 
+                        className="w-5 h-5 object-contain rounded bg-[#13151A] p-0.5 border border-mtabi-border/40 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-5 h-5 rounded bg-mtabi-border/30 border border-mtabi-border flex items-center justify-center text-mtabi-yellow font-display font-extrabold text-[10px] shrink-0 uppercase select-none">
+                        {selectedProjeto.cliente?.nome_empresa?.substring(0, 2) || 'CL'}
+                      </div>
+                    )}
+                    {selectedProjeto.cliente?.nome_empresa}
                   </span>
                 </div>
-
-                {projetoCustos.length > 0 ? (
-                  <div className="space-y-2">
-                    {projetoCustos.map(custo => (
-                      <div key={custo.id} className="p-3 bg-mtabi-bg border border-mtabi-border rounded-xl flex justify-between items-center text-xs">
-                        <div>
-                          <span className="font-bold text-white block">{custo.nome_ferramenta}</span>
-                          <span className="text-[9px] text-mtabi-muted uppercase tracking-wider">{custo.categoria} • Dia Venc: {custo.data_cobranca || 'N/D'}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="font-bold text-white block">
-                            {custo.moeda === 'USD' ? '$' : 'R$'} {Number(custo.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[9px] text-mtabi-muted font-normal">({custo.tipo_custo})</span>
-                          </span>
-                          {!custo.ativo && (
-                            <span className="text-[8px] px-1.5 bg-zinc-800 text-mtabi-muted uppercase rounded">Inativo</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-5 bg-mtabi-bg/10 border border-dashed border-mtabi-border rounded-xl text-mtabi-muted text-xs">
-                    Nenhum custo recorrente de ferramenta associado diretamente a este projeto.
-                  </div>
-                )}
+                <h2 className="text-xl sm:text-2xl font-extrabold text-white font-display uppercase tracking-tight mt-2">
+                  {selectedProjeto.nome_solucao}
+                </h2>
+                <p className="text-xs text-mtabi-muted mt-1">
+                  Iniciado em: <span className="text-white">{selectedProjeto.data_inicio ? new Date(selectedProjeto.data_inicio).toLocaleDateString('pt-BR') : 'N/D'}</span>
+                  {selectedProjeto.data_entrega_prevista && (
+                    <> • Entrega prevista: <span className="text-white">{new Date(selectedProjeto.data_entrega_prevista).toLocaleDateString('pt-BR')}</span></>
+                  )}
+                </p>
               </div>
 
-              {/* Observações Gerais do Projeto */}
-              {selectedProjeto.observacoes && (
-                <div className="bg-mtabi-bg/40 border border-mtabi-border p-4 rounded-xl">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1">Notas Internas</h4>
-                  <p className="text-xs text-mtabi-text leading-relaxed whitespace-pre-wrap">{selectedProjeto.observacoes}</p>
+              <div className="flex items-center gap-2 mr-8">
+                <button
+                  onClick={() => openEditProjectModal(selectedProjeto)}
+                  className="p-2 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border text-white hover:text-mtabi-yellow rounded-xl transition-all cursor-pointer"
+                  title="Editar Projeto"
+                >
+                  <Edit2 size={14} />
+                </button>
+                <button
+                  onClick={() => setProjectToDelete(selectedProjeto)}
+                  className="p-2 bg-mtabi-bg hover:bg-mtabi-error/10 border border-mtabi-border text-white hover:text-mtabi-error rounded-xl transition-all cursor-pointer"
+                  title="Excluir Projeto"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* Descrição */}
+            {selectedProjeto.descricao && (
+              <div className="bg-mtabi-bg/30 border border-mtabi-border p-4 rounded-xl">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1">Escopo & Objetivo</h4>
+                <p className="text-xs text-mtabi-text leading-relaxed whitespace-pre-wrap">{selectedProjeto.descricao}</p>
+              </div>
+            )}
+
+            {/* Informações Financeiras & Links */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-mtabi-bg border border-mtabi-border p-4 rounded-xl space-y-2">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Faturamento do Projeto</h4>
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-mtabi-muted">Cobrança Única:</span>
+                    <span className="text-white font-bold">
+                      {selectedProjeto.valor_projeto ? Number(selectedProjeto.valor_projeto).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00'}
+                    </span>
+                  </div>
+                  {selectedProjeto.valor_projeto && selectedProjeto.valor_projeto > 0 && (
+                    <>
+                      <div className="flex justify-between items-center text-[10px] text-mtabi-muted pl-2">
+                        <span>Forma de Pagamento:</span>
+                        <span className="text-white uppercase font-bold">{selectedProjeto.forma_pagamento || 'Boleto'}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] text-mtabi-muted pl-2">
+                        <span>Parcelamento:</span>
+                        <span className="text-white font-bold">{selectedProjeto.parcelas || 1}x</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between items-center text-xs pt-1 border-t border-mtabi-border/40 mt-1">
+                    <span className="text-mtabi-muted">Manutenção Mensal:</span>
+                    <span className="text-mtabi-yellow font-bold">
+                      {selectedProjeto.valor_mensal ? Number(selectedProjeto.valor_mensal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + '/mês' : 'R$ 0,00'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-mtabi-bg border border-mtabi-border p-4 rounded-xl space-y-3">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted font-sans">Links Operacionais</h4>
+                <div className="space-y-2 text-xs">
+                  {/* 1. Link de Acesso */}
+                  <div className="space-y-0.5">
+                    {selectedProjeto.link_acesso ? (
+                      <a
+                        href={selectedProjeto.link_acesso}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1.5 text-mtabi-yellow hover:underline"
+                      >
+                        <Globe size={12} /> Acessar Aplicação <ExternalLink size={10} />
+                      </a>
+                    ) : (
+                      <span className="text-mtabi-muted block flex items-center gap-1.5"><Globe size={12} /> Sem link de produção</span>
+                    )}
+                    {selectedProjeto.link_acesso && selectedProjeto.user_acesso && (
+                      <span className="text-[10px] text-mtabi-muted block pl-4 font-sans">
+                        Usuário: <span className="text-white select-all font-mono">{selectedProjeto.user_acesso}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 2. Link Banco de Dados */}
+                  <div className="space-y-0.5">
+                    {selectedProjeto.link_supabase ? (
+                      <a
+                        href={selectedProjeto.link_supabase}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 hover:underline"
+                      >
+                        <Database size={12} /> Console Supabase <ExternalLink size={10} />
+                      </a>
+                    ) : (
+                      <span className="text-mtabi-muted block flex items-center gap-1.5"><Database size={12} /> Sem link do Supabase</span>
+                    )}
+                    {selectedProjeto.link_supabase && selectedProjeto.user_supabase && (
+                      <span className="text-[10px] text-mtabi-muted block pl-4 font-sans">
+                        Usuário: <span className="text-white select-all font-mono">{selectedProjeto.user_supabase}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 3. Link Repositório */}
+                  <div className="space-y-0.5">
+                    {selectedProjeto.repositorio_url ? (
+                      <a
+                        href={selectedProjeto.repositorio_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1.5 text-white hover:text-mtabi-yellow hover:underline"
+                      >
+                        <Github size={12} /> Código Fonte <ExternalLink size={10} />
+                      </a>
+                    ) : (
+                      <span className="text-mtabi-muted block flex items-center gap-1.5"><Github size={12} /> Sem repositório público</span>
+                    )}
+                    {selectedProjeto.repositorio_url && selectedProjeto.user_repositorio && (
+                      <span className="text-[10px] text-mtabi-muted block pl-4 font-sans">
+                        Usuário: <span className="text-white select-all font-mono">{selectedProjeto.user_repositorio}</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 4. Link Banco de Imagens */}
+                  <div className="space-y-0.5">
+                    {selectedProjeto.hospedagem_imagens ? (
+                      <a
+                        href={selectedProjeto.hospedagem_imagens.startsWith('http') ? selectedProjeto.hospedagem_imagens : `https://${selectedProjeto.hospedagem_imagens}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 hover:underline"
+                      >
+                        <Image size={12} /> Banco de Imagens <ExternalLink size={10} />
+                      </a>
+                    ) : (
+                      <span className="text-mtabi-muted block flex items-center gap-1.5"><Image size={12} /> Sem link de imagens</span>
+                    )}
+                    {selectedProjeto.hospedagem_imagens && selectedProjeto.user_imagens && (
+                      <span className="text-[10px] text-mtabi-muted block pl-4 font-sans">
+                        Usuário: <span className="text-white select-all font-mono">{selectedProjeto.user_imagens}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Stack Técnica / Hospedagem */}
+            <div className="space-y-3">
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted border-b border-mtabi-border pb-1">
+                Arquitetura & Infraestrutura
+              </h4>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-mtabi-bg/50 border border-mtabi-border p-3 rounded-xl flex flex-col justify-between">
+                  <div>
+                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider flex items-center gap-1">
+                      <Server size={10} className="text-mtabi-yellow" /> Hospedagem Geral
+                    </span>
+                    <span className="text-xs text-white font-bold mt-1.5 block truncate">
+                      {selectedProjeto.hospedagem_geral || 'Não Informado'}
+                    </span>
+                  </div>
+                  {selectedProjeto.hospedagem_geral && selectedProjeto.user_hospedagem && (
+                    <span className="text-[9px] text-mtabi-muted block mt-1 font-sans border-t border-mtabi-border/30 pt-1">
+                      Usuário: <span className="text-white select-all font-mono">{selectedProjeto.user_hospedagem}</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="bg-mtabi-bg/50 border border-mtabi-border p-3 rounded-xl flex flex-col justify-between">
+                  <span className="text-[9px] text-mtabi-muted uppercase tracking-wider flex items-center gap-1">
+                    <Globe size={10} className="text-mtabi-yellow" /> Status Atual
+                  </span>
+                  <span className={`text-[10px] font-bold mt-1.5 uppercase ${
+                    selectedProjeto.status === 'Em produção' ? 'text-mtabi-success' : 'text-mtabi-info'
+                  }`}>
+                    {selectedProjeto.status}
+                  </span>
+                </div>
+              </div>
+
+              {/* Ferramentas de Desenvolvimento */}
+              {selectedProjeto.ferramenta_dev && selectedProjeto.ferramenta_dev.length > 0 && (
+                <div className="mt-3">
+                  <span className="text-[9px] text-mtabi-muted uppercase tracking-wider block mb-1.5">Ferramentas de Codificação/IA</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedProjeto.ferramenta_dev.map(tool => (
+                      <span key={tool} className="text-[10px] font-mono px-2.5 py-1 bg-mtabi-bg border border-mtabi-border text-white rounded-lg">
+                        {tool}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
+            </div>
 
+            {/* Custos Vinculados Específicos */}
+            <div className="space-y-3">
+              <div className="flex justify-between items-center border-b border-mtabi-border pb-1">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
+                  Assinaturas vinculadas a este projeto
+                </h4>
+                <span className="text-[10px] font-bold text-mtabi-yellow">
+                  Mensal Total: R$ {totalCustoProjetoMes.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              {projetoCustos.length > 0 ? (
+                <div className="space-y-2">
+                  {projetoCustos.map(custo => (
+                    <div key={custo.id} className="p-3 bg-mtabi-bg border border-mtabi-border rounded-xl flex justify-between items-center text-xs">
+                      <div>
+                        <span className="font-bold text-white block">{custo.nome_ferramenta}</span>
+                        <span className="text-[9px] text-mtabi-muted uppercase tracking-wider">{custo.categoria} • Dia Venc: {custo.data_cobranca || 'N/D'}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-bold text-white block">
+                          {custo.moeda === 'USD' ? '$' : 'R$'} {Number(custo.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-[9px] text-mtabi-muted font-normal">({custo.tipo_custo})</span>
+                        </span>
+                        {!custo.ativo && (
+                          <span className="text-[8px] px-1.5 bg-zinc-800 text-mtabi-muted uppercase rounded">Inativo</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-5 bg-mtabi-bg/10 border border-dashed border-mtabi-border rounded-xl text-mtabi-muted text-xs">
+                  Nenhum custo recorrente de ferramenta associado diretamente a este projeto.
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="h-96 bg-mtabi-card border border-mtabi-border rounded-2xl flex flex-col items-center justify-center text-mtabi-muted text-sm space-y-3 font-sans">
-              <FolderKanban size={48} className="text-mtabi-border" />
-              <p>Selecione um projeto para detalhamento completo.</p>
-            </div>
-          )}
+
+            {/* Observações Gerais do Projeto */}
+            {selectedProjeto.observacoes && (
+              <div className="bg-mtabi-bg/40 border border-mtabi-border p-4 rounded-xl">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1">Notas Internas</h4>
+                <p className="text-xs text-mtabi-text leading-relaxed whitespace-pre-wrap">{selectedProjeto.observacoes}</p>
+              </div>
+            )}
+
+          </div>
         </div>
-
-      </div>
+      )}
 
       {/* MODAL: Criar / Editar Projeto */}
       {isProjectModalOpen && (

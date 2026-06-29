@@ -772,112 +772,102 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 space-y-4">
-          <div className="bg-mtabi-card border border-mtabi-border p-4 rounded-2xl space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 text-mtabi-muted" size={16} />
-              <input
-                type="text"
-                placeholder="Buscar cliente..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs focus:outline-none focus:border-mtabi-yellow transition-colors font-sans text-white placeholder-mtabi-muted"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted block mb-1.5">
-                Filtrar Status
-              </label>
-              <div className="flex flex-wrap gap-1">
-                {['todos', 'Ativo', 'Negociação', 'Pausado', 'Inativo'].map(status => (
-                  <button
-                    key={status}
-                    onClick={() => setStatusFilter(status)}
-                    className={`px-2.5 py-1 text-[10px] uppercase font-bold tracking-wider rounded-lg transition-colors cursor-pointer border ${
-                      statusFilter === status
-                        ? 'bg-mtabi-yellow text-black border-mtabi-yellow'
-                        : 'bg-mtabi-bg text-mtabi-muted border-mtabi-border hover:border-mtabi-muted/50'
-                    }`}
-                  >
-                    {status === 'todos' ? 'TODOS' : status}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+      {/* Barra de Busca e Filtros superior de largura total */}
+      <div className="bg-mtabi-card border border-mtabi-border p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 font-sans mb-6">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-2.5 text-mtabi-muted" size={16} />
+          <input
+            type="text"
+            placeholder="Buscar cliente..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs focus:outline-none focus:border-mtabi-yellow transition-colors font-sans text-white placeholder-mtabi-muted"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Filtrar Status:</span>
+          {['todos', 'Ativo', 'Negociação', 'Pausado', 'Inativo'].map(status => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              className={`px-3 py-1.5 text-[10px] uppercase font-bold tracking-wider rounded-lg transition-colors cursor-pointer border ${
+                statusFilter === status
+                  ? 'bg-mtabi-yellow text-black border-mtabi-yellow'
+                  : 'bg-mtabi-bg text-mtabi-muted border-mtabi-border hover:border-mtabi-muted/50'
+              }`}
+            >
+              {status === 'todos' ? 'TODOS' : status.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
 
-          <div className="space-y-2 max-h-[60vh] lg:max-h-[70vh] overflow-y-auto pr-1">
-            {loading ? (
-              <div className="text-center py-8 text-mtabi-muted text-xs animate-pulse uppercase tracking-wider">
-                Buscando clientes...
-              </div>
-            ) : filteredClientes.length > 0 ? (
-              filteredClientes.map(c => (
-                <div
-                  key={c.id}
-                  onClick={() => setSelectedCliente(c)}
-                  className={`p-4 bg-mtabi-card border rounded-2xl transition-all cursor-pointer flex justify-between items-center group font-sans ${
-                    selectedCliente?.id === c.id
-                      ? 'border-mtabi-yellow bg-mtabi-yellow/[0.02]'
-                      : 'border-mtabi-border hover:border-mtabi-border/80'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 min-w-0 pr-2">
-                    {c.logo_url ? (
-                      <div className="w-20 h-20 rounded-2xl bg-[#13151A] border border-mtabi-border flex items-center justify-center p-2.5 shrink-0">
-                        <img 
-                          src={c.logo_url} 
-                          alt={c.nome_empresa} 
-                          className="w-full h-full object-contain rounded-xl"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-20 h-20 rounded-2xl bg-mtabi-border/35 border border-mtabi-border flex items-center justify-center text-mtabi-yellow font-display font-extrabold text-2xl shrink-0 uppercase select-none">
-                        {c.nome_empresa.substring(0, 2)}
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-bold text-white group-hover:text-mtabi-yellow transition-colors truncate">
-                        {c.nome_empresa}
-                      </h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] text-mtabi-muted truncate">
-                          {c.segmento || 'Sem Segmento'}
-                        </span>
-                        <span className="text-mtabi-border">•</span>
-                        <span className="text-[10px] text-mtabi-muted font-medium">
-                          {c.tipo_relacao}
-                        </span>
-                      </div>
+      {/* Grid Principal de Clientes em Cards */}
+      <div className="w-full">
+        {loading ? (
+          <div className="text-center py-12 text-mtabi-muted text-xs animate-pulse uppercase tracking-wider">
+            Buscando clientes...
+          </div>
+        ) : filteredClientes.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {filteredClientes.map(c => (
+              <div
+                key={c.id}
+                onClick={() => setSelectedCliente(c)}
+                className="p-5 bg-mtabi-card border border-mtabi-border rounded-2xl transition-all hover:border-mtabi-yellow/50 hover:scale-[1.02] cursor-pointer flex flex-col justify-between items-center group font-sans text-center relative overflow-hidden h-60"
+              >
+                <span className={`absolute top-3 right-3 text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                  c.status === 'Ativo' ? 'bg-emerald-900/30 text-mtabi-success border border-emerald-800/20' :
+                  c.status === 'Negociação' ? 'bg-amber-900/30 text-mtabi-yellow border border-amber-800/20' :
+                  c.status === 'Pausado' ? 'bg-blue-900/30 text-mtabi-info border border-blue-800/20' :
+                  'bg-zinc-800 text-mtabi-muted border border-zinc-700/50'
+                }`}>
+                  {c.status}
+                </span>
+                <div className="mt-4 flex-1 flex items-center justify-center">
+                  {c.logo_url ? (
+                    <div className="w-20 h-20 rounded-2xl bg-[#13151A] border border-mtabi-border flex items-center justify-center p-2.5 shrink-0">
+                      <img src={c.logo_url} alt={c.nome_empresa} className="w-full h-full object-contain rounded-xl" />
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                      c.status === 'Ativo' ? 'bg-emerald-900/30 text-mtabi-success border border-emerald-800/20' :
-                      c.status === 'Negociação' ? 'bg-amber-900/30 text-mtabi-yellow border border-amber-800/20' :
-                      c.status === 'Pausado' ? 'bg-blue-900/30 text-mtabi-info border border-blue-800/20' :
-                      'bg-zinc-800 text-mtabi-muted border border-zinc-700/50'
-                    }`}>
-                      {c.status}
-                    </span>
-                    <ChevronRight className={`text-mtabi-muted group-hover:text-white transition-transform ${selectedCliente?.id === c.id ? 'rotate-90' : ''}`} size={16} />
+                  ) : (
+                    <div className="w-20 h-20 rounded-2xl bg-mtabi-border/35 border border-mtabi-border flex items-center justify-center text-mtabi-yellow font-display font-extrabold text-2xl shrink-0 uppercase select-none">
+                      {c.nome_empresa.substring(0, 2)}
+                    </div>
+                  )}
+                </div>
+                <div className="mt-4 w-full">
+                  <h3 className="text-sm font-bold text-white group-hover:text-mtabi-yellow transition-colors truncate px-1">
+                    {c.nome_empresa}
+                  </h3>
+                  <div className="flex items-center justify-center gap-1.5 mt-1 text-[10px] text-mtabi-muted">
+                    <span className="truncate max-w-[100px]">{c.segmento || 'Sem Segmento'}</span>
+                    <span>•</span>
+                    <span className="font-medium truncate max-w-[100px]">{c.tipo_relacao}</span>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="text-center py-8 bg-mtabi-card border border-mtabi-border rounded-2xl text-mtabi-muted text-xs">
-                Nenhum cliente encontrado
               </div>
-            )}
+            ))}
           </div>
-        </div>
+        ) : (
+          <div className="text-center py-12 bg-mtabi-card border border-mtabi-border rounded-2xl text-mtabi-muted text-xs">
+            Nenhum cliente encontrado
+          </div>
+        )}
+      </div>
 
-        <div className="lg:col-span-2">
-          {selectedCliente ? (
-            <div className="bg-mtabi-card border border-mtabi-border rounded-2xl p-6 space-y-6 font-sans">
-              <div className="flex justify-between items-start border-b border-mtabi-border pb-5 gap-4">
+      {/* Modal de Detalhes do Cliente */}
+      {selectedCliente && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-mtabi-card border border-mtabi-border rounded-2xl max-w-4xl w-full p-6 space-y-6 relative max-h-[90vh] overflow-y-auto font-sans shadow-2xl">
+            <button
+              onClick={() => setSelectedCliente(null)}
+              className="absolute top-4 right-4 p-2 text-mtabi-muted hover:text-white hover:bg-mtabi-border/60 rounded-xl transition-all cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            {/* Cabeçalho do modal */}
+            <div className="flex justify-between items-start border-b border-mtabi-border pb-5 gap-4">
                 <div className="flex items-center gap-4 min-w-0">
                   {selectedCliente.logo_url ? (
                     <div className="w-20 h-20 rounded-2xl bg-[#13151A] border border-mtabi-border flex items-center justify-center p-2.5 shrink-0">
@@ -1193,15 +1183,10 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                   </div>
                 )}
               </div>
-            </div>
-          ) : (
-            <div className="h-96 bg-mtabi-card border border-mtabi-border rounded-2xl flex flex-col items-center justify-center text-mtabi-muted text-sm space-y-3 font-sans">
-              <Building2 size={48} className="text-mtabi-border" />
-              <p>Selecione um cliente para visualizar o perfil.</p>
-            </div>
-          )}
+
+          </div>
         </div>
-      </div>
+      )}
 
       {isClientModalOpen && (
         <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
