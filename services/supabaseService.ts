@@ -890,13 +890,21 @@ export const getContratos = async (clienteId?: string): Promise<Contrato[]> => {
     }
     return data;
   }
-  let query = supabase.from('contratos').select('*').order('data_inicio', { ascending: false });
-  if (clienteId) {
-    query = query.eq('cliente_id', clienteId);
+  try {
+    let query = supabase.from('contratos').select('*').order('data_inicio', { ascending: false });
+    if (clienteId) {
+      query = query.eq('cliente_id', clienteId);
+    }
+    const { data, error } = await query;
+    if (error) {
+      console.warn('Erro ao buscar contratos (verifique se a tabela contratos existe):', error);
+      return [];
+    }
+    return data || [];
+  } catch (err) {
+    console.warn('Erro ao carregar contratos:', err);
+    return [];
   }
-  const { data, error } = await query;
-  if (error) throw error;
-  return data || [];
 };
 
 export const createContrato = async (contrato: Partial<Contrato>): Promise<Contrato> => {
