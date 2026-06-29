@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Operator, Cliente, Projeto, FerramentaCusto, PipelineLead, FinanceiroMovimento, LogAcessoCredencial } from '../types';
+import { Operator, Cliente, Projeto, FerramentaCusto, PipelineLead, FinanceiroMovimento, LogAcessoCredencial, Contrato } from '../types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://rpnyobdmaaanyuquywiv.supabase.co';
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwbnlvYmRtYWFhbnl1cXV5d2l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzIzODEsImV4cCI6MjA5ODEwODM4MX0.6ROH6dNdkdoNrfEl4kdEOyU_FASD0iGuSt8irtYueBg';
@@ -862,5 +862,105 @@ export const uploadClientLogo = async (clienteId: string, base64: string): Promi
     console.error('Erro ao fazer upload do logotipo do cliente:', error);
     return null;
   }
+};
+
+// ==========================================
+// MOCK DE CONTRATOS
+// ==========================================
+const MOCK_CONTRATOS: Contrato[] = [
+  {
+    id: 'ct1-mock-id',
+    cliente_id: 'c1-mock-id',
+    valor_recorrente: 1621,
+    data_inicio: '2026-01-01',
+    status: 'Ativo',
+    observacoes: 'Contrato inicial de suporte e consultoria de infraestrutura.'
+  }
+];
+
+// ==========================================
+// SERVIÇOS DE CONTRATOS
+// ==========================================
+
+export const getContratos = async (clienteId?: string): Promise<Contrato[]> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_contratos', MOCK_CONTRATOS);
+    if (clienteId) {
+      return data.filter(c => c.cliente_id === clienteId);
+    }
+    return data;
+  }
+  let query = supabase.from('contratos').select('*').order('data_inicio', { ascending: false });
+  if (clienteId) {
+    query = query.eq('cliente_id', clienteId);
+  }
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+};
+
+export const createContrato = async (contrato: Partial<Contrato>): Promise<Contrato> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_contratos', MOCK_CONTRATOS);
+    const newContract: Contrato = {
+      id: 'ct-' + Math.random().toString(36).substring(2, 9),
+      cliente_id: contrato.cliente_id || '',
+      valor_recorrente: Number(contrato.valor_recorrente || 0),
+      link_contrato: contrato.link_contrato,
+      data_inicio: contrato.data_inicio || new Date().toISOString().split('T')[0],
+      data_fim: contrato.data_fim || undefined,
+      status: contrato.status || 'Ativo',
+      observacoes: contrato.observacoes,
+      data_criacao: new Date().toISOString()
+    };
+    data.push(newContract);
+    saveLocalData('mtabi_mock_contratos', data);
+    return newContract;
+  }
+  const { data, error } = await supabase
+    .from('contratos')
+    .insert([contrato])
+    .select()
+    .single();
+    
+  if (error) throw error;
+  return data;
+};
+
+export const updateContrato = async (id: string, contrato: Partial<Contrato>): Promise<Contrato> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_contratos', MOCK_CONTRATOS);
+    const index = data.findIndex(c => c.id === id);
+    if (index === -1) throw new Error('Contrato não encontrado no mock');
+    
+    const updated = { ...data[index], ...contrato };
+    data[index] = updated;
+    saveLocalData('mtabi_mock_contratos', data);
+    return updated;
+  }
+  const { data, error } = await supabase
+    .from('contratos')
+    .update(contrato)
+    .eq('id', id)
+    .select()
+    .single();
+    
+  if (error) throw error;
+  return data;
+};
+
+export const deleteContrato = async (id: string): Promise<void> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_contratos', MOCK_CONTRATOS);
+    const filtered = data.filter(c => c.id !== id);
+    saveLocalData('mtabi_mock_contratos', filtered);
+    return;
+  }
+  const { error } = await supabase
+    .from('contratos')
+    .delete()
+    .eq('id', id);
+    
+  if (error) throw error;
 };
 

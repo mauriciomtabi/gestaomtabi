@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FolderKanban, Plus, Search, Filter, Globe, Github, Database, Image, Server, Calendar, DollarSign, Edit2, Trash2, X, AlertTriangle, Building2, ChevronRight, ExternalLink } from 'lucide-react';
-import { getProjetos, createProjeto, updateProjeto, deleteProjeto, getClientes, getFerramentas } from '../services/supabaseService';
-import { Projeto, Cliente, FerramentaCusto } from '../types';
+import { getProjetos, createProjeto, updateProjeto, deleteProjeto, getClientes, getFerramentas, getFinanceiroMovimentos, createFinanceiroMovimento, deleteFinanceiroMovimento } from '../services/supabaseService';
+import { Projeto, Cliente, FerramentaCusto, FinanceiroMovimento } from '../types';
 
 interface ProjetosProps {
   selectedProjectId?: string | null;
@@ -13,6 +13,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
   const [projetos, setProjetos] = useState<Projeto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [ferramentas, setFerramentas] = useState<FerramentaCusto[]>([]);
+  const [movimentos, setMovimentos] = useState<FinanceiroMovimento[]>([]);
   
   // Seleção e visualização de detalhes
   const [selectedProjeto, setSelectedProjeto] = useState<Projeto | null>(null);
@@ -48,7 +49,9 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
     user_supabase: '',
     user_repositorio: '',
     user_imagens: '',
-    user_hospedagem: ''
+    user_hospedagem: '',
+    forma_pagamento: 'Boleto',
+    parcelas: 1
   });
 
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
@@ -60,14 +63,16 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
   const loadData = async () => {
     try {
       setLoading(true);
-      const [p, c, f] = await Promise.all([
+      const [p, c, f, m] = await Promise.all([
         getProjetos(),
         getClientes(),
-        getFerramentas()
+        getFerramentas(),
+        getFinanceiroMovimentos()
       ]);
       setProjetos(p);
       setClientes(c);
       setFerramentas(f);
+      setMovimentos(m);
 
       // Tratamento de seleção profunda via navegação externa (ex: tela Clientes)
       if (selectedProjectId) {
@@ -112,7 +117,9 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
       user_supabase: '',
       user_repositorio: '',
       user_imagens: '',
-      user_hospedagem: ''
+      user_hospedagem: '',
+      forma_pagamento: 'Boleto',
+      parcelas: 1
     });
     setSelectedTools([]);
     setNewToolInput('');
@@ -143,7 +150,9 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
       user_supabase: p.user_supabase || '',
       user_repositorio: p.user_repositorio || '',
       user_imagens: p.user_imagens || '',
-      user_hospedagem: p.user_hospedagem || ''
+      user_hospedagem: p.user_hospedagem || '',
+      forma_pagamento: p.forma_pagamento || 'Boleto',
+      parcelas: Number(p.parcelas || 1)
     });
     setSelectedTools(p.ferramenta_dev || []);
     setNewToolInput('');
@@ -166,6 +175,54 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
     }
   };
 
+  const gerarParcelasProjeto = async (
+    projetoId: string,
+    nomeSolucao: string,
+    clienteId: string,
+    valorProjeto: number,
+    parcelas: number,
+    formaPagamento: string,
+    dataInicio: string
+  ) => {
+    if (!valorProjeto || valorProjeto <= 0) return;
+    
+    // Deleta lançamentos antigos de implantação para este projeto
+    const antigos = movimentos.filter(m => m.projeto_id === projetoId && m.tipo === 'Entrada única' && m.descricao.startsWith('Implantação -'));
+    const deletePromises = antigos.map(m => deleteFinanceiroMovimento(m.id));
+    await Promise.all(deletePromises);
+
+    const baseValor = Math.floor((valorProjeto / parcelas) * 100) / 100;
+    const diff = Number((valorProjeto - (baseValor * parcelas)).toFixed(2));
+
+    const hoje = new Date();
+    const dataInicioDate = dataInicio ? new Date(dataInicio + 'T12:00:00') : new Date();
+    const promises = [];
+
+    for (let i = 0; i < parcelas; i++) {
+      const dataVenc = new Date(dataInicioDate.getFullYear(), dataInicioDate.getMonth() + i, dataInicioDate.getDate());
+      const mesStr = dataVenc.toISOString().slice(0, 7);
+      const dataMovStr = dataVenc.toISOString().split('T')[0];
+
+      const hojeStr = hoje.toISOString().slice(0, 7);
+      const status = mesStr <= hojeStr ? 'Confirmado' : 'Previsto';
+
+      const valorParcela = i === 0 ? Number((baseValor + diff).toFixed(2)) : baseValor;
+
+      promises.push(createFinanceiroMovimento({
+        cliente_id: clienteId,
+        projeto_id: projetoId,
+        tipo: 'Entrada única',
+        descricao: `Implantação - ${nomeSolucao} - Parcela ${i+1}/${parcelas} (${formaPagamento})`,
+        valor: valorParcela,
+        data_movimento: dataMovStr,
+        mes_referencia: mesStr,
+        status: status
+      }));
+    }
+
+    await Promise.all(promises);
+  };
+
   const handleProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -176,18 +233,35 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
         valor_projeto: Number(projectForm.valor_projeto),
         valor_mensal: Number(projectForm.valor_mensal),
         data_inicio: projectForm.data_inicio || null,
-        data_entrega_prevista: projectForm.data_entrega_prevista || null
+        data_entrega_prevista: projectForm.data_entrega_prevista || null,
+        forma_pagamento: projectForm.forma_pagamento,
+        parcelas: Number(projectForm.parcelas || 1)
       };
       
       delete (payload as any).ferramenta_dev_input;
 
+      let savedProject: Projeto;
       if (editingProjeto) {
-        const updated = await updateProjeto(editingProjeto.id, payload);
-        setSelectedProjeto(updated);
+        savedProject = await updateProjeto(editingProjeto.id, payload);
+        setSelectedProjeto(savedProject);
       } else {
-        const created = await createProjeto(payload);
-        setSelectedProjeto(created);
+        savedProject = await createProjeto(payload);
+        setSelectedProjeto(savedProject);
       }
+
+      // Gera lançamentos contábeis parcelados se houver valor de implantação
+      if (savedProject.valor_projeto && savedProject.valor_projeto > 0) {
+        await gerarParcelasProjeto(
+          savedProject.id,
+          savedProject.nome_solucao,
+          savedProject.cliente_id,
+          savedProject.valor_projeto,
+          Number(savedProject.parcelas || 1),
+          savedProject.forma_pagamento || 'Boleto',
+          savedProject.data_inicio || new Date().toISOString().split('T')[0]
+        );
+      }
+
       setIsProjectModalOpen(false);
       await loadData();
     } catch (err) {
@@ -463,7 +537,19 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                         {selectedProjeto.valor_projeto ? Number(selectedProjeto.valor_projeto).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'R$ 0,00'}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center text-xs">
+                    {selectedProjeto.valor_projeto && selectedProjeto.valor_projeto > 0 && (
+                      <>
+                        <div className="flex justify-between items-center text-[10px] text-mtabi-muted pl-2">
+                          <span>Forma de Pagamento:</span>
+                          <span className="text-white uppercase font-bold">{selectedProjeto.forma_pagamento || 'Boleto'}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] text-mtabi-muted pl-2">
+                          <span>Parcelamento:</span>
+                          <span className="text-white font-bold">{selectedProjeto.parcelas || 1}x</span>
+                        </div>
+                      </>
+                    )}
+                    <div className="flex justify-between items-center text-xs pt-1 border-t border-mtabi-border/40 mt-1">
                       <span className="text-mtabi-muted">Manutenção Mensal:</span>
                       <span className="text-mtabi-yellow font-bold">
                         {selectedProjeto.valor_mensal ? Number(selectedProjeto.valor_mensal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) + '/mês' : 'R$ 0,00'}
@@ -935,6 +1021,38 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                   value={projectForm.valor_projeto || ''}
                   onChange={(e) => setProjectForm({ ...projectForm, valor_projeto: Number(e.target.value) })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                  Forma de Pagamento (Implantação)
+                </label>
+                <select
+                  value={projectForm.forma_pagamento}
+                  onChange={(e) => setProjectForm({ ...projectForm, forma_pagamento: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white font-sans"
+                >
+                  <option value="PIX">PIX</option>
+                  <option value="Boleto">Boleto</option>
+                  <option value="Cartão de Crédito">Cartão de Crédito</option>
+                  <option value="débito">Débito</option>
+                  <option value="Dinheiro">Dinheiro</option>
+                  <option value="TED">TED</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                  Número de Parcelas (Implantação)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={48}
+                  value={projectForm.parcelas || 1}
+                  onChange={(e) => setProjectForm({ ...projectForm, parcelas: Math.max(1, Number(e.target.value)) })}
+                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white font-sans"
                 />
               </div>
 

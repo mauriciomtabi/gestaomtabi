@@ -69,9 +69,24 @@ export interface Projeto {
   user_repositorio?: string;
   user_imagens?: string;
   user_hospedagem?: string;
+  forma_pagamento?: string;
+  parcelas?: number;
   
   // Carregado por join
   cliente?: Cliente;
+}
+
+// 2.5 Contratos
+export interface Contrato {
+  id: string;
+  cliente_id: string;
+  valor_recorrente: number;
+  link_contrato?: string;
+  data_inicio: string;
+  data_fim?: string;
+  status: 'Ativo' | 'Histórico' | 'Cancelado';
+  observacoes?: string;
+  data_criacao?: string;
 }
 
 // 3. Ferramentas e Custos

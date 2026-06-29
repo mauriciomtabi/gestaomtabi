@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Building2, Plus, Search, Filter, Phone, User, Landmark, HelpCircle, Edit2, Trash2, Calendar, FileText, ChevronRight, X, AlertTriangle, ArrowUpRight, Upload } from 'lucide-react';
-import { getClientes, createCliente, updateCliente, deleteCliente, getProjetos, createProjeto, getFinanceiroMovimentos, uploadClientLogo } from '../services/supabaseService';
-import { Cliente, Projeto, FinanceiroMovimento } from '../types';
+import { getClientes, createCliente, updateCliente, deleteCliente, getProjetos, createProjeto, getFinanceiroMovimentos, uploadClientLogo, getContratos, createContrato, updateContrato, deleteContrato, createFinanceiroMovimento, updateFinanceiroMovimento, deleteFinanceiroMovimento } from '../services/supabaseService';
+import { Cliente, Projeto, FinanceiroMovimento, Contrato } from '../types';
 
 interface MonthProjection {
   mesRef: string; // 'AAAA-MM'
@@ -62,6 +62,19 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   const [loteValor2, setLoteValor2] = useState(0);
   const [loteMeses2, setLoteMeses2] = useState(6);
 
+  // Estados para Gestão de Contratos
+  const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  const [editingContrato, setEditingContrato] = useState<Contrato | null>(null);
+  const [contractForm, setContractForm] = useState({
+    valor_recorrente: 0,
+    link_contrato: '',
+    data_inicio: '',
+    data_fim: '',
+    status: 'Ativo' as Contrato['status'],
+    observacoes: ''
+  });
+
   // Modal para Criar Projeto DIRETO no Cliente
   const [isQuickProjectModalOpen, setIsQuickProjectModalOpen] = useState(false);
   const [projectForm, setProjectForm] = useState({
@@ -85,7 +98,9 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     user_supabase: '',
     user_repositorio: '',
     user_imagens: '',
-    user_hospedagem: ''
+    user_hospedagem: '',
+    forma_pagamento: 'Boleto',
+    parcelas: 1
   });
 
   const [selectedProjectTools, setSelectedProjectTools] = useState<string[]>([]);
@@ -97,14 +112,16 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [c, p, m] = await Promise.all([
+      const [c, p, f, ct] = await Promise.all([
         getClientes(),
         getProjetos(),
-        getFinanceiroMovimentos()
+        getFinanceiroMovimentos(),
+        getContratos()
       ]);
       setClientes(c);
       setProjetos(p);
-      setMovimentos(m);
+      setMovimentos(f);
+      setContratos(ct);
       
       // Atualiza o cliente selecionado se aplicável
       if (selectedCliente) {
@@ -263,6 +280,106 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     } catch (err) {
       console.error(err);
       alert('Erro ao salvar projeção.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Funções de Gestão de Contratos
+  const openNewContractModal = (clienteId: string) => {
+    setEditingContrato(null);
+    setContractForm({
+      valor_recorrente: 0,
+      link_contrato: '',
+      data_inicio: new Date().toISOString().split('T')[0],
+      data_fim: '',
+      status: 'Ativo',
+      observacoes: ''
+    });
+    setIsContractModalOpen(true);
+  };
+
+  const openEditContractModal = (c: Contrato) => {
+    setEditingContrato(c);
+    setContractForm({
+      valor_recorrente: c.valor_recorrente,
+      link_contrato: c.link_contrato || '',
+      data_inicio: c.data_inicio,
+      data_fim: c.data_fim || '',
+      status: c.status,
+      observacoes: c.observacoes || ''
+    });
+    setIsContractModalOpen(true);
+  };
+
+  const handleContractSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCliente) return;
+    try {
+      setLoading(true);
+      const payload: Partial<Contrato> = {
+        cliente_id: selectedCliente.id,
+        valor_recorrente: Number(contractForm.valor_recorrente),
+        link_contrato: contractForm.link_contrato || null,
+        data_inicio: contractForm.data_inicio,
+        data_fim: contractForm.data_fim || null,
+        status: contractForm.status,
+        observacoes: contractForm.observacoes || null
+      };
+
+      // Se este contrato está ativo, todos os outros deste cliente devem virar histórico
+      if (payload.status === 'Ativo') {
+        const outrosContratos = contratos.filter(c => c.cliente_id === selectedCliente.id && c.id !== editingContrato?.id);
+        const promises = outrosContratos.map(c => {
+          if (c.status === 'Ativo') {
+            return updateContrato(c.id, { status: 'Histórico' });
+          }
+          return null;
+        }).filter(Boolean);
+        await Promise.all(promises);
+      }
+
+      let savedContract: Contrato;
+      if (editingContrato) {
+        savedContract = await updateContrato(editingContrato.id, payload);
+      } else {
+        savedContract = await createContrato(payload);
+      }
+
+      // Encerramento de contrato: deleta futuros 'Previsto' após data_fim se preenchido
+      if (payload.data_fim) {
+        const dataFimStr = payload.data_fim;
+        const futurosPrevistos = movimentos.filter(m => 
+          m.cliente_id === selectedCliente.id && 
+          m.tipo === 'Entrada recorrente mensal' && 
+          m.status === 'Previsto' && 
+          m.data_movimento > dataFimStr
+        );
+        const deletePromises = futurosPrevistos.map(m => deleteFinanceiroMovimento(m.id));
+        await Promise.all(deletePromises);
+      }
+
+      setIsContractModalOpen(false);
+      await loadData();
+      alert('Contrato salvo com sucesso!');
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao salvar contrato.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteContract = async (id: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir permanentemente este contrato?')) return;
+    try {
+      setLoading(true);
+      await deleteContrato(id);
+      await loadData();
+      alert('Contrato excluído com sucesso!');
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao excluir contrato.');
     } finally {
       setLoading(false);
     }
@@ -433,7 +550,9 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       user_supabase: '',
       user_repositorio: '',
       user_imagens: '',
-      user_hospedagem: ''
+      user_hospedagem: '',
+      forma_pagamento: 'Boleto',
+      parcelas: 1
     });
     setIsQuickProjectModalOpen(true);
   };
@@ -468,6 +587,55 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     }
   };
 
+  const gerarParcelasProjeto = async (
+    projetoId: string,
+    nomeSolucao: string,
+    clienteId: string,
+    valorProjeto: number,
+    parcelas: number,
+    formaPagamento: string,
+    dataInicio: string
+  ) => {
+    if (!valorProjeto || valorProjeto <= 0) return;
+    
+    // Deleta lançamentos antigos de implantação para este projeto
+    const antigos = movimentos.filter(m => m.projeto_id === projetoId && m.tipo === 'Entrada única' && m.descricao.startsWith('Implantação -'));
+    const deletePromises = antigos.map(m => deleteFinanceiroMovimento(m.id));
+    await Promise.all(deletePromises);
+
+    const baseValor = Math.floor((valorProjeto / parcelas) * 100) / 100;
+    const diff = Number((valorProjeto - (baseValor * parcelas)).toFixed(2));
+
+    const hoje = new Date();
+    const dataInicioDate = dataInicio ? new Date(dataInicio + 'T12:00:00') : new Date();
+    const promises = [];
+
+    for (let i = 0; i < parcelas; i++) {
+      const dataVenc = new Date(dataInicioDate.getFullYear(), dataInicioDate.getMonth() + i, dataInicioDate.getDate());
+      const mesStr = dataVenc.toISOString().slice(0, 7);
+      const dataMovStr = dataVenc.toISOString().split('T')[0];
+
+      // A primeira parcela ou parcelas anteriores ao mês atual são 'Confirmado', o resto 'Previsto'
+      const hojeStr = hoje.toISOString().slice(0, 7);
+      const status = mesStr <= hojeStr ? 'Confirmado' : 'Previsto';
+
+      const valorParcela = i === 0 ? Number((baseValor + diff).toFixed(2)) : baseValor;
+
+      promises.push(createFinanceiroMovimento({
+        cliente_id: clienteId,
+        projeto_id: projetoId,
+        tipo: 'Entrada única',
+        descricao: `Implantação - ${nomeSolucao} - Parcela ${i+1}/${parcelas} (${formaPagamento})`,
+        valor: valorParcela,
+        data_movimento: dataMovStr,
+        mes_referencia: mesStr,
+        status: status
+      }));
+    }
+
+    await Promise.all(promises);
+  };
+
   const handleQuickProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCliente) return;
@@ -480,12 +648,28 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         valor_projeto: Number(projectForm.valor_projeto),
         valor_mensal: Number(projectForm.valor_mensal),
         data_inicio: projectForm.data_inicio || null,
-        data_entrega_prevista: projectForm.data_entrega_prevista || null
+        data_entrega_prevista: projectForm.data_entrega_prevista || null,
+        forma_pagamento: projectForm.forma_pagamento,
+        parcelas: Number(projectForm.parcelas || 1)
       };
 
       delete (payload as any).ferramenta_dev_input;
 
-      await createProjeto(payload);
+      const created = await createProjeto(payload);
+      
+      // Gera lançamentos parcelados se houver valor de implantação
+      if (created.valor_projeto && created.valor_projeto > 0) {
+        await gerarParcelasProjeto(
+          created.id,
+          created.nome_solucao,
+          selectedCliente.id,
+          created.valor_projeto,
+          Number(created.parcelas || 1),
+          created.forma_pagamento || 'Boleto',
+          created.data_inicio || new Date().toISOString().split('T')[0]
+        );
+      }
+
       setIsQuickProjectModalOpen(false);
       setProjectForm({
         nome_solucao: '',
@@ -544,7 +728,11 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     .filter(m => m.tipo !== 'Saída/custo' && m.status === 'Confirmado')
     .reduce((acc, curr) => acc + Number(curr.valor), 0);
 
-  const valorRecorrenteAtivo = selectedCliente?.valor_recorrente ? Number(selectedCliente.valor_recorrente) : 0;
+  const contratoAtivo = selectedCliente
+    ? contratos.find(c => c.cliente_id === selectedCliente.id && c.status === 'Ativo')
+    : null;
+
+  const valorRecorrenteAtivo = contratoAtivo ? Number(contratoAtivo.valor_recorrente) : 0;
 
   return (
     <div className="space-y-6">
@@ -766,21 +954,98 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                   </div>
                 </div>
 
-                {selectedCliente.link_contrato && (
-                  <div className="bg-mtabi-bg border border-mtabi-border p-3 rounded-xl flex items-center justify-between">
+                {/* CONTRATOS DO CLIENTE */}
+                <div className="bg-mtabi-bg/40 border border-mtabi-border p-4 rounded-xl space-y-3">
+                  <div className="flex justify-between items-center border-b border-mtabi-border/60 pb-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted flex items-center gap-1.5">
-                      <FileText size={12} className="text-mtabi-yellow" /> Contrato Ativo
+                      <FileText size={12} className="text-mtabi-yellow" /> Contratos de Consultoria
                     </span>
-                    <a
-                      href={selectedCliente.link_contrato.startsWith('http') ? selectedCliente.link_contrato : `https://${selectedCliente.link_contrato}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1 text-[10px] font-bold text-mtabi-yellow uppercase tracking-wider hover:underline"
+                    <button
+                      type="button"
+                      onClick={() => openNewContractModal(selectedCliente.id)}
+                      className="flex items-center gap-1 text-[9px] font-bold text-mtabi-yellow uppercase tracking-wider hover:underline cursor-pointer"
                     >
-                      Visualizar Contrato <ArrowUpRight size={10} />
-                    </a>
+                      <Plus size={10} /> Novo Contrato
+                    </button>
                   </div>
-                )}
+
+                  {/* Lista de Contratos */}
+                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                    {contratos.filter(c => c.cliente_id === selectedCliente.id).length === 0 ? (
+                      <p className="text-[11px] text-mtabi-muted italic py-1">Nenhum contrato cadastrado.</p>
+                    ) : (
+                      contratos
+                        .filter(c => c.cliente_id === selectedCliente.id)
+                        .map(c => {
+                          const isAtivo = c.status === 'Ativo';
+                          return (
+                            <div
+                              key={c.id}
+                              className={`p-3 rounded-lg border text-xs flex justify-between items-center transition-all ${
+                                isAtivo
+                                  ? 'border-mtabi-yellow/60 bg-mtabi-yellow/[0.02] shadow-sm shadow-mtabi-yellow/5'
+                                  : 'border-mtabi-border bg-mtabi-bg/30 text-mtabi-muted'
+                              }`}
+                            >
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded uppercase tracking-wider ${
+                                    isAtivo ? 'bg-emerald-950 text-mtabi-success' :
+                                    c.status === 'Histórico' ? 'bg-zinc-800 text-mtabi-muted' :
+                                    'bg-red-950 text-mtabi-error'
+                                  }`}>
+                                    {c.status}
+                                  </span>
+                                  <span className="font-bold text-white font-mono">
+                                    {Number(c.valor_recorrente).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-mtabi-muted">
+                                  <span>Início: {c.data_inicio ? new Date(c.data_inicio + 'T12:00:00').toLocaleDateString('pt-BR') : 'N/D'}</span>
+                                  {c.data_fim && (
+                                    <span className="ml-2.5 font-bold text-mtabi-error">Término: {new Date(c.data_fim + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                                  )}
+                                </div>
+                                {c.observacoes && (
+                                  <p className="text-[9px] text-mtabi-muted italic max-w-md truncate">{c.observacoes}</p>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                {c.link_contrato && (
+                                  <a
+                                    href={c.link_contrato.startsWith('http') ? c.link_contrato : `https://${c.link_contrato}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="p-1.5 bg-mtabi-bg/60 hover:bg-mtabi-border text-mtabi-yellow rounded-lg transition-colors border border-mtabi-border"
+                                    title="Visualizar Contrato"
+                                  >
+                                    <ArrowUpRight size={12} />
+                                  </a>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => openEditContractModal(c)}
+                                  className="p-1.5 bg-mtabi-bg/60 hover:bg-mtabi-border text-white hover:text-mtabi-yellow rounded-lg transition-colors border border-mtabi-border cursor-pointer"
+                                  title="Editar"
+                                >
+                                  <Edit2 size={12} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteContract(c.id)}
+                                  className="p-1.5 bg-mtabi-bg/60 hover:bg-mtabi-error/10 text-white hover:text-mtabi-error rounded-lg transition-colors border border-mtabi-border cursor-pointer"
+                                  title="Excluir"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                    )}
+                  </div>
+                </div>
               </div>
 
               {selectedCliente.observacoes && (
@@ -1320,6 +1585,38 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                  Forma de Pagamento (Implantação)
+                </label>
+                <select
+                  value={projectForm.forma_pagamento}
+                  onChange={(e) => setProjectForm({ ...projectForm, forma_pagamento: e.target.value })}
+                  className="w-full px-3 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                >
+                  <option value="PIX">PIX</option>
+                  <option value="Boleto">Boleto</option>
+                  <option value="Cartão de Crédito">Cartão de Crédito</option>
+                  <option value="débito">Débito</option>
+                  <option value="Dinheiro">Dinheiro</option>
+                  <option value="TED">TED</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                  Número de Parcelas (Implantação)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={48}
+                  value={projectForm.parcelas || 1}
+                  onChange={(e) => setProjectForm({ ...projectForm, parcelas: Math.max(1, Number(e.target.value)) })}
+                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
                   Mensalidade / Manutenção Recorrente (R$)
                 </label>
                 <input
@@ -1542,6 +1839,125 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 SALVAR PROJEÇÃO
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CADASTRAR/EDITAR CONTRATO */}
+      {isContractModalOpen && selectedCliente && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-mtabi-card border border-mtabi-border rounded-2xl w-full max-w-lg shadow-2xl p-6 font-sans">
+            <div className="flex justify-between items-center pb-4 border-b border-mtabi-border mb-4">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white">
+                {editingContrato ? 'Editar Contrato' : 'Novo Contrato de Consultoria'}
+              </h3>
+              <button 
+                onClick={() => setIsContractModalOpen(false)}
+                className="text-mtabi-muted hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleContractSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                  Valor Recorrente Mensal (R$) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  placeholder="Ex: 8000"
+                  value={contractForm.valor_recorrente || ''}
+                  onChange={(e) => setContractForm({ ...contractForm, valor_recorrente: Number(e.target.value) })}
+                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                  Link do Contrato (PDF, Drive ou imagem)
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://drive.google.com/..."
+                  value={contractForm.link_contrato}
+                  onChange={(e) => setContractForm({ ...contractForm, link_contrato: e.target.value })}
+                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                    Data de Início *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={contractForm.data_inicio}
+                    onChange={(e) => setContractForm({ ...contractForm, data_inicio: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                    Data de Término / Encerramento
+                  </label>
+                  <input
+                    type="date"
+                    value={contractForm.data_fim}
+                    onChange={(e) => setContractForm({ ...contractForm, data_fim: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                  Status do Contrato *
+                </label>
+                <select
+                  value={contractForm.status}
+                  onChange={(e) => setContractForm({ ...contractForm, status: e.target.value as any })}
+                  className="w-full px-3 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                >
+                  <option value="Ativo">Ativo (Destacado)</option>
+                  <option value="Histórico">Histórico (Arquivado)</option>
+                  <option value="Cancelado">Cancelado</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                  Observações adicionais
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Ex: Reajuste automático após 6 meses..."
+                  value={contractForm.observacoes}
+                  onChange={(e) => setContractForm({ ...contractForm, observacoes: e.target.value })}
+                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-3 border-t border-mtabi-border">
+                <button
+                  type="button"
+                  onClick={() => setIsContractModalOpen(false)}
+                  className="w-1/2 py-2.5 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border text-white text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer"
+                >
+                  CANCELAR
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-2.5 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer"
+                >
+                  SALVAR
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
