@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Building2, Plus, Search, Filter, Phone, User, Landmark, HelpCircle, Edit2, Trash2, Calendar, FileText, ChevronRight, X, AlertTriangle, ArrowUpRight, Upload } from 'lucide-react';
 import { getClientes, createCliente, updateCliente, deleteCliente, getProjetos, createProjeto, getFinanceiroMovimentos, uploadClientLogo, getContratos, createContrato, updateContrato, deleteContrato, createFinanceiroMovimento, updateFinanceiroMovimento, deleteFinanceiroMovimento, sincronizarTodosOsContratos } from '../services/supabaseService';
 import { Cliente, Projeto, FinanceiroMovimento, Contrato } from '../types';
+import { formatDateBR } from '../utils/timeUtils';
 
 interface MonthProjection {
   mesRef: string; // 'AAAA-MM'
@@ -307,96 +308,6 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       setLoading(false);
     }
   };
-  const sincronizarMovimentosContrato = async (
-    clienteId: string,
-    nomeEmpresa: string
-  ) => {
-    // Busca dados mais recentes diretamente do Supabase
-    const [dbContratos, dbMovimentos] = await Promise.all([
-      getContratos(clienteId),
-      getFinanceiroMovimentos()
-    ]);
-
-    const movsExistentes = dbMovimentos.filter(m => 
-      m.cliente_id === clienteId && 
-      m.tipo === 'Entrada recorrente mensal'
-    );
-
-    const hoje = new Date();
-    const mesesParaProcessar: string[] = [];
-    
-    // Determina o intervalo de meses
-    let minData = new Date(hoje.getFullYear() - 1, hoje.getMonth(), 1); // 1 ano atrás
-    let maxData = new Date(hoje.getFullYear() + 1, hoje.getMonth(), 1); // 1 ano no futuro
-
-    dbContratos.forEach(c => {
-      if (c.status === 'Cancelado') return;
-      const start = new Date(c.data_inicio + 'T12:00:00');
-      if (start < minData) minData = new Date(start.getFullYear(), start.getMonth(), 1);
-      if (c.data_fim) {
-        const end = new Date(c.data_fim + 'T12:00:00');
-        if (end > maxData) maxData = new Date(end.getFullYear(), end.getMonth(), 1);
-      }
-    });
-
-    let current = new Date(minData.getFullYear(), minData.getMonth(), 1);
-    const endLimit = new Date(maxData.getFullYear(), maxData.getMonth(), 1);
-    while (current <= endLimit) {
-      mesesParaProcessar.push(current.toISOString().slice(0, 7));
-      current.setMonth(current.getMonth() + 1);
-    }
-
-    const promises = [];
-
-    for (const mesStr of mesesParaProcessar) {
-      const inicioMes = `${mesStr}-01`;
-      const fimMes = `${mesStr}-31`;
-
-      const contratosValidos = dbContratos.filter(c => 
-        c.status !== 'Cancelado' &&
-        c.data_inicio <= fimMes &&
-        (!c.data_fim || c.data_fim >= inicioMes)
-      );
-
-      // Prioridade para contrato 'Ativo', senão pega o mais recente
-      const contratoDoMes = contratosValidos.find(c => c.status === 'Ativo') || contratosValidos[0];
-
-      const valorDevido = contratoDoMes ? Number(contratoDoMes.valor_recorrente) : 0;
-      const existente = movsExistentes.find(m => m.mes_referencia === mesStr);
-
-      const hojeStr = hoje.toISOString().slice(0, 7);
-      const dataRef = `${mesStr}-10`;
-
-      if (valorDevido > 0) {
-        const status = mesStr <= hojeStr ? 'Confirmado' : 'Previsto';
-        if (existente) {
-          if (Number(existente.valor) !== valorDevido || existente.status !== status) {
-            promises.push(updateFinanceiroMovimento(existente.id, {
-              valor: valorDevido,
-              status: status
-            }));
-          }
-        } else {
-          promises.push(createFinanceiroMovimento({
-            cliente_id: clienteId,
-            tipo: 'Entrada recorrente mensal',
-            descricao: `Consultoria Recorrente - ${nomeEmpresa}`,
-            valor: valorDevido,
-            data_movimento: dataRef,
-            mes_referencia: mesStr,
-            status: status
-          }));
-        }
-      } else {
-        if (existente && existente.status === 'Previsto') {
-          promises.push(deleteFinanceiroMovimento(existente.id));
-        }
-      }
-    }
-
-    await Promise.all(promises);
-  };
-
   // Funções de Gestão de Contratos
   const openNewContractModal = (clienteId: string) => {
     setEditingContrato(null);
@@ -471,7 +382,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       }
 
       // Sincroniza faturamentos mensais com base no histórico de contratos
-      await sincronizarMovimentosContrato(selectedCliente.id, selectedCliente.nome_empresa);
+      await sincronizarTodosOsContratos();
 
       setIsContractModalOpen(false);
       await loadData();
@@ -1102,9 +1013,9 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                                   </span>
                                 </div>
                                 <div className="text-[10px] text-mtabi-muted">
-                                  <span>Início: {c.data_inicio ? new Date(c.data_inicio + 'T12:00:00').toLocaleDateString('pt-BR') : 'N/D'}</span>
+                                  <span>Início: {c.data_inicio ? formatDateBR(c.data_inicio) : 'N/D'}</span>
                                   {c.data_fim && (
-                                    <span className="ml-2.5 font-bold text-mtabi-error">Término: {new Date(c.data_fim + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                                    <span className="ml-2.5 font-bold text-mtabi-error">Término: {formatDateBR(c.data_fim)}</span>
                                   )}
                                 </div>
                                 {c.observacoes && (
@@ -1190,7 +1101,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                         </div>
                         
                         <div className="flex justify-between items-center mt-3 pt-2 border-t border-mtabi-border/50 text-[9px] text-mtabi-muted font-mono">
-                          <span>Início: {proj.data_inicio ? new Date(proj.data_inicio).toLocaleDateString('pt-BR') : 'N/D'}</span>
+                          <span>Início: {proj.data_inicio ? formatDateBR(proj.data_inicio) : 'N/D'}</span>
                           {proj.valor_mensal ? (
                             <span className="text-mtabi-yellow font-bold">R$ {Number(proj.valor_mensal).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}/mês</span>
                           ) : proj.valor_projeto ? (
@@ -1226,7 +1137,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                       <tbody className="divide-y divide-mtabi-border/40">
                         {clienteMovimentos.map(mov => (
                           <tr key={mov.id} className="hover:bg-mtabi-border/10 text-white">
-                            <td className="py-2.5 font-mono">{new Date(mov.data_movimento).toLocaleDateString('pt-BR')}</td>
+                            <td className="py-2.5 font-mono">{formatDateBR(mov.data_movimento)}</td>
                             <td className="py-2.5 max-w-[200px] truncate">{mov.descricao}</td>
                             <td className="py-2.5 text-mtabi-muted text-[10px] uppercase tracking-wider">{mov.tipo}</td>
                             <td className={`py-2.5 font-bold ${mov.tipo === 'Saída/custo' ? 'text-mtabi-error' : 'text-mtabi-success'}`}>
@@ -2156,9 +2067,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                   try {
                     setLoading(true);
                     await deleteContrato(id);
-                    if (selectedCliente) {
-                      await sincronizarMovimentosContrato(selectedCliente.id, selectedCliente.nome_empresa);
-                    }
+                    await sincronizarTodosOsContratos();
                     await loadData();
                     showToast('Contrato excluído com sucesso!');
                   } catch (err) {

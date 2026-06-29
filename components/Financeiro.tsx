@@ -3,6 +3,7 @@ import { Landmark, Plus, Search, Filter, Calendar, DollarSign, Edit2, Trash2, X,
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 import { getFinanceiroMovimentos, createFinanceiroMovimento, updateFinanceiroMovimento, deleteFinanceiroMovimento, getClientes, getProjetos, getFerramentas, sincronizarTodosOsContratos } from '../services/supabaseService';
 import { FinanceiroMovimento, Cliente, Projeto, FerramentaCusto } from '../types';
+import { formatDateBR } from '../utils/timeUtils';
 
 const Financeiro: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -493,7 +494,7 @@ const Financeiro: React.FC = () => {
               {filteredMovimentos.length > 0 ? (
                 filteredMovimentos.map(mov => (
                   <tr key={mov.id} className="hover:bg-mtabi-border/10">
-                    <td className="py-3 font-mono">{new Date(mov.data_movimento + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
+                    <td className="py-3 font-mono">{formatDateBR(mov.data_movimento)}</td>
                     <td className="py-3 font-bold truncate max-w-[120px]">{mov.cliente?.nome_empresa || 'Empresa Geral'}</td>
                     <td className="py-3 truncate max-w-[200px]">{mov.descricao}</td>
                     <td className="py-3 font-mono">{formatarMes(mov.mes_referencia)}</td>

@@ -1092,16 +1092,22 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
         );
 
         const contratoDoMes = contratosValidos.find(c => c.status === 'Ativo') || contratosValidos[0];
-        if (!contratoDoMes) continue;
+        
+        let valorMes = 0;
+        let dataMovMes = '';
 
-        const diaVencCont = contratoDoMes.dia_pagamento ?? 10;
-        const { valor: valorMes, dataMovimento: dataMovMes } = calcularProRata(
-          mesStr,
-          Number(contratoDoMes.valor_recorrente),
-          diaVencCont,
-          contratoDoMes.data_inicio,
-          contratoDoMes.data_fim
-        );
+        if (contratoDoMes) {
+          const diaVencCont = contratoDoMes.dia_pagamento ?? 10;
+          const resProRata = calcularProRata(
+            mesStr,
+            Number(contratoDoMes.valor_recorrente),
+            diaVencCont,
+            contratoDoMes.data_inicio,
+            contratoDoMes.data_fim
+          );
+          valorMes = resProRata.valor;
+          dataMovMes = resProRata.dataMovimento;
+        }
 
         const indexExistente = movimentos.findIndex(m => m.cliente_id === cli.id && m.mes_referencia === mesStr && m.tipo === 'Entrada recorrente mensal');
 
@@ -1212,16 +1218,22 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
         );
 
         const contratoDoMes = contratosValidos.find(c => c.status === 'Ativo') || contratosValidos[0];
-        if (!contratoDoMes) continue;
+        
+        let valorMes = 0;
+        let dataMovMes = '';
 
-        const diaVencCont = contratoDoMes.dia_pagamento ?? 10;
-        const { valor: valorMes, dataMovimento: dataMovMes } = calcularProRata(
-          mesStr,
-          Number(contratoDoMes.valor_recorrente),
-          diaVencCont,
-          contratoDoMes.data_inicio,
-          contratoDoMes.data_fim
-        );
+        if (contratoDoMes) {
+          const diaVencCont = contratoDoMes.dia_pagamento ?? 10;
+          const resProRata = calcularProRata(
+            mesStr,
+            Number(contratoDoMes.valor_recorrente),
+            diaVencCont,
+            contratoDoMes.data_inicio,
+            contratoDoMes.data_fim
+          );
+          valorMes = resProRata.valor;
+          dataMovMes = resProRata.dataMovimento;
+        }
 
         const existente = movsExistentes.find(m => m.mes_referencia === mesStr);
 
