@@ -66,7 +66,8 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     user_acesso: '',
     user_supabase: '',
     user_repositorio: '',
-    user_imagens: ''
+    user_imagens: '',
+    user_hospedagem: ''
   });
 
   const [selectedProjectTools, setSelectedProjectTools] = useState<string[]>([]);
@@ -299,7 +300,8 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       user_acesso: '',
       user_supabase: '',
       user_repositorio: '',
-      user_imagens: ''
+      user_imagens: '',
+      user_hospedagem: ''
     });
     setIsQuickProjectModalOpen(true);
   };
@@ -339,7 +341,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     if (!selectedCliente) return;
     setQuickProjectErrorMsg(null);
     try {
-      await createProjeto({
+      const payload = {
         ...projectForm,
         cliente_id: selectedCliente.id,
         ferramenta_dev: selectedProjectTools,
@@ -347,7 +349,11 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         valor_mensal: Number(projectForm.valor_mensal),
         data_inicio: projectForm.data_inicio || null,
         data_entrega_prevista: projectForm.data_entrega_prevista || null
-      });
+      };
+
+      delete (payload as any).ferramenta_dev_input;
+
+      await createProjeto(payload);
       setIsQuickProjectModalOpen(false);
       setProjectForm({
         nome_solucao: '',
@@ -369,7 +375,8 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         user_acesso: '',
         user_supabase: '',
         user_repositorio: '',
-        user_imagens: ''
+        user_imagens: '',
+        user_hospedagem: ''
       });
       setSelectedProjectTools([]);
       setNewProjectToolInput('');
@@ -1070,14 +1077,21 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">Hospedagem Geral (Servidor)</label>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Hospedagem Geral (Servidor)</label>
                 <input
                   type="text"
                   placeholder="Ex: Vercel"
                   value={projectForm.hospedagem_geral}
                   onChange={(e) => setProjectForm({ ...projectForm, hospedagem_geral: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                />
+                <input
+                  type="text"
+                  placeholder="Usuário da Hospedagem Geral"
+                  value={projectForm.user_hospedagem}
+                  onChange={(e) => setProjectForm({ ...projectForm, user_hospedagem: e.target.value })}
+                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans placeholder-mtabi-muted/50"
                 />
               </div>
 

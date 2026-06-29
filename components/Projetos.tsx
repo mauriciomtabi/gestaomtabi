@@ -47,7 +47,8 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
     user_acesso: '',
     user_supabase: '',
     user_repositorio: '',
-    user_imagens: ''
+    user_imagens: '',
+    user_hospedagem: ''
   });
 
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
@@ -110,7 +111,8 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
       user_acesso: '',
       user_supabase: '',
       user_repositorio: '',
-      user_imagens: ''
+      user_imagens: '',
+      user_hospedagem: ''
     });
     setSelectedTools([]);
     setNewToolInput('');
@@ -140,7 +142,8 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
       user_acesso: p.user_acesso || '',
       user_supabase: p.user_supabase || '',
       user_repositorio: p.user_repositorio || '',
-      user_imagens: p.user_imagens || ''
+      user_imagens: p.user_imagens || '',
+      user_hospedagem: p.user_hospedagem || ''
     });
     setSelectedTools(p.ferramenta_dev || []);
     setNewToolInput('');
@@ -567,12 +570,19 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="bg-mtabi-bg/50 border border-mtabi-border p-3 rounded-xl flex flex-col justify-between">
-                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider flex items-center gap-1">
-                      <Server size={10} className="text-mtabi-yellow" /> Hospedagem Geral
-                    </span>
-                    <span className="text-xs text-white font-bold mt-1.5 truncate">
-                      {selectedProjeto.hospedagem_geral || 'Não Informado'}
-                    </span>
+                    <div>
+                      <span className="text-[9px] text-mtabi-muted uppercase tracking-wider flex items-center gap-1">
+                        <Server size={10} className="text-mtabi-yellow" /> Hospedagem Geral
+                      </span>
+                      <span className="text-xs text-white font-bold mt-1.5 block truncate">
+                        {selectedProjeto.hospedagem_geral || 'Não Informado'}
+                      </span>
+                    </div>
+                    {selectedProjeto.hospedagem_geral && selectedProjeto.user_hospedagem && (
+                      <span className="text-[9px] text-mtabi-muted block mt-1 font-sans border-t border-mtabi-border/30 pt-1">
+                        Usuário: <span className="text-white select-all font-mono">{selectedProjeto.user_hospedagem}</span>
+                      </span>
+                    )}
                   </div>
 
                   <div className="bg-mtabi-bg/50 border border-mtabi-border p-3 rounded-xl flex flex-col justify-between">
@@ -821,8 +831,8 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                 />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
                   Hospedagem Geral (Frontend/Backend)
                 </label>
                 <input
@@ -831,6 +841,13 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                   value={projectForm.hospedagem_geral}
                   onChange={(e) => setProjectForm({ ...projectForm, hospedagem_geral: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Usuário da Hospedagem Geral"
+                  value={projectForm.user_hospedagem}
+                  onChange={(e) => setProjectForm({ ...projectForm, user_hospedagem: e.target.value })}
+                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
                 />
               </div>
 

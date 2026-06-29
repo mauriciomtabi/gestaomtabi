@@ -66,6 +66,7 @@ export interface Projeto {
   user_supabase?: string;
   user_repositorio?: string;
   user_imagens?: string;
+  user_hospedagem?: string;
   
   // Carregado por join
   cliente?: Cliente;
