@@ -3,6 +3,14 @@ import { Building2, Plus, Search, Filter, Phone, User, Landmark, HelpCircle, Edi
 import { getClientes, createCliente, updateCliente, deleteCliente, getProjetos, createProjeto, getFinanceiroMovimentos, uploadClientLogo } from '../services/supabaseService';
 import { Cliente, Projeto, FinanceiroMovimento } from '../types';
 
+interface MonthProjection {
+  mesRef: string; // 'AAAA-MM'
+  label: string;  // 'Jan/26'
+  valor: number;
+  status: 'Previsto' | 'Confirmado' | 'Atrasado' | 'Cancelado';
+  originalId?: string;
+}
+
 interface ClientesProps {
   onNavigateToProject?: (projectId: string) => void;
 }
@@ -45,7 +53,14 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     valor_recorrente: 0,
     link_contrato: ''
   });
-  const [shouldProject, setShouldProject] = useState(false);
+
+  // Modal de Projeção Financeira
+  const [isProjectionModalOpen, setIsProjectionModalOpen] = useState(false);
+  const [projectionMonths, setProjectionMonths] = useState<MonthProjection[]>([]);
+  const [loteValor1, setLoteValor1] = useState(0);
+  const [loteMeses1, setLoteMeses1] = useState(6);
+  const [loteValor2, setLoteValor2] = useState(0);
+  const [loteMeses2, setLoteMeses2] = useState(6);
 
   // Modal para Criar Projeto DIRETO no Cliente
   const [isQuickProjectModalOpen, setIsQuickProjectModalOpen] = useState(false);
@@ -122,7 +137,6 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       valor_recorrente: 0,
       link_contrato: ''
     });
-    setShouldProject(false);
     setIsClientModalOpen(true);
   };
 
@@ -141,8 +155,117 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       valor_recorrente: Number(c.valor_recorrente || 0),
       link_contrato: c.link_contrato || ''
     });
-    setShouldProject(false);
     setIsClientModalOpen(true);
+  };
+
+  // Funções da Projeção Financeira
+  const obterMesesProjecao = () => {
+    const meses = [];
+    const hoje = new Date();
+    // 6 meses para trás
+    for (let i = 6; i > 0; i--) {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+      meses.push(d);
+    }
+    // Mês atual
+    meses.push(new Date(hoje.getFullYear(), hoje.getMonth(), 1));
+    // 12 meses para a frente
+    for (let i = 1; i <= 12; i++) {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
+      meses.push(d);
+    }
+    return meses;
+  };
+
+  const openProjectionModal = (c: Cliente) => {
+    setLoteValor1(Number(c.valor_recorrente || 0));
+    setLoteMeses1(6);
+    setLoteValor2(Number(c.valor_recorrente || 0));
+    setLoteMeses2(6);
+
+    const meses = obterMesesProjecao();
+    const list: MonthProjection[] = meses.map(date => {
+      const mesStr = date.toISOString().slice(0, 7);
+      const [ano, mes] = mesStr.split('-');
+      const nomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      const label = `${nomes[parseInt(mes, 10) - 1]}/${ano.slice(-2)}`;
+
+      const existing = movimentos.find(m => 
+        m.cliente_id === c.id && 
+        m.mes_referencia === mesStr && 
+        m.tipo === 'Entrada recorrente mensal'
+      );
+
+      const hojeStr = new Date().toISOString().slice(0, 7);
+      const isPastOrPresent = mesStr <= hojeStr;
+      
+      return {
+        mesRef: mesStr,
+        label,
+        valor: existing ? Number(existing.valor) : 0,
+        status: existing ? existing.status : (isPastOrPresent ? 'Confirmado' : 'Previsto'),
+        originalId: existing ? existing.id : undefined
+      };
+    });
+
+    setProjectionMonths(list);
+    setIsProjectionModalOpen(true);
+  };
+
+  const aplicarRegrasLote = () => {
+    const hojeStr = new Date().toISOString().slice(0, 7);
+    const updated = projectionMonths.map(item => {
+      const indexFromCurrent = projectionMonths.filter(m => m.mesRef >= hojeStr).findIndex(m => m.mesRef === item.mesRef);
+      if (indexFromCurrent !== -1) {
+        if (indexFromCurrent < loteMeses1) {
+          return { ...item, valor: loteValor1 };
+        } else if (indexFromCurrent < (loteMeses1 + loteMeses2)) {
+          return { ...item, valor: loteValor2 };
+        }
+      }
+      return item;
+    });
+    setProjectionMonths(updated);
+  };
+
+  const handleSaveProjection = async () => {
+    if (!selectedCliente) return;
+    try {
+      setLoading(true);
+      const promises = [];
+      for (const item of projectionMonths) {
+        if (item.valor > 0) {
+          if (item.originalId) {
+            promises.push(updateFinanceiroMovimento(item.originalId, {
+              valor: item.valor,
+              status: item.status
+            }));
+          } else {
+            const dataRef = `${item.mesRef}-10`;
+            promises.push(createFinanceiroMovimento({
+              cliente_id: selectedCliente.id,
+              tipo: 'Entrada recorrente mensal',
+              descricao: `Consultoria Recorrente - ${selectedCliente.nome_empresa}`,
+              valor: item.valor,
+              data_movimento: dataRef,
+              mes_referencia: item.mesRef,
+              status: item.status
+            }));
+          }
+        } else if (item.originalId) {
+          promises.push(deleteFinanceiroMovimento(item.originalId));
+        }
+      }
+      await Promise.all(promises);
+      setIsProjectionModalOpen(false);
+      await loadData();
+      alert('Projeção financeira salva com sucesso!');
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao salvar projeção.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClientSubmit = async (e: React.FormEvent) => {
@@ -175,31 +298,6 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         }
       }
       
-      const savedClientId = editingCliente ? editingCliente.id : created.id;
-      const savedClientName = editingCliente ? finalForm.nome_empresa : created.nome_empresa;
-      
-      if (shouldProject && Number(finalForm.valor_recorrente) > 0) {
-        const hoje = new Date();
-        const promises = [];
-        for (let i = 0; i < 12; i++) {
-          const dataRef = new Date(hoje.getFullYear(), hoje.getMonth() + i, 10);
-          const mesStr = dataRef.toISOString().slice(0, 7);
-          const dataMovStr = dataRef.toISOString().split('T')[0];
-          const status = i === 0 ? 'Confirmado' : 'Previsto';
-          
-          promises.push(createFinanceiroMovimento({
-            cliente_id: savedClientId,
-            tipo: 'Entrada recorrente mensal',
-            descricao: `Consultoria Recorrente - ${savedClientName}`,
-            valor: Number(finalForm.valor_recorrente),
-            data_movimento: dataMovStr,
-            mes_referencia: mesStr,
-            status: status
-          }));
-        }
-        await Promise.all(promises);
-      }
-
       setIsClientModalOpen(false);
       await loadData();
     } catch (err) {
@@ -656,49 +754,16 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                     </div>
                   </div>
 
-                  {selectedCliente.valor_recorrente && Number(selectedCliente.valor_recorrente) > 0 ? (
-                    <div className="mt-3.5 pt-3 border-t border-mtabi-border/60 flex justify-between items-center">
-                      <span className="text-[9px] text-mtabi-muted">Deseja simular/gerar lançamentos?</span>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (window.confirm(`Deseja gerar 12 meses de lançamentos recorrentes (R$ ${Number(selectedCliente.valor_recorrente).toLocaleString('pt-BR')}/mês) para o cliente ${selectedCliente.nome_empresa} no financeiro?`)) {
-                            try {
-                              setLoading(true);
-                              const hoje = new Date();
-                              const promises = [];
-                              for (let i = 0; i < 12; i++) {
-                                const dataRef = new Date(hoje.getFullYear(), hoje.getMonth() + i, 10);
-                                const mesStr = dataRef.toISOString().slice(0, 7);
-                                const dataMovStr = dataRef.toISOString().split('T')[0];
-                                const status = i === 0 ? 'Confirmado' : 'Previsto';
-                                promises.push(createFinanceiroMovimento({
-                                  cliente_id: selectedCliente.id,
-                                  tipo: 'Entrada recorrente mensal',
-                                  descricao: `Consultoria Recorrente - ${selectedCliente.nome_empresa}`,
-                                  valor: Number(selectedCliente.valor_recorrente),
-                                  data_movimento: dataMovStr,
-                                  mes_referencia: mesStr,
-                                  status: status
-                                }));
-                              }
-                              await Promise.all(promises);
-                              await loadData();
-                              alert('12 meses de lançamentos projetados com sucesso!');
-                            } catch (err) {
-                              console.error(err);
-                              alert('Erro ao projetar valores.');
-                            } finally {
-                              setLoading(false);
-                            }
-                          }
-                        }}
-                        className="px-2.5 py-1 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black text-[9px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
-                      >
-                        Projetar 12 Meses
-                      </button>
-                    </div>
-                  ) : null}
+                  <div className="mt-3.5 pt-3 border-t border-mtabi-border/60 flex justify-between items-center">
+                    <span className="text-[9px] text-mtabi-muted">Fluxo de faturamento recorrente</span>
+                    <button
+                      type="button"
+                      onClick={() => openProjectionModal(selectedCliente)}
+                      className="px-3 py-1 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                    >
+                      Projeção
+                    </button>
+                  </div>
                 </div>
 
                 {selectedCliente.link_contrato && (
@@ -1000,21 +1065,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 </div>
               </div>
 
-              {clientForm.valor_recorrente > 0 && (
-                <div className="flex items-start gap-2 bg-mtabi-bg/50 border border-mtabi-border p-3.5 rounded-xl mt-2 select-none">
-                  <input
-                    type="checkbox"
-                    id="shouldProject"
-                    checked={shouldProject}
-                    onChange={(e) => setShouldProject(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 rounded border-mtabi-border text-mtabi-yellow focus:ring-mtabi-yellow bg-mtabi-bg accent-mtabi-yellow cursor-pointer"
-                  />
-                  <label htmlFor="shouldProject" className="text-xs text-white leading-snug cursor-pointer">
-                    <span className="font-bold block">Projetar Faturamentos no Financeiro</span>
-                    <span className="text-[10px] text-mtabi-muted block mt-0.5">Gerar 12 meses de lançamentos recorrentes automáticos (status 'Confirmado' para o mês atual, 'Previsto' para os seguintes).</span>
-                  </label>
-                </div>
-              )}
+
 
               <div className="flex gap-3 pt-3 border-t border-mtabi-border">
                 <button
@@ -1296,6 +1347,201 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE PROJEÇÃO FINANCEIRA */}
+      {isProjectionModalOpen && selectedCliente && (
+        <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-mtabi-card border border-mtabi-border rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden font-sans">
+            
+            {/* Header */}
+            <div className="flex justify-between items-center p-5 border-b border-mtabi-border bg-mtabi-bg/40">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white">
+                  Projeção Financeira
+                </h3>
+                <p className="text-[10px] text-mtabi-muted mt-0.5 uppercase tracking-wider">
+                  Cliente: <span className="text-mtabi-yellow font-bold">{selectedCliente.nome_empresa}</span>
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsProjectionModalOpen(false)} 
+                className="text-mtabi-muted hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            {/* Content Container */}
+            <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto">
+              
+              {/* Seção Regras em Lote */}
+              <div className="bg-mtabi-bg/50 border border-mtabi-border p-4 rounded-xl space-y-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-mtabi-yellow block">
+                  Configuração Rápida em Lote (Meses Futuros)
+                </span>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-mtabi-muted uppercase tracking-wider block">Regra 1: Próximos meses</label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="number"
+                        placeholder="Meses"
+                        value={loteMeses1 || ''}
+                        onChange={(e) => setLoteMeses1(Number(e.target.value))}
+                        className="w-20 px-2 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-white text-center font-mono"
+                      />
+                      <span className="text-mtabi-muted text-[10px]">meses a R$</span>
+                      <input
+                        type="number"
+                        placeholder="Valor"
+                        value={loteValor1 || ''}
+                        onChange={(e) => setLoteValor1(Number(e.target.value))}
+                        className="flex-1 px-3 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-mtabi-muted uppercase tracking-wider block">Regra 2: Seguintes meses</label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="number"
+                        placeholder="Meses"
+                        value={loteMeses2 || ''}
+                        onChange={(e) => setLoteMeses2(Number(e.target.value))}
+                        className="w-20 px-2 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-white text-center font-mono"
+                      />
+                      <span className="text-mtabi-muted text-[10px]">meses a R$</span>
+                      <input
+                        type="number"
+                        placeholder="Valor"
+                        value={loteValor2 || ''}
+                        onChange={(e) => setLoteValor2(Number(e.target.value))}
+                        className="flex-1 px-3 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={aplicarRegrasLote}
+                    className="px-4 py-2 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                  >
+                    Aplicar na Grade Abaixo
+                  </button>
+                </div>
+              </div>
+
+              {/* Tabela/Grade de Meses */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted block mb-1">
+                  Grade Mensal de Lançamentos (6 meses atrás até 12 meses à frente)
+                </span>
+                
+                <div className="border border-mtabi-border rounded-xl overflow-hidden bg-mtabi-bg/25">
+                  {/* Table Header */}
+                  <div className="grid grid-cols-12 gap-2 bg-mtabi-bg/60 border-b border-mtabi-border p-2 text-[9px] font-bold uppercase tracking-wider text-mtabi-muted text-center">
+                    <div className="col-span-3 text-left pl-2">Mês / Ano</div>
+                    <div className="col-span-4">Valor Mensal (R$)</div>
+                    <div className="col-span-4">Status de Lançamento</div>
+                    <div className="col-span-1">Zerar</div>
+                  </div>
+
+                  {/* Table Body */}
+                  <div className="divide-y divide-mtabi-border max-h-[30vh] overflow-y-auto">
+                    {projectionMonths.map((item, idx) => {
+                      const hojeStr = new Date().toISOString().slice(0, 7);
+                      const isCurrentMonth = item.mesRef === hojeStr;
+                      
+                      return (
+                        <div 
+                          key={item.mesRef} 
+                          className={`grid grid-cols-12 gap-2 items-center p-2 text-xs text-center transition-colors ${
+                            isCurrentMonth ? 'bg-mtabi-yellow/5' : 'hover:bg-mtabi-border/10'
+                          }`}
+                        >
+                          <div className="col-span-3 text-left pl-2 font-mono font-bold text-white flex items-center gap-1.5">
+                            {item.label}
+                            {isCurrentMonth && (
+                              <span className="text-[8px] bg-mtabi-yellow/20 text-mtabi-yellow px-1 py-0.2 rounded font-sans uppercase">Hoje</span>
+                            )}
+                          </div>
+                          <div className="col-span-4">
+                            <input
+                              type="number"
+                              placeholder="0"
+                              value={item.valor || ''}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                const updated = [...projectionMonths];
+                                updated[idx].valor = val;
+                                setProjectionMonths(updated);
+                              }}
+                              className="w-full px-2.5 py-1 bg-mtabi-bg border border-mtabi-border rounded-lg text-white font-mono text-center text-xs"
+                            />
+                          </div>
+                          <div className="col-span-4">
+                            <select
+                              value={item.status}
+                              onChange={(e) => {
+                                const stat = e.target.value as any;
+                                const updated = [...projectionMonths];
+                                updated[idx].status = stat;
+                                setProjectionMonths(updated);
+                              }}
+                              className="w-full px-2 py-1 bg-mtabi-bg border border-mtabi-border rounded-lg text-white font-sans text-center text-xs"
+                            >
+                              <option value="Previsto">Previsto</option>
+                              <option value="Confirmado">Confirmado</option>
+                              <option value="Atrasado">Atrasado</option>
+                              <option value="Cancelado">Cancelado</option>
+                            </select>
+                          </div>
+                          <div className="col-span-1 flex justify-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updated = [...projectionMonths];
+                                updated[idx].valor = 0;
+                                setProjectionMonths(updated);
+                              }}
+                              className="text-mtabi-muted hover:text-mtabi-error p-1 transition-colors cursor-pointer"
+                              title="Limpar valor"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-3 p-5 border-t border-mtabi-border bg-mtabi-bg/40">
+              <button
+                type="button"
+                onClick={() => setIsProjectionModalOpen(false)}
+                className="w-1/2 py-2.5 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border text-white text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors"
+              >
+                CANCELAR
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveProjection}
+                className="w-1/2 py-2.5 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors"
+              >
+                SALVAR PROJEÇÃO
+              </button>
+            </div>
           </div>
         </div>
       )}
