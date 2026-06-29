@@ -993,8 +993,12 @@ const calcularProRata = (
   const mesNum = parseInt(mesNumStr, 10); // 1-12
 
   const diaVencStr = String(diaVencimento).padStart(2, '0');
-  let valor = valorRecorrente;
-  let dataMovimento = `${mesStr}-${diaVencStr}`;
+
+  // A data de vencimento de qualquer referência mesStr (trabalho) é sempre no mês subsequente (pós-pago)
+  const nextMonthDate = new Date(anoNum, mesNum, 1); // no JS, mesNum cria o mês seguinte já que o construtor é 0-indexed
+  const nextAno = nextMonthDate.getFullYear();
+  const nextMes = String(nextMonthDate.getMonth() + 1).padStart(2, '0');
+  const dataMovimento = `${nextAno}-${nextMes}-${diaVencStr}`;
 
   const mesInicioContrato = dataInicio.substring(0, 7);
   const mesFimContrato = dataFim ? dataFim.substring(0, 7) : null;
@@ -1002,42 +1006,24 @@ const calcularProRata = (
   const diaInicio = parseInt(dataInicio.split('-')[2] || '1', 10);
   const diaFim = dataFim ? parseInt(dataFim.split('-')[2] || '30', 10) : null;
 
-  const nextMonthDate = new Date(anoNum, mesNum, 1); // 1st day of next month
-  const nextAno = nextMonthDate.getFullYear();
-  const nextMes = String(nextMonthDate.getMonth() + 1).padStart(2, '0');
-  const dataMovProximoMes = `${nextAno}-${nextMes}-${diaVencStr}`;
+  let valor = valorRecorrente;
 
-  // Mês de início E fim ao mesmo tempo (contrato curtíssimo)
+  // Caso 1: Início e Fim no mesmo mês (contrato curtíssimo)
   if (mesStr === mesInicioContrato && mesFimContrato && mesStr === mesFimContrato && diaFim !== null) {
     const diasTrabalhados = Math.max(1, diaFim - diaInicio + 1);
     valor = Math.round((valorRecorrente / 30) * diasTrabalhados * 100) / 100;
-    if (diaInicio > diaVencimento) {
-      dataMovimento = dataMovProximoMes;
-    }
-    return { valor, dataMovimento };
   }
-
-  // Primeiro mês parcial (início depois do dia 1)
-  if (mesStr === mesInicioContrato && diaInicio > 1) {
-    const diasTrabalhados = 30 - diaInicio + 1;
+  // Caso 2: Primeiro mês do contrato (pro-rata se iniciou após o dia 1)
+  else if (mesStr === mesInicioContrato && diaInicio > 1) {
+    const diasTrabalhados = Math.max(1, 30 - diaInicio + 1);
     valor = Math.round((valorRecorrente / 30) * diasTrabalhados * 100) / 100;
-    if (diaInicio > diaVencimento) {
-      dataMovimento = dataMovProximoMes;
-    }
-    return { valor, dataMovimento };
   }
-
-  // Último mês parcial (término antes do dia 30)
-  if (mesFimContrato && mesStr === mesFimContrato && diaFim !== null && diaFim < 30) {
-    const diasTrabalhados = diaFim;
+  // Caso 3: Último mês do contrato (pro-rata se terminou antes do dia 30)
+  else if (mesFimContrato && mesStr === mesFimContrato && diaFim !== null && diaFim < 30) {
+    const diasTrabalhados = Math.max(1, diaFim);
     valor = Math.round((valorRecorrente / 30) * diasTrabalhados * 100) / 100;
-    if (diaFim >= diaVencimento) {
-      dataMovimento = dataMovProximoMes;
-    }
-    return { valor, dataMovimento };
   }
 
-  // Mês completo
   return { valor, dataMovimento };
 };
 

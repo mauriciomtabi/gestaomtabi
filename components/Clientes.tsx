@@ -965,6 +965,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                     </button>
                   </div>
                 </div>
+              </div>
 
                 {/* CONTRATOS DO CLIENTE */}
                 <div className="bg-mtabi-bg/40 border border-mtabi-border p-4 rounded-xl space-y-3">
@@ -1058,7 +1059,6 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                     )}
                   </div>
                 </div>
-              </div>
 
               {selectedCliente.observacoes && (
                 <div className="bg-mtabi-bg/40 border border-mtabi-border p-4 rounded-xl">
