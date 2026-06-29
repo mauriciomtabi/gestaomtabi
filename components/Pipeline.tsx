@@ -286,7 +286,7 @@ const Pipeline: React.FC = () => {
               key={etapa}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, etapa)}
-              className="w-80 shrink-0 bg-mtabi-card border border-mtabi-border rounded-2xl flex flex-col p-4 space-y-3"
+              className="w-[260px] shrink-0 bg-mtabi-card border border-mtabi-border rounded-2xl flex flex-col p-3.5 space-y-3"
             >
               {/* Cabeçalho da coluna */}
               <div className="flex justify-between items-center border-b border-mtabi-border pb-2">
