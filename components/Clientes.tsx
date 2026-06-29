@@ -24,6 +24,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [quickProjectErrorMsg, setQuickProjectErrorMsg] = useState<string | null>(null);
 
   // Crop & Zoom Logo (WhatsApp Style)
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
@@ -61,7 +62,11 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     data_entrega_prevista: '',
     valor_projeto: 0,
     valor_mensal: 0,
-    observacoes: ''
+    observacoes: '',
+    user_acesso: '',
+    user_supabase: '',
+    user_repositorio: '',
+    user_imagens: ''
   });
 
   const [selectedProjectTools, setSelectedProjectTools] = useState<string[]>([]);
@@ -273,6 +278,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   const openQuickProjectModal = () => {
     setSelectedProjectTools([]);
     setNewProjectToolInput('');
+    setQuickProjectErrorMsg(null);
     setProjectForm({
       nome_solucao: '',
       descricao: '',
@@ -289,7 +295,11 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       data_entrega_prevista: '',
       valor_projeto: 0,
       valor_mensal: 0,
-      observacoes: ''
+      observacoes: '',
+      user_acesso: '',
+      user_supabase: '',
+      user_repositorio: '',
+      user_imagens: ''
     });
     setIsQuickProjectModalOpen(true);
   };
@@ -327,13 +337,16 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   const handleQuickProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCliente) return;
+    setQuickProjectErrorMsg(null);
     try {
       await createProjeto({
         ...projectForm,
         cliente_id: selectedCliente.id,
         ferramenta_dev: selectedProjectTools,
         valor_projeto: Number(projectForm.valor_projeto),
-        valor_mensal: Number(projectForm.valor_mensal)
+        valor_mensal: Number(projectForm.valor_mensal),
+        data_inicio: projectForm.data_inicio || null,
+        data_entrega_prevista: projectForm.data_entrega_prevista || null
       });
       setIsQuickProjectModalOpen(false);
       setProjectForm({
@@ -352,13 +365,21 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         data_entrega_prevista: '',
         valor_projeto: 0,
         valor_mensal: 0,
-        observacoes: ''
+        observacoes: '',
+        user_acesso: '',
+        user_supabase: '',
+        user_repositorio: '',
+        user_imagens: ''
       });
       setSelectedProjectTools([]);
       setNewProjectToolInput('');
       await loadData();
     } catch (err) {
       console.error('Erro ao criar projeto rápido:', err);
+      const detailMsg = err && typeof err === 'object' && 'message' in err 
+        ? String((err as any).message) 
+        : JSON.stringify(err);
+      setQuickProjectErrorMsg(`Erro: ${detailMsg}`);
     }
   };
 
@@ -944,6 +965,13 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
             </div>
             
             <form onSubmit={handleQuickProjectSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {quickProjectErrorMsg && (
+                <div className="sm:col-span-2 p-3 bg-red-950/80 border border-red-800 text-red-200 rounded-xl text-xs flex items-center gap-2 font-semibold font-sans">
+                  <AlertTriangle size={16} className="text-red-400 shrink-0" />
+                  {quickProjectErrorMsg}
+                </div>
+              )}
+
               <div className="sm:col-span-2">
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">Nome da Solução *</label>
                 <input
@@ -970,8 +998,8 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">Link de Acesso Web</label>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Link de Acesso Web</label>
                 <input
                   type="url"
                   placeholder="https://app.cliente.com"
@@ -979,10 +1007,17 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                   onChange={(e) => setProjectForm({ ...projectForm, link_acesso: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
                 />
+                <input
+                  type="text"
+                  placeholder="Usuário de acesso (Login/E-mail)"
+                  value={projectForm.user_acesso}
+                  onChange={(e) => setProjectForm({ ...projectForm, user_acesso: e.target.value })}
+                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans placeholder-mtabi-muted/50"
+                />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">Link do Supabase (Painel)</label>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Link do Supabase (Painel)</label>
                 <input
                   type="url"
                   placeholder="https://supabase.com/dashboard/project/..."
@@ -990,10 +1025,17 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                   onChange={(e) => setProjectForm({ ...projectForm, link_supabase: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
                 />
+                <input
+                  type="text"
+                  placeholder="Usuário do Supabase (E-mail)"
+                  value={projectForm.user_supabase}
+                  onChange={(e) => setProjectForm({ ...projectForm, user_supabase: e.target.value })}
+                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans placeholder-mtabi-muted/50"
+                />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">Repositório URL (GitHub/GitLab)</label>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Repositório URL (GitHub/GitLab)</label>
                 <input
                   type="url"
                   placeholder="https://github.com/usuario/repo"
@@ -1001,16 +1043,30 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                   onChange={(e) => setProjectForm({ ...projectForm, repositorio_url: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
                 />
+                <input
+                  type="text"
+                  placeholder="Usuário Git (GitHub/GitLab)"
+                  value={projectForm.user_repositorio}
+                  onChange={(e) => setProjectForm({ ...projectForm, user_repositorio: e.target.value })}
+                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans placeholder-mtabi-muted/50"
+                />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">Link do Banco de Imagens (Storage)</label>
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Link do Banco de Imagens (Storage)</label>
                 <input
                   type="url"
                   placeholder="https://cloudinary.com/... ou Supabase Storage"
                   value={projectForm.hospedagem_imagens}
                   onChange={(e) => setProjectForm({ ...projectForm, hospedagem_imagens: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                />
+                <input
+                  type="text"
+                  placeholder="Usuário do Banco de Imagens"
+                  value={projectForm.user_imagens}
+                  onChange={(e) => setProjectForm({ ...projectForm, user_imagens: e.target.value })}
+                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans placeholder-mtabi-muted/50"
                 />
               </div>
 

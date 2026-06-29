@@ -43,7 +43,11 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
     data_entrega_prevista: '',
     valor_projeto: 0,
     valor_mensal: 0,
-    observacoes: ''
+    observacoes: '',
+    user_acesso: '',
+    user_supabase: '',
+    user_repositorio: '',
+    user_imagens: ''
   });
 
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
@@ -102,7 +106,11 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
       data_entrega_prevista: '',
       valor_projeto: 0,
       valor_mensal: 0,
-      observacoes: ''
+      observacoes: '',
+      user_acesso: '',
+      user_supabase: '',
+      user_repositorio: '',
+      user_imagens: ''
     });
     setSelectedTools([]);
     setNewToolInput('');
@@ -128,7 +136,11 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
       data_entrega_prevista: p.data_entrega_prevista || '',
       valor_projeto: Number(p.valor_projeto || 0),
       valor_mensal: Number(p.valor_mensal || 0),
-      observacoes: p.observacoes || ''
+      observacoes: p.observacoes || '',
+      user_acesso: p.user_acesso || '',
+      user_supabase: p.user_supabase || '',
+      user_repositorio: p.user_repositorio || '',
+      user_imagens: p.user_imagens || ''
     });
     setSelectedTools(p.ferramenta_dev || []);
     setNewToolInput('');
@@ -159,7 +171,9 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
         ...projectForm,
         ferramenta_dev: selectedTools,
         valor_projeto: Number(projectForm.valor_projeto),
-        valor_mensal: Number(projectForm.valor_mensal)
+        valor_mensal: Number(projectForm.valor_mensal),
+        data_inicio: projectForm.data_inicio || null,
+        data_entrega_prevista: projectForm.data_entrega_prevista || null
       };
       
       delete (payload as any).ferramenta_dev_input;
@@ -455,64 +469,92 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                   </div>
                 </div>
 
-                <div className="bg-mtabi-bg border border-mtabi-border p-4 rounded-xl space-y-2">
+                <div className="bg-mtabi-bg border border-mtabi-border p-4 rounded-xl space-y-3">
                   <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Links Operacionais</h4>
-                  <div className="space-y-1.5 text-xs">
+                  <div className="space-y-2 text-xs">
                     {/* 1. Link de Acesso */}
-                    {selectedProjeto.link_acesso ? (
-                      <a
-                        href={selectedProjeto.link_acesso}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1.5 text-mtabi-yellow hover:underline"
-                      >
-                        <Globe size={12} /> Acessar Aplicação <ExternalLink size={10} />
-                      </a>
-                    ) : (
-                      <span className="text-mtabi-muted block flex items-center gap-1.5"><Globe size={12} /> Sem link de produção</span>
-                    )}
+                    <div className="space-y-0.5">
+                      {selectedProjeto.link_acesso ? (
+                        <a
+                          href={selectedProjeto.link_acesso}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1.5 text-mtabi-yellow hover:underline"
+                        >
+                          <Globe size={12} /> Acessar Aplicação <ExternalLink size={10} />
+                        </a>
+                      ) : (
+                        <span className="text-mtabi-muted block flex items-center gap-1.5"><Globe size={12} /> Sem link de produção</span>
+                      )}
+                      {selectedProjeto.link_acesso && selectedProjeto.user_acesso && (
+                        <span className="text-[10px] text-mtabi-muted block pl-4 font-sans">
+                          Usuário: <span className="text-white select-all font-mono">{selectedProjeto.user_acesso}</span>
+                        </span>
+                      )}
+                    </div>
 
                     {/* 2. Link Banco de Dados */}
-                    {selectedProjeto.link_supabase ? (
-                      <a
-                        href={selectedProjeto.link_supabase}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 hover:underline"
-                      >
-                        <Database size={12} /> Console Supabase <ExternalLink size={10} />
-                      </a>
-                    ) : (
-                      <span className="text-mtabi-muted block flex items-center gap-1.5"><Database size={12} /> Sem link do Supabase</span>
-                    )}
+                    <div className="space-y-0.5">
+                      {selectedProjeto.link_supabase ? (
+                        <a
+                          href={selectedProjeto.link_supabase}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1.5 text-emerald-400 hover:text-emerald-300 hover:underline"
+                        >
+                          <Database size={12} /> Console Supabase <ExternalLink size={10} />
+                        </a>
+                      ) : (
+                        <span className="text-mtabi-muted block flex items-center gap-1.5"><Database size={12} /> Sem link do Supabase</span>
+                      )}
+                      {selectedProjeto.link_supabase && selectedProjeto.user_supabase && (
+                        <span className="text-[10px] text-mtabi-muted block pl-4 font-sans">
+                          Usuário: <span className="text-white select-all font-mono">{selectedProjeto.user_supabase}</span>
+                        </span>
+                      )}
+                    </div>
 
                     {/* 3. Link Repositório */}
-                    {selectedProjeto.repositorio_url ? (
-                      <a
-                        href={selectedProjeto.repositorio_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1.5 text-white hover:text-mtabi-yellow hover:underline"
-                      >
-                        <Github size={12} /> Código Fonte <ExternalLink size={10} />
-                      </a>
-                    ) : (
-                      <span className="text-mtabi-muted block flex items-center gap-1.5"><Github size={12} /> Sem repositório público</span>
-                    )}
+                    <div className="space-y-0.5">
+                      {selectedProjeto.repositorio_url ? (
+                        <a
+                          href={selectedProjeto.repositorio_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1.5 text-white hover:text-mtabi-yellow hover:underline"
+                        >
+                          <Github size={12} /> Código Fonte <ExternalLink size={10} />
+                        </a>
+                      ) : (
+                        <span className="text-mtabi-muted block flex items-center gap-1.5"><Github size={12} /> Sem repositório público</span>
+                      )}
+                      {selectedProjeto.repositorio_url && selectedProjeto.user_repositorio && (
+                        <span className="text-[10px] text-mtabi-muted block pl-4 font-sans">
+                          Usuário: <span className="text-white select-all font-mono">{selectedProjeto.user_repositorio}</span>
+                        </span>
+                      )}
+                    </div>
 
                     {/* 4. Link Banco de Imagens */}
-                    {selectedProjeto.hospedagem_imagens ? (
-                      <a
-                        href={selectedProjeto.hospedagem_imagens.startsWith('http') ? selectedProjeto.hospedagem_imagens : `https://${selectedProjeto.hospedagem_imagens}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 hover:underline"
-                      >
-                        <Image size={12} /> Banco de Imagens <ExternalLink size={10} />
-                      </a>
-                    ) : (
-                      <span className="text-mtabi-muted block flex items-center gap-1.5"><Image size={12} /> Sem link de imagens</span>
-                    )}
+                    <div className="space-y-0.5">
+                      {selectedProjeto.hospedagem_imagens ? (
+                        <a
+                          href={selectedProjeto.hospedagem_imagens.startsWith('http') ? selectedProjeto.hospedagem_imagens : `https://${selectedProjeto.hospedagem_imagens}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 hover:underline"
+                        >
+                          <Image size={12} /> Banco de Imagens <ExternalLink size={10} />
+                        </a>
+                      ) : (
+                        <span className="text-mtabi-muted block flex items-center gap-1.5"><Image size={12} /> Sem link de imagens</span>
+                      )}
+                      {selectedProjeto.hospedagem_imagens && selectedProjeto.user_imagens && (
+                        <span className="text-[10px] text-mtabi-muted block pl-4 font-sans">
+                          Usuário: <span className="text-white select-all font-mono">{selectedProjeto.user_imagens}</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -699,8 +741,8 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                 </select>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
                   Link de Acesso Web (Produção)
                 </label>
                 <input
@@ -710,10 +752,17 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                   onChange={(e) => setProjectForm({ ...projectForm, link_acesso: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
                 />
+                <input
+                  type="text"
+                  placeholder="Usuário de acesso (Login/E-mail)"
+                  value={projectForm.user_acesso}
+                  onChange={(e) => setProjectForm({ ...projectForm, user_acesso: e.target.value })}
+                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
+                />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
                   Link do Supabase (Painel)
                 </label>
                 <input
@@ -723,10 +772,17 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                   onChange={(e) => setProjectForm({ ...projectForm, link_supabase: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
                 />
+                <input
+                  type="text"
+                  placeholder="Usuário do Supabase (E-mail)"
+                  value={projectForm.user_supabase}
+                  onChange={(e) => setProjectForm({ ...projectForm, user_supabase: e.target.value })}
+                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
+                />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
                   URL do Repositório Git
                 </label>
                 <input
@@ -736,10 +792,17 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                   onChange={(e) => setProjectForm({ ...projectForm, repositorio_url: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
                 />
+                <input
+                  type="text"
+                  placeholder="Usuário Git (GitHub/GitLab)"
+                  value={projectForm.user_repositorio}
+                  onChange={(e) => setProjectForm({ ...projectForm, user_repositorio: e.target.value })}
+                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
+                />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
                   Link do Banco de Imagens (Storage)
                 </label>
                 <input
@@ -748,6 +811,13 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                   value={projectForm.hospedagem_imagens}
                   onChange={(e) => setProjectForm({ ...projectForm, hospedagem_imagens: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Usuário do Banco de Imagens"
+                  value={projectForm.user_imagens}
+                  onChange={(e) => setProjectForm({ ...projectForm, user_imagens: e.target.value })}
+                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
                 />
               </div>
 

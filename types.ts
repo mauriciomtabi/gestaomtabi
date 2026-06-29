@@ -62,6 +62,10 @@ export interface Projeto {
   valor_mensal?: number;
   observacoes?: string;
   data_criacao?: string;
+  user_acesso?: string;
+  user_supabase?: string;
+  user_repositorio?: string;
+  user_imagens?: string;
   
   // Carregado por join
   cliente?: Cliente;
