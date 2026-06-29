@@ -1061,13 +1061,15 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
               // (nada a fazer, já está Atrasado e o valor é do usuário)
             }
           } else {
+            const diaVencCriar = contratoDoMes.dia_pagamento ?? 10;
+            const diaVencCriarStr = String(diaVencCriar).padStart(2, '0');
             movimentos.push({
               id: 'mov-' + Math.random().toString(36).substring(2, 9),
               cliente_id: cli.id,
               tipo: 'Entrada recorrente mensal',
               descricao: `Consultoria Recorrente - ${cli.nome_empresa}`,
               valor: valorDevido,
-              data_movimento: `${mesStr}-10`,
+              data_movimento: `${mesStr}-${diaVencCriarStr}`,
               mes_referencia: mesStr,
               status: status
             });
@@ -1142,7 +1144,9 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
         const contratoDoMes = contratosValidos.find(c => c.status === 'Ativo') || contratosValidos[0];
         const valorDevido = contratoDoMes ? Number(contratoDoMes.valor_recorrente) : 0;
         const existente = movsExistentes.find(m => m.mes_referencia === mesStr);
-        const dataRef = `${mesStr}-10`;
+        const diaVenc = contratoDoMes?.dia_pagamento ?? 10;
+        const diaVencStr = String(diaVenc).padStart(2, '0');
+        const dataRef = `${mesStr}-${diaVencStr}`;
 
         if (valorDevido > 0) {
           let status: 'Confirmado' | 'Atrasado' | 'Previsto' = 'Previsto';
@@ -1168,21 +1172,24 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
             if (existente.status === 'Confirmado' || existente.status === 'Cancelado') {
               // preservar sem alterar
             } else if (existente.status === 'Previsto') {
-              // Previsto: atualiza valor do contrato e status
-              if (Number(existente.valor) !== valorDevido || existente.status !== status) {
-                promises.push(updateFinanceiroMovimento(existente.id, { valor: valorDevido, status }));
+              // Previsto: atualiza valor do contrato, status e data_movimento (dia de vencimento)
+              if (Number(existente.valor) !== valorDevido || existente.status !== status || existente.data_movimento !== dataRef) {
+                promises.push(updateFinanceiroMovimento(existente.id, { valor: valorDevido, status, data_movimento: dataRef }));
               }
             } else if (existente.status === 'Atrasado') {
               // Atrasado: pode ter sido editado manualmente — preserva valor, mantém Atrasado
               // (nada a fazer)
             }
           } else {
+            const diaVencCriar = contratoDoMes.dia_pagamento ?? 10;
+            const diaVencCriarStr = String(diaVencCriar).padStart(2, '0');
+            const dataMovCriar = `${mesStr}-${diaVencCriarStr}`;
             promises.push(createFinanceiroMovimento({
               cliente_id: cli.id,
               tipo: 'Entrada recorrente mensal',
               descricao: `Consultoria Recorrente - ${cli.nome_empresa}`,
               valor: valorDevido,
-              data_movimento: dataRef,
+              data_movimento: dataMovCriar,
               mes_referencia: mesStr,
               status: status
             }));
