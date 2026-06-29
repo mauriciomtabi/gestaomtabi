@@ -29,3 +29,8 @@ alter table public.contratos add column if not exists dia_pagamento integer chec
 alter table public.contratos add column if not exists valor_implantacao numeric(12,2) default 0.00;
 alter table public.contratos add column if not exists forma_pagamento text;
 alter table public.contratos add column if not exists parcelas integer default 1;
+
+-- Campos opcionais para reajuste programado/automático de valor
+alter table public.contratos add column if not exists reajuste_valor numeric(12,2);
+alter table public.contratos add column if not exists reajuste_data date;
+

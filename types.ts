@@ -89,6 +89,8 @@ export interface Contrato {
   forma_pagamento?: string;     // PIX | Boleto | Cartão de Crédito | Débito | Dinheiro | TED
   parcelas?: number;            // número de parcelas (para boleto)
   status: 'Ativo' | 'Histórico' | 'Cancelado';
+  reajuste_valor?: number;
+  reajuste_data?: string;
   observacoes?: string;
   data_criacao?: string;
 }

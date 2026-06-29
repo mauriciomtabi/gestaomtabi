@@ -77,6 +77,8 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     forma_pagamento: 'PIX',
     parcelas: 1,
     status: 'Ativo' as Contrato['status'],
+    reajuste_valor: 0,
+    reajuste_data: '',
     observacoes: ''
   });
 
@@ -321,6 +323,8 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       forma_pagamento: 'PIX',
       parcelas: 1,
       status: 'Ativo',
+      reajuste_valor: 0,
+      reajuste_data: '',
       observacoes: ''
     });
     setIsContractModalOpen(true);
@@ -338,6 +342,8 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       forma_pagamento: c.forma_pagamento || 'PIX',
       parcelas: c.parcelas ?? 1,
       status: c.status,
+      reajuste_valor: c.reajuste_valor ?? 0,
+      reajuste_data: c.reajuste_data || '',
       observacoes: c.observacoes || ''
     });
     setIsContractModalOpen(true);
@@ -359,6 +365,8 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         forma_pagamento: contractForm.forma_pagamento || 'PIX',
         parcelas: contractForm.parcelas || 1,
         status: contractForm.status,
+        reajuste_valor: contractForm.reajuste_valor ? Number(contractForm.reajuste_valor) : null,
+        reajuste_data: contractForm.reajuste_data || null,
         observacoes: contractForm.observacoes || null
       };
 
@@ -1961,6 +1969,37 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                   <option value="Histórico">Histórico (Arquivado)</option>
                   <option value="Cancelado">Cancelado</option>
                 </select>
+              </div>
+
+              <div className="border border-mtabi-border/60 p-3 rounded-xl bg-mtabi-bg/10 space-y-2">
+                <span className="text-[10px] font-bold text-mtabi-yellow uppercase tracking-wider block">
+                  Reajuste Programado / Automático (Opcional)
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted mb-1">
+                      Novo Valor Recorrente (R$)
+                    </label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={contractForm.reajuste_valor || ''}
+                      onChange={(e) => setContractForm({ ...contractForm, reajuste_valor: e.target.value ? Number(e.target.value) : undefined })}
+                      className="w-full px-3 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted mb-1">
+                      A partir do mês/dia
+                    </label>
+                    <input
+                      type="date"
+                      value={contractForm.reajuste_data || ''}
+                      onChange={(e) => setContractForm({ ...contractForm, reajuste_data: e.target.value })}
+                      className="w-full px-3 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>

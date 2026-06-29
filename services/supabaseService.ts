@@ -986,7 +986,9 @@ const calcularProRata = (
   valorRecorrente: number,
   diaVencimento: number,
   dataInicio: string,
-  dataFim?: string | null
+  dataFim?: string | null,
+  reajusteValor?: number | null,
+  reajusteData?: string | null
 ): { valor: number; dataMovimento: string } => {
   const [anoStr, mesNumStr] = mesStr.split('-');
   const anoNum = parseInt(anoStr, 10);
@@ -1006,22 +1008,31 @@ const calcularProRata = (
   const diaInicio = parseInt(dataInicio.split('-')[2] || '1', 10);
   const diaFim = dataFim ? parseInt(dataFim.split('-')[2] || '30', 10) : null;
 
-  let valor = valorRecorrente;
+  // Valor base do contrato (considera reajuste se a referência atual for maior ou igual ao mês do reajuste)
+  let valorBase = valorRecorrente;
+  if (reajusteValor && reajusteData) {
+    const mesReajuste = reajusteData.substring(0, 7);
+    if (mesStr >= mesReajuste) {
+      valorBase = reajusteValor;
+    }
+  }
+
+  let valor = valorBase;
 
   // Caso 1: Início e Fim no mesmo mês (contrato curtíssimo)
   if (mesStr === mesInicioContrato && mesFimContrato && mesStr === mesFimContrato && diaFim !== null) {
     const diasTrabalhados = Math.max(1, diaFim - diaInicio + 1);
-    valor = Math.round((valorRecorrente / 30) * diasTrabalhados * 100) / 100;
+    valor = Math.round((valorBase / 30) * diasTrabalhados * 100) / 100;
   }
   // Caso 2: Primeiro mês do contrato (pro-rata se iniciou após o dia 1)
   else if (mesStr === mesInicioContrato && diaInicio > 1) {
     const diasTrabalhados = Math.max(1, 30 - diaInicio + 1);
-    valor = Math.round((valorRecorrente / 30) * diasTrabalhados * 100) / 100;
+    valor = Math.round((valorBase / 30) * diasTrabalhados * 100) / 100;
   }
   // Caso 3: Último mês do contrato (pro-rata se terminou antes do dia 30)
   else if (mesFimContrato && mesStr === mesFimContrato && diaFim !== null && diaFim < 30) {
     const diasTrabalhados = Math.max(1, diaFim);
-    valor = Math.round((valorRecorrente / 30) * diasTrabalhados * 100) / 100;
+    valor = Math.round((valorBase / 30) * diasTrabalhados * 100) / 100;
   }
 
   return { valor, dataMovimento };
@@ -1089,7 +1100,9 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
             Number(contratoDoMes.valor_recorrente),
             diaVencCont,
             contratoDoMes.data_inicio,
-            contratoDoMes.data_fim
+            contratoDoMes.data_fim,
+            contratoDoMes.reajuste_valor,
+            contratoDoMes.reajuste_data
           );
           valorMes = resProRata.valor;
           dataMovMes = resProRata.dataMovimento;
@@ -1215,7 +1228,9 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
             Number(contratoDoMes.valor_recorrente),
             diaVencCont,
             contratoDoMes.data_inicio,
-            contratoDoMes.data_fim
+            contratoDoMes.data_fim,
+            contratoDoMes.reajuste_valor,
+            contratoDoMes.reajuste_data
           );
           valorMes = resProRata.valor;
           dataMovMes = resProRata.dataMovimento;
