@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Landmark, Plus, Search, Filter, Calendar, DollarSign, Edit2, Trash2, X, AlertTriangle, ArrowUpRight, ArrowDownRight, TrendingUp, RefreshCw, BarChart } from 'lucide-react';
-import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 import { getFinanceiroMovimentos, createFinanceiroMovimento, updateFinanceiroMovimento, deleteFinanceiroMovimento, getClientes, getProjetos, getFerramentas, sincronizarTodosOsContratos } from '../services/supabaseService';
 import { FinanceiroMovimento, Cliente, Projeto, FerramentaCusto } from '../types';
 
@@ -357,18 +357,40 @@ const Financeiro: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="h-48 w-full mt-6 font-sans text-xs">
+        <div className="h-72 w-full mt-6 font-sans text-xs">
           <ResponsiveContainer width="100%" height="100%">
-            <RechartsBarChart data={dadosMRR} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-              <XAxis dataKey="name" stroke="#8A8A8F" tickLine={false} />
-              <YAxis stroke="#8A8A8F" tickLine={false} axisLine={false} tickFormatter={(v) => `R$ ${v}`} />
+            <RechartsBarChart data={dadosMRR} margin={{ top: 28, right: 10, left: -20, bottom: 0 }}>
+              <XAxis dataKey="name" stroke="#8A8A8F" tickLine={false} tick={{ fontSize: 11 }} />
+              <YAxis
+                stroke="#8A8A8F"
+                tickLine={false}
+                axisLine={false}
+                tick={{ fontSize: 10 }}
+                tickFormatter={(v) => {
+                  if (v >= 1000000) return `R$ ${(v / 1000000).toFixed(1)}M`;
+                  if (v >= 1000) return `R$ ${(v / 1000).toFixed(0)}k`;
+                  return `R$ ${v}`;
+                }}
+              />
               <Tooltip
                 contentStyle={{ backgroundColor: '#17171A', borderColor: '#2A2A2E', borderRadius: '12px' }}
                 formatter={(value, name) => [`R$ ${Number(value).toLocaleString('pt-BR')}`, name]}
               />
               <Bar dataKey="Pago" stackId="a" fill="#10b981" name="Pago" radius={[0, 0, 0, 0]} />
               <Bar dataKey="Pendente" stackId="a" fill="#ef4444" name="Pendente" radius={[0, 0, 0, 0]} />
-              <Bar dataKey="Projetado" stackId="a" fill="#F5B324" name="Projetado" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Projetado" stackId="a" fill="#F5B324" name="Projetado" radius={[4, 4, 0, 0]}>
+                <LabelList
+                  valueAccessor={(entry: any) => {
+                    const total = (entry.Pago || 0) + (entry.Pendente || 0) + (entry.Projetado || 0);
+                    if (total === 0) return '';
+                    if (total >= 1000000) return `${(total / 1000000).toFixed(1)}M`;
+                    if (total >= 1000) return `${(total / 1000).toFixed(0)}k`;
+                    return `${total}`;
+                  }}
+                  position="top"
+                  style={{ fill: '#BCBCC0', fontSize: 9, fontWeight: 700, fontFamily: 'sans-serif' }}
+                />
+              </Bar>
             </RechartsBarChart>
           </ResponsiveContainer>
         </div>
