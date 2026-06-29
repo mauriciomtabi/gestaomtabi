@@ -1141,9 +1141,14 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
             alterado = true;
           }
         } else {
-          if (indexExistente !== -1 && movimentos[indexExistente].status === 'Previsto') {
-            movimentos = movimentos.filter((_, idx) => idx !== indexExistente);
-            alterado = true;
+          // Sem contrato ativo: remove movimentos Previsto e Atrasado auto-gerados
+          // (Confirmado e Cancelado são preservados)
+          if (indexExistente !== -1) {
+            const ex = movimentos[indexExistente];
+            if (ex.status === 'Previsto' || ex.status === 'Atrasado') {
+              movimentos = movimentos.filter((_, idx) => idx !== indexExistente);
+              alterado = true;
+            }
           }
         }
       }
@@ -1252,7 +1257,9 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
             }));
           }
         } else {
-          if (existente && existente.status === 'Previsto') {
+          // Sem contrato ativo: remove movimentos Previsto e Atrasado auto-gerados
+          // (Confirmado e Cancelado são preservados)
+          if (existente && (existente.status === 'Previsto' || existente.status === 'Atrasado')) {
             promises.push(deleteFinanceiroMovimento(existente.id));
           }
         }

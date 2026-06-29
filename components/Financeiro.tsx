@@ -118,7 +118,8 @@ const Financeiro: React.FC = () => {
   const handleDeleteMov = async () => {
     if (!movToDelete) return;
     try {
-      await deleteFinanceiroMovimento(movToDelete.id);
+      // Marca como Cancelado em vez de deletar — evita que o sync recrie o movimento
+      await updateFinanceiroMovimento(movToDelete.id, { status: 'Cancelado' });
       setMovToDelete(null);
       await loadData();
     } catch (e) {
