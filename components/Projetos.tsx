@@ -61,6 +61,18 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
   const [editingTechId, setEditingTechId] = useState<string | null>(null);
   const [editingTechName, setEditingTechName] = useState('');
 
+  // Controle de Recursos Operacionais Ativos
+  const [hasDatabase, setHasDatabase] = useState(false);
+  const [hasRepository, setHasRepository] = useState(false);
+  const [hasImages, setHasImages] = useState(false);
+  const [hasHosting, setHasHosting] = useState(false);
+
+  // Tecnologias escolhidas para cada recurso
+  const [dbTech, setDbTech] = useState('');
+  const [repoTech, setRepoTech] = useState('');
+  const [imagesTech, setImagesTech] = useState('');
+  const [hostingTech, setHostingTech] = useState('');
+
   // Toast/Feedback temporário
   const [techFeedback, setTechFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -137,6 +149,14 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
     });
     setSelectedTools([]);
     setNewToolInput('');
+    setHasDatabase(false);
+    setHasRepository(false);
+    setHasImages(false);
+    setHasHosting(false);
+    setDbTech('');
+    setRepoTech('');
+    setImagesTech('');
+    setHostingTech('');
     setIsProjectModalOpen(true);
   };
 
@@ -170,6 +190,24 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
     });
     setSelectedTools(p.ferramenta_dev || []);
     setNewToolInput('');
+
+    // Inicializar estados de recursos a partir do banco de dados/tags
+    const isDbActive = !!p.link_supabase || !!p.banco_dados || (p.ferramenta_dev || []).some(t => ['Supabase', 'PostgreSQL', 'MySQL', 'Firebase', 'MongoDB'].includes(t));
+    setHasDatabase(isDbActive);
+    setDbTech(p.banco_dados || (p.ferramenta_dev || []).find(t => ['Supabase', 'PostgreSQL', 'MySQL', 'Firebase', 'MongoDB'].includes(t)) || '');
+
+    const isRepoActive = !!p.repositorio_url || (p.ferramenta_dev || []).some(t => ['GitHub', 'GitLab', 'Bitbucket', 'Git'].includes(t));
+    setHasRepository(isRepoActive);
+    setRepoTech((p.ferramenta_dev || []).find(t => ['GitHub', 'GitLab', 'Bitbucket', 'Git'].includes(t)) || '');
+
+    const isImagesActive = !!p.hospedagem_imagens || (p.ferramenta_dev || []).some(t => ['Cloudinary', 'Firebase', 'Supabase Storage', 'AWS S3'].includes(t));
+    setHasImages(isImagesActive);
+    setImagesTech((p.ferramenta_dev || []).find(t => ['Cloudinary', 'Firebase', 'Supabase Storage', 'AWS S3'].includes(t)) || '');
+
+    const isHostingActive = !!p.hospedagem_geral || (p.ferramenta_dev || []).some(t => ['Vercel', 'Netlify', 'Railway', 'Heroku', 'AWS'].includes(t));
+    setHasHosting(isHostingActive);
+    setHostingTech((p.ferramenta_dev || []).find(t => ['Vercel', 'Netlify', 'Railway', 'Heroku', 'AWS'].includes(t)) || '');
+
     setIsProjectModalOpen(true);
   };
 
@@ -297,15 +335,39 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
     e.preventDefault();
     setErrorMsg(null);
     try {
+      // Compilar a stack de ferramentas final
+      const finalTools = [...selectedTools];
+      if (hasDatabase && dbTech) finalTools.push(dbTech);
+      if (hasRepository && repoTech) finalTools.push(repoTech);
+      if (hasImages && imagesTech) finalTools.push(imagesTech);
+      if (hasHosting && hostingTech) finalTools.push(hostingTech);
+      
+      // Remover duplicatas e valores vazios
+      const uniqueTools = Array.from(new Set(finalTools)).filter(Boolean);
+
       const payload = {
         ...projectForm,
-        ferramenta_dev: selectedTools,
+        ferramenta_dev: uniqueTools,
         valor_projeto: Number(projectForm.valor_projeto),
         valor_mensal: Number(projectForm.valor_mensal),
         data_inicio: projectForm.data_inicio || null,
         data_entrega_prevista: projectForm.data_entrega_prevista || null,
         forma_pagamento: projectForm.forma_pagamento,
-        parcelas: Number(projectForm.parcelas || 1)
+        parcelas: Number(projectForm.parcelas || 1),
+        
+        // Condicionar campos conforme ativação dos recursos
+        link_supabase: hasDatabase ? projectForm.link_supabase || null : null,
+        user_supabase: hasDatabase ? projectForm.user_supabase || null : null,
+        banco_dados: hasDatabase ? dbTech || null : null,
+        
+        repositorio_url: hasRepository ? projectForm.repositorio_url || null : null,
+        user_repositorio: hasRepository ? projectForm.user_repositorio || null : null,
+        
+        hospedagem_imagens: hasImages ? projectForm.hospedagem_imagens || null : null,
+        user_imagens: hasImages ? projectForm.user_imagens || null : null,
+        
+        hospedagem_geral: hasHosting ? projectForm.hospedagem_geral || null : null,
+        user_hospedagem: hasHosting ? projectForm.user_hospedagem || null : null
       };
       
       delete (payload as any).ferramenta_dev_input;
@@ -938,99 +1000,251 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                 />
               </div>
 
-              {/* Campos Condicionais baseados nas Ferramentas Utilizadas */}
-              {selectedTools.includes('Supabase') && (
-                <div className="space-y-1.5 transition-all duration-300 animate-fadeIn">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
-                    Link do Supabase (Painel)
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://supabase.com/dashboard/project/..."
-                    value={projectForm.link_supabase}
-                    onChange={(e) => setProjectForm({ ...projectForm, link_supabase: e.target.value })}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Usuário do Supabase (E-mail)"
-                    value={projectForm.user_supabase}
-                    onChange={(e) => setProjectForm({ ...projectForm, user_supabase: e.target.value })}
-                    className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
-                  />
-                </div>
-              )}
+              {/* Seção Recursos do Sistema e Credenciais */}
+              <div className="sm:col-span-2 border-t border-mtabi-border/60 pt-4 space-y-4">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-mtabi-yellow block">
+                  Recursos do Sistema (Links e Acessos)
+                </span>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* RECURSO: Banco de Dados */}
+                  <div className="bg-mtabi-bg/40 border border-mtabi-border/60 p-3.5 rounded-xl space-y-3">
+                    <label className="flex items-center gap-2 text-xs font-bold text-white cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={hasDatabase}
+                        onChange={(e) => {
+                          setHasDatabase(e.target.checked);
+                          if (!e.target.checked) {
+                            setDbTech('');
+                          } else {
+                            setDbTech('Supabase'); // padrão
+                          }
+                        }}
+                        className="rounded border-mtabi-border text-mtabi-yellow focus:ring-0 focus:ring-offset-0 cursor-pointer bg-mtabi-bg"
+                      />
+                      Banco de Dados
+                    </label>
 
-              {selectedTools.some(t => /git/i.test(t)) && (
-                <div className="space-y-1.5 transition-all duration-300 animate-fadeIn">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
-                    URL do Repositório Git
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://github.com/empresa/projeto"
-                    value={projectForm.repositorio_url}
-                    onChange={(e) => setProjectForm({ ...projectForm, repositorio_url: e.target.value })}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Usuário Git (GitHub/GitLab)"
-                    value={projectForm.user_repositorio}
-                    onChange={(e) => setProjectForm({ ...projectForm, user_repositorio: e.target.value })}
-                    className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
-                  />
-                </div>
-              )}
+                    {hasDatabase && (
+                      <div className="space-y-2 pt-1 animate-fadeIn">
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">Tecnologia</label>
+                          <select
+                            value={dbTech}
+                            onChange={(e) => setDbTech(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs text-white focus:outline-none"
+                          >
+                            <option value="">Selecione...</option>
+                            {tecnologias.map(t => (
+                              <option key={t.id} value={t.nome}>{t.nome}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">Link do Banco / Painel</label>
+                          <input
+                            type="url"
+                            placeholder="https://..."
+                            value={projectForm.link_supabase || ''}
+                            onChange={(e) => setProjectForm({ ...projectForm, link_supabase: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs text-white focus:outline-none focus:border-mtabi-yellow"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">Usuário de Acesso</label>
+                          <input
+                            type="text"
+                            placeholder="Login / E-mail"
+                            value={projectForm.user_supabase || ''}
+                            onChange={(e) => setProjectForm({ ...projectForm, user_supabase: e.target.value })}
+                            className="w-full px-2.5 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-md text-[11px] text-white focus:outline-none placeholder-mtabi-muted/50"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-              {selectedTools.some(t => /cloudinary|storage|firebase/i.test(t)) && (
-                <div className="space-y-1.5 transition-all duration-300 animate-fadeIn">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
-                    Link do Banco de Imagens (Storage)
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://cloudinary.com/... ou Supabase Storage"
-                    value={projectForm.hospedagem_imagens}
-                    onChange={(e) => setProjectForm({ ...projectForm, hospedagem_imagens: e.target.value })}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Usuário do Banco de Imagens"
-                    value={projectForm.user_imagens}
-                    onChange={(e) => setProjectForm({ ...projectForm, user_imagens: e.target.value })}
-                    className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
-                  />
-                </div>
-              )}
+                  {/* RECURSO: Repositório de Código */}
+                  <div className="bg-mtabi-bg/40 border border-mtabi-border/60 p-3.5 rounded-xl space-y-3">
+                    <label className="flex items-center gap-2 text-xs font-bold text-white cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={hasRepository}
+                        onChange={(e) => {
+                          setHasRepository(e.target.checked);
+                          if (!e.target.checked) {
+                            setRepoTech('');
+                          } else {
+                            setRepoTech('GitHub'); // padrão
+                          }
+                        }}
+                        className="rounded border-mtabi-border text-mtabi-yellow focus:ring-0 focus:ring-offset-0 cursor-pointer bg-mtabi-bg"
+                      />
+                      Repositório Git
+                    </label>
 
-              {selectedTools.some(t => /vercel|netlify|railway|hospedagem|aws|gcp|azure/i.test(t)) && (
-                <div className="space-y-1.5 transition-all duration-300 animate-fadeIn">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
-                    Hospedagem Geral (Frontend/Backend)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Ex: Vercel, Netlify, Railway"
-                    value={projectForm.hospedagem_geral}
-                    onChange={(e) => setProjectForm({ ...projectForm, hospedagem_geral: e.target.value })}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Usuário da Hospedagem Geral"
-                    value={projectForm.user_hospedagem}
-                    onChange={(e) => setProjectForm({ ...projectForm, user_hospedagem: e.target.value })}
-                    className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
-                  />
-                </div>
-              )}
+                    {hasRepository && (
+                      <div className="space-y-2 pt-1 animate-fadeIn">
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">Tecnologia</label>
+                          <select
+                            value={repoTech}
+                            onChange={(e) => setRepoTech(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs text-white focus:outline-none"
+                          >
+                            <option value="">Selecione...</option>
+                            {tecnologias.map(t => (
+                              <option key={t.id} value={t.nome}>{t.nome}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">URL do Repositório</label>
+                          <input
+                            type="url"
+                            placeholder="https://github.com/..."
+                            value={projectForm.repositorio_url || ''}
+                            onChange={(e) => setProjectForm({ ...projectForm, repositorio_url: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs text-white focus:outline-none focus:border-mtabi-yellow"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">Usuário de Acesso</label>
+                          <input
+                            type="text"
+                            placeholder="Usuário / E-mail"
+                            value={projectForm.user_repositorio || ''}
+                            onChange={(e) => setProjectForm({ ...projectForm, user_repositorio: e.target.value })}
+                            className="w-full px-2.5 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-md text-[11px] text-white focus:outline-none placeholder-mtabi-muted/50"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
-              <div className="sm:col-span-2 space-y-2">
+                  {/* RECURSO: Banco de Imagens (Storage) */}
+                  <div className="bg-mtabi-bg/40 border border-mtabi-border/60 p-3.5 rounded-xl space-y-3">
+                    <label className="flex items-center gap-2 text-xs font-bold text-white cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={hasImages}
+                        onChange={(e) => {
+                          setHasImages(e.target.checked);
+                          if (!e.target.checked) {
+                            setImagesTech('');
+                          } else {
+                            setImagesTech('Cloudinary'); // padrão
+                          }
+                        }}
+                        className="rounded border-mtabi-border text-mtabi-yellow focus:ring-0 focus:ring-offset-0 cursor-pointer bg-mtabi-bg"
+                      />
+                      Banco de Imagens (Storage)
+                    </label>
+
+                    {hasImages && (
+                      <div className="space-y-2 pt-1 animate-fadeIn">
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">Tecnologia</label>
+                          <select
+                            value={imagesTech}
+                            onChange={(e) => setImagesTech(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs text-white focus:outline-none"
+                          >
+                            <option value="">Selecione...</option>
+                            {tecnologias.map(t => (
+                              <option key={t.id} value={t.nome}>{t.nome}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">Link do Storage</label>
+                          <input
+                            type="url"
+                            placeholder="https://..."
+                            value={projectForm.hospedagem_imagens || ''}
+                            onChange={(e) => setProjectForm({ ...projectForm, hospedagem_imagens: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs text-white focus:outline-none focus:border-mtabi-yellow"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">Usuário de Acesso</label>
+                          <input
+                            type="text"
+                            placeholder="Login / E-mail"
+                            value={projectForm.user_imagens || ''}
+                            onChange={(e) => setProjectForm({ ...projectForm, user_imagens: e.target.value })}
+                            className="w-full px-2.5 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-md text-[11px] text-white focus:outline-none placeholder-mtabi-muted/50"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* RECURSO: Hospedagem do Sistema */}
+                  <div className="bg-mtabi-bg/40 border border-mtabi-border/60 p-3.5 rounded-xl space-y-3">
+                    <label className="flex items-center gap-2 text-xs font-bold text-white cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={hasHosting}
+                        onChange={(e) => {
+                          setHasHosting(e.target.checked);
+                          if (!e.target.checked) {
+                            setHostingTech('');
+                          } else {
+                            setHostingTech('Vercel'); // padrão
+                          }
+                        }}
+                        className="rounded border-mtabi-border text-mtabi-yellow focus:ring-0 focus:ring-offset-0 cursor-pointer bg-mtabi-bg"
+                      />
+                      Hospedagem Geral
+                    </label>
+
+                    {hasHosting && (
+                      <div className="space-y-2 pt-1 animate-fadeIn">
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">Tecnologia</label>
+                          <select
+                            value={hostingTech}
+                            onChange={(e) => setHostingTech(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs text-white focus:outline-none"
+                          >
+                            <option value="">Selecione...</option>
+                            {tecnologias.map(t => (
+                              <option key={t.id} value={t.nome}>{t.nome}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">Link da Hospedagem</label>
+                          <input
+                            type="text"
+                            placeholder="https://..."
+                            value={projectForm.hospedagem_geral || ''}
+                            onChange={(e) => setProjectForm({ ...projectForm, hospedagem_geral: e.target.value })}
+                            className="w-full px-2.5 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs text-white focus:outline-none focus:border-mtabi-yellow"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">Usuário de Acesso</label>
+                          <input
+                            type="text"
+                            placeholder="Login / E-mail"
+                            value={projectForm.user_hospedagem || ''}
+                            onChange={(e) => setProjectForm({ ...projectForm, user_hospedagem: e.target.value })}
+                            className="w-full px-2.5 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-md text-[11px] text-white focus:outline-none placeholder-mtabi-muted/50"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="sm:col-span-2 space-y-2 border-t border-mtabi-border/60 pt-4">
                 <div className="flex items-center justify-between">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
-                    Ferramentas Utilizadas (Selecione na lista)
+                    Frameworks & Outras Tecnologias (Selecione na lista)
                   </label>
                   <button
                     type="button"
@@ -1052,23 +1266,27 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                 )}
                 
                 <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-mtabi-bg/30 border border-mtabi-border/60 rounded-xl">
-                  {tecnologias.map(t => t.nome).sort().map(tool => {
-                    const isSelected = selectedTools.includes(tool);
-                    return (
-                      <button
-                        type="button"
-                        key={tool}
-                        onClick={() => toggleTool(tool)}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer ${
-                          isSelected 
-                            ? 'bg-mtabi-yellow/20 border-mtabi-yellow text-mtabi-yellow' 
-                            : 'bg-mtabi-bg border-mtabi-border text-mtabi-muted hover:text-white'
-                        }`}
-                      >
-                        {tool}
-                      </button>
-                    );
-                  })}
+                  {tecnologias
+                    .map(t => t.nome)
+                    .filter(tool => ![dbTech, repoTech, imagesTech, hostingTech].includes(tool))
+                    .sort()
+                    .map(tool => {
+                      const isSelected = selectedTools.includes(tool);
+                      return (
+                        <button
+                          type="button"
+                          key={tool}
+                          onClick={() => toggleTool(tool)}
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer ${
+                            isSelected 
+                              ? 'bg-mtabi-yellow/20 border-mtabi-yellow text-mtabi-yellow' 
+                              : 'bg-mtabi-bg border-mtabi-border text-mtabi-muted hover:text-white'
+                          }`}
+                        >
+                          {tool}
+                        </button>
+                      );
+                    })}
                 </div>
 
                 <div className="flex gap-2">
