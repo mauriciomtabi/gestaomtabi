@@ -58,7 +58,11 @@ const Pipeline: React.FC = () => {
   const [drawerAcaoText, setDrawerAcaoText] = useState('');
   const [drawerAcaoDate, setDrawerAcaoDate] = useState('');
   const [drawerProbabilidade, setDrawerProbabilidade] = useState(50);
+  const [drawerLinkProposta, setDrawerLinkProposta] = useState('');
+  const [drawerObservacoes, setDrawerObservacoes] = useState('');
+  const [drawerObsDirty, setDrawerObsDirty] = useState(false);
   const [savingAcao, setSavingAcao] = useState(false);
+  const [savingObs, setSavingObs] = useState(false);
 
   const loadLeadHistory = async (leadId: string) => {
     try {
@@ -73,6 +77,9 @@ const Pipeline: React.FC = () => {
     if (selectedLead?.id) {
       loadLeadHistory(selectedLead.id);
       setDrawerProbabilidade(Number(selectedLead.probabilidade || 50));
+      setDrawerLinkProposta(selectedLead.link_proposta || '');
+      setDrawerObservacoes(selectedLead.observacoes || '');
+      setDrawerObsDirty(false);
       setDrawerAcaoText('');
       setDrawerAcaoDate('');
       setDrawerTab('visao');
@@ -80,6 +87,33 @@ const Pipeline: React.FC = () => {
       setSelectedLeadHistory([]);
     }
   }, [selectedLead?.id]);
+
+  // Salva link da proposta ao sair do campo
+  const handleDrawerLinkSave = async () => {
+    if (!selectedLead) return;
+    if (drawerLinkProposta === (selectedLead.link_proposta || '')) return;
+    try {
+      await updatePipelineLead(selectedLead.id, { link_proposta: drawerLinkProposta || null });
+      await loadData();
+    } catch (err) {
+      console.error('Erro ao salvar link:', err);
+    }
+  };
+
+  // Salva observações
+  const handleDrawerObsSave = async () => {
+    if (!selectedLead) return;
+    setSavingObs(true);
+    try {
+      await updatePipelineLead(selectedLead.id, { observacoes: drawerObservacoes || null });
+      setDrawerObsDirty(false);
+      await loadData();
+    } catch (err) {
+      console.error('Erro ao salvar observações:', err);
+    } finally {
+      setSavingObs(false);
+    }
+  };
 
   // Registrar nova ação diretamente pelo drawer
   const handleDrawerAcaoSubmit = async () => {
@@ -455,10 +489,10 @@ const Pipeline: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             {/* === CABEÇALHO === */}
-            <div className="p-5 border-b border-mtabi-border shrink-0 bg-[#13151A]/70">
-              <div className="flex justify-between items-center mb-3">
+            <div className="p-4 border-b border-mtabi-border shrink-0 bg-[#13151A]/70">
+              <div className="flex justify-between items-start mb-2">
                 <span className="text-[10px] text-mtabi-yellow font-bold uppercase tracking-wider">Lead Comercial</span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => openEditLeadModal(selectedLead)}
                     className="p-1.5 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border text-white hover:text-mtabi-yellow rounded-lg transition-colors cursor-pointer"
@@ -473,36 +507,59 @@ const Pipeline: React.FC = () => {
                   >
                     <Trash2 size={12} />
                   </button>
-                  <button onClick={() => setSelectedLead(null)} className="text-mtabi-muted hover:text-white transition-colors cursor-pointer ml-1">
+                  <button onClick={() => setSelectedLead(null)} className="text-mtabi-muted hover:text-white transition-colors cursor-pointer ml-0.5">
                     <X size={18} />
                   </button>
                 </div>
               </div>
 
-              <h2 className="text-xl font-extrabold text-white font-display leading-tight">
+              <h2 className="text-lg font-extrabold text-white font-display leading-tight">
                 {selectedLead.cliente?.nome_empresa || selectedLead.nome_lead || 'Sem Nome'}
               </h2>
 
-              <div className="flex flex-wrap items-center gap-2 mt-2">
+              {/* Linha 1: etapa + valores */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                 <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${ETAPA_COLORS[selectedLead.etapa].text} ${ETAPA_COLORS[selectedLead.etapa].bg} border ${ETAPA_COLORS[selectedLead.etapa].border}`}>
                   {selectedLead.etapa}
                 </span>
-                <span className="text-mtabi-muted text-xs">•</span>
-                <span className="text-xs text-white font-mono font-bold">
-                  {Number(selectedLead.valor_estimado).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                <span className="text-mtabi-muted text-[10px]">•</span>
+                <span className="text-[11px] text-white font-mono font-bold">
+                  {Number(selectedLead.valor_estimado).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 })}
                 </span>
                 {selectedLead.valor_recorrente && Number(selectedLead.valor_recorrente) > 0 && (
                   <>
-                    <span className="text-mtabi-muted text-xs">+</span>
-                    <span className="text-xs text-mtabi-yellow font-mono font-bold">
-                      {Number(selectedLead.valor_recorrente).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
+                    <span className="text-mtabi-muted text-[10px]">+</span>
+                    <span className="text-[11px] text-mtabi-yellow font-mono font-bold">
+                      {Number(selectedLead.valor_recorrente).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0 })}/mês
                     </span>
                   </>
                 )}
               </div>
 
+              {/* Linha 2: Decisor + Facilitador compactos */}
+              <div className="flex items-center gap-3 mt-2">
+                {selectedLead.decisor_nome && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider">Decisor:</span>
+                    <span className="text-[10px] text-white font-bold truncate max-w-[120px]">{selectedLead.decisor_nome}</span>
+                  </div>
+                )}
+                {selectedLead.decisor_nome && selectedLead.campeao_interno_nome && (
+                  <span className="text-mtabi-border">|</span>
+                )}
+                {selectedLead.campeao_interno_nome && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider">Facilitador:</span>
+                    <span className="text-[10px] text-white font-bold truncate max-w-[120px]">{selectedLead.campeao_interno_nome}</span>
+                  </div>
+                )}
+                {!selectedLead.decisor_nome && !selectedLead.campeao_interno_nome && (
+                  <span className="text-[10px] text-mtabi-muted/60 italic">Decisor/Facilitador não mapeados — edite para preencher</span>
+                )}
+              </div>
+
               {/* Abas */}
-              <div className="flex gap-1 mt-4">
+              <div className="flex gap-1 mt-3">
                 <button
                   onClick={() => setDrawerTab('visao')}
                   className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
@@ -531,21 +588,13 @@ const Pipeline: React.FC = () => {
               </div>
             </div>
 
-            {/* === ABA: VISÃO GERAL === */}
+            {/* === ABA: VISÃO GERAL (sem scroll) === */}
             {drawerTab === 'visao' && (
-              <div className="p-5 space-y-5 overflow-y-auto flex-1 kanban-scroll">
+              <div className="p-4 flex flex-col gap-3 flex-1 overflow-hidden">
 
-                {/* Probabilidade de Fechamento */}
-                <div className="bg-mtabi-bg border border-mtabi-border p-4 rounded-xl">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-[10px] text-mtabi-muted uppercase tracking-wider font-bold">Probabilidade de Fechamento</span>
-                    <span className={`text-lg font-extrabold font-mono ${
-                      drawerProbabilidade >= 75 ? 'text-mtabi-success' :
-                      drawerProbabilidade >= 50 ? 'text-mtabi-yellow' :
-                      drawerProbabilidade >= 25 ? 'text-amber-400' :
-                      'text-mtabi-error'
-                    }`}>{drawerProbabilidade}%</span>
-                  </div>
+                {/* Probabilidade — linha compacta */}
+                <div className="flex items-center gap-3 bg-mtabi-bg border border-mtabi-border px-3 py-2 rounded-xl shrink-0">
+                  <span className="text-[10px] text-mtabi-muted uppercase tracking-wider font-bold whitespace-nowrap">Prob. Fechamento</span>
                   <input
                     type="range"
                     min="0"
@@ -555,113 +604,119 @@ const Pipeline: React.FC = () => {
                     onChange={(e) => setDrawerProbabilidade(Number(e.target.value))}
                     onMouseUp={(e) => handleDrawerProbabilidadeSave(Number((e.target as HTMLInputElement).value))}
                     onTouchEnd={(e) => handleDrawerProbabilidadeSave(Number((e.target as HTMLInputElement).value))}
-                    className="w-full h-2 appearance-none cursor-pointer accent-mtabi-yellow"
+                    className="flex-1 h-1.5 appearance-none cursor-pointer"
                     style={{ accentColor: drawerProbabilidade >= 75 ? '#4ade80' : drawerProbabilidade >= 50 ? '#E8A33D' : drawerProbabilidade >= 25 ? '#fb923c' : '#ef4444' }}
                   />
-                  <div className="flex justify-between text-[9px] text-mtabi-muted mt-1 font-mono">
-                    <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
-                  </div>
+                  <span className={`text-sm font-extrabold font-mono min-w-[36px] text-right ${
+                    drawerProbabilidade >= 75 ? 'text-mtabi-success' :
+                    drawerProbabilidade >= 50 ? 'text-mtabi-yellow' :
+                    drawerProbabilidade >= 25 ? 'text-amber-400' : 'text-mtabi-error'
+                  }`}>{drawerProbabilidade}%</span>
                 </div>
-
-                {/* Decisor + Campeão */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-mtabi-bg border border-mtabi-border p-3.5 rounded-xl">
-                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider block">Decisor</span>
-                    <span className="text-xs text-white font-bold mt-1 block truncate">{selectedLead.decisor_nome || '—'}</span>
-                  </div>
-                  <div className="bg-mtabi-bg border border-mtabi-border p-3.5 rounded-xl">
-                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider block">Facilitador</span>
-                    <span className="text-xs text-white font-bold mt-1 block truncate">{selectedLead.campeao_interno_nome || '—'}</span>
-                  </div>
-                </div>
-
-                {/* Proposta */}
-                {selectedLead.link_proposta ? (
-                  <div className="bg-mtabi-bg/50 border border-mtabi-border p-3.5 rounded-xl">
-                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider block mb-1">Proposta Comercial</span>
-                    <a
-                      href={selectedLead.link_proposta.startsWith('http') ? selectedLead.link_proposta : `https://${selectedLead.link_proposta}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-mtabi-yellow hover:underline flex items-center gap-1.5 font-bold break-all"
-                    >
-                      <Link size={12} className="shrink-0" />
-                      <span className="truncate">Ver Proposta Comercial</span>
-                      <ExternalLink size={10} className="shrink-0" />
-                    </a>
-                  </div>
-                ) : (
-                  <div className="bg-mtabi-bg/30 border border-dashed border-mtabi-border/50 p-3 rounded-xl text-center">
-                    <span className="text-[10px] text-mtabi-muted">Nenhuma proposta vinculada — edite para adicionar</span>
-                  </div>
-                )}
 
                 {/* Próxima Ação Atual */}
-                <div className="bg-mtabi-bg/50 border border-mtabi-border rounded-xl overflow-hidden">
-                  <div className="flex justify-between items-center px-4 py-2.5 border-b border-mtabi-border/50 bg-mtabi-bg/30">
-                    <span className="text-[10px] text-mtabi-muted uppercase font-bold tracking-wider">Próxima Ação Agendada</span>
+                <div className="bg-mtabi-bg/50 border border-mtabi-border rounded-xl overflow-hidden shrink-0">
+                  <div className="flex justify-between items-center px-3 py-1.5 border-b border-mtabi-border/50 bg-mtabi-bg/30">
+                    <span className="text-[9px] text-mtabi-muted uppercase font-bold tracking-wider">Próxima Ação</span>
                     {selectedLead.data_proxima_acao && (
-                      <span className="text-[10px] text-white font-mono bg-mtabi-bg px-2 py-0.5 rounded-lg border border-mtabi-border">
+                      <span className="text-[9px] text-white font-mono bg-mtabi-bg px-1.5 py-0.5 rounded border border-mtabi-border">
                         {formatDateBR(selectedLead.data_proxima_acao)}
                       </span>
                     )}
                   </div>
-                  <p className="px-4 py-3 text-xs text-white font-medium leading-relaxed">
+                  <p className="px-3 py-2 text-xs text-white font-medium leading-snug line-clamp-2">
                     {selectedLead.proxima_acao || 'Nenhuma ação programada'}
                   </p>
                 </div>
 
                 {/* === REGISTRAR NOVA AÇÃO === */}
-                <div className="border border-mtabi-yellow/30 bg-mtabi-yellow/5 rounded-xl p-4 space-y-3">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-yellow flex items-center gap-1.5">
-                    <Plus size={12} /> Registrar Nova Ação
+                <div className="border border-mtabi-yellow/30 bg-mtabi-yellow/5 rounded-xl p-3 space-y-2 shrink-0">
+                  <h4 className="text-[9px] font-bold uppercase tracking-wider text-mtabi-yellow flex items-center gap-1">
+                    <Plus size={10} /> Nova Ação
                   </h4>
                   <textarea
                     rows={2}
-                    placeholder="Descreva a próxima ação a realizar..."
+                    placeholder="Descreva a próxima ação..."
                     value={drawerAcaoText}
                     onChange={(e) => setDrawerAcaoText(e.target.value)}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs focus:outline-none focus:border-mtabi-yellow text-white resize-none placeholder-mtabi-muted"
+                    className="w-full px-2.5 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white resize-none placeholder-mtabi-muted leading-snug"
                   />
                   <div className="flex gap-2 items-center">
                     <input
                       type="date"
                       value={drawerAcaoDate}
                       onChange={(e) => setDrawerAcaoDate(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs focus:outline-none focus:border-mtabi-yellow text-white"
+                      className="flex-1 px-2.5 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white"
                     />
                     <button
                       onClick={handleDrawerAcaoSubmit}
                       disabled={!drawerAcaoText.trim() || savingAcao}
-                      className="px-4 py-2 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black text-[10px] font-bold uppercase tracking-wider rounded-xl disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shrink-0"
+                      className="px-3 py-1.5 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black text-[9px] font-bold uppercase tracking-wider rounded-lg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shrink-0"
                     >
-                      {savingAcao ? 'Salvando...' : 'Registrar'}
+                      {savingAcao ? '...' : 'Registrar'}
                     </button>
                   </div>
                 </div>
 
-                {/* Observações */}
-                {selectedLead.observacoes && (
-                  <div>
-                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">Observações da Negociação</h4>
-                    <p className="text-xs text-mtabi-text bg-mtabi-bg/30 border border-mtabi-border p-3.5 rounded-xl leading-relaxed whitespace-pre-wrap">
-                      {selectedLead.observacoes}
-                    </p>
+                {/* Link Proposta (editável inline) */}
+                <div className="shrink-0">
+                  <label className="text-[9px] text-mtabi-muted uppercase tracking-wider font-bold block mb-1">Link da Proposta</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="url"
+                      placeholder="https://drive.google.com/..."
+                      value={drawerLinkProposta}
+                      onChange={(e) => setDrawerLinkProposta(e.target.value)}
+                      onBlur={handleDrawerLinkSave}
+                      className="flex-1 px-2.5 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white"
+                    />
+                    {drawerLinkProposta && (
+                      <a
+                        href={drawerLinkProposta.startsWith('http') ? drawerLinkProposta : `https://${drawerLinkProposta}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-mtabi-yellow hover:text-white transition-colors shrink-0"
+                        title="Abrir proposta"
+                      >
+                        <ExternalLink size={12} />
+                      </a>
+                    )}
                   </div>
-                )}
+                </div>
 
-                {/* Alterar Etapa */}
-                <div className="border-t border-mtabi-border pt-4">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2.5">Mover no Funil</h4>
-                  <div className="flex flex-wrap gap-1.5">
+                {/* Observações (editável inline com botão salvar dirty) */}
+                <div className="flex flex-col flex-1 min-h-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[9px] text-mtabi-muted uppercase tracking-wider font-bold">Observações da Negociação</label>
+                    {drawerObsDirty && (
+                      <button
+                        onClick={handleDrawerObsSave}
+                        disabled={savingObs}
+                        className="text-[9px] font-bold uppercase tracking-wider text-black bg-mtabi-yellow hover:bg-mtabi-yellow/90 px-2 py-0.5 rounded-lg cursor-pointer disabled:opacity-50 transition-all"
+                      >
+                        {savingObs ? 'Salvando...' : 'Salvar'}
+                      </button>
+                    )}
+                  </div>
+                  <textarea
+                    value={drawerObservacoes}
+                    onChange={(e) => { setDrawerObservacoes(e.target.value); setDrawerObsDirty(true); }}
+                    placeholder="Anotações, concorrência, dores do cliente..."
+                    className="flex-1 w-full px-2.5 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white resize-none placeholder-mtabi-muted leading-relaxed"
+                  />
+                </div>
+
+                {/* Mover no Funil */}
+                <div className="border-t border-mtabi-border pt-3 shrink-0">
+                  <div className="flex flex-wrap gap-1">
                     {ETAPAS.map(etapa => (
                       <button
                         key={etapa}
                         disabled={selectedLead.etapa === etapa}
                         onClick={() => moveLeadStage(selectedLead, etapa)}
-                        className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg border transition-all cursor-pointer ${
+                        className={`px-2 py-1 text-[9px] font-bold uppercase tracking-wider rounded-lg border transition-all cursor-pointer ${
                           selectedLead.etapa === etapa
-                            ? `${ETAPA_COLORS[etapa].bg} ${ETAPA_COLORS[etapa].text} ${ETAPA_COLORS[etapa].border} opacity-100`
+                            ? `${ETAPA_COLORS[etapa].bg} ${ETAPA_COLORS[etapa].text} ${ETAPA_COLORS[etapa].border}`
                             : 'bg-mtabi-bg text-mtabi-muted border-mtabi-border hover:border-mtabi-muted hover:text-white'
                         }`}
                       >

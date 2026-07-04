@@ -44,6 +44,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [clientForm, setClientForm] = useState({
     nome_empresa: '',
+    cnpj: '',
     logo_url: '',
     nome_contato_principal: '',
     nome_contato_interno: '',
@@ -181,6 +182,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     setEditingCliente(null);
     setClientForm({
       nome_empresa: '',
+      cnpj: '',
       logo_url: '',
       nome_contato_principal: '',
       nome_contato_interno: '',
@@ -199,6 +201,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     setEditingCliente(c);
     setClientForm({
       nome_empresa: c.nome_empresa,
+      cnpj: c.cnpj || '',
       logo_url: c.logo_url || '',
       nome_contato_principal: c.nome_contato_principal || '',
       nome_contato_interno: c.nome_contato_interno || '',
@@ -1370,18 +1373,32 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
-                  Nome da Empresa *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ex: MTABI Tech"
-                  value={clientForm.nome_empresa}
-                  onChange={(e) => setClientForm({ ...clientForm, nome_empresa: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
+                    Nome da Empresa *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ex: MTABI Tech"
+                    value={clientForm.nome_empresa}
+                    onChange={(e) => setClientForm({ ...clientForm, nome_empresa: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
+                    CNPJ
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="00.000.000/0001-00"
+                    value={clientForm.cnpj}
+                    onChange={(e) => setClientForm({ ...clientForm, cnpj: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
