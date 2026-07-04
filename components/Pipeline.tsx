@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, Plus, Search, Calendar, ChevronRight, X, AlertTriangle, User, ShieldAlert, Award, ArrowRight, ArrowLeft, MoreVertical, Edit2, Trash2, ExternalLink, Link } from 'lucide-react';
-import { getPipeline, createPipelineLead, updatePipelineLead, deletePipelineLead, getClientes, createCliente } from '../services/supabaseService';
-import { PipelineLead, Cliente } from '../types';
+import { getPipeline, createPipelineLead, updatePipelineLead, deletePipelineLead, getClientes, createCliente, getPipelineAcoesHistorico, createPipelineAcaoHistorico, deletePipelineAcaoHistorico } from '../services/supabaseService';
+import { PipelineLead, Cliente, PipelineAcaoHistorico } from '../types';
+import { formatDateBR } from '../utils/timeUtils';
 
 const ETAPAS = [
   'Primeiro contato',
@@ -49,7 +50,25 @@ const Pipeline: React.FC = () => {
 
   // Modal de Detalhe Completo do Lead
   const [selectedLead, setSelectedLead] = useState<PipelineLead | null>(null);
+  const [selectedLeadHistory, setSelectedLeadHistory] = useState<PipelineAcaoHistorico[]>([]);
   const [leadToDelete, setLeadToDelete] = useState<PipelineLead | null>(null);
+
+  const loadLeadHistory = async (leadId: string) => {
+    try {
+      const hist = await getPipelineAcoesHistorico(leadId);
+      setSelectedLeadHistory(hist);
+    } catch (err) {
+      console.error('Erro ao carregar histórico de ações:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedLead?.id) {
+      loadLeadHistory(selectedLead.id);
+    } else {
+      setSelectedLeadHistory([]);
+    }
+  }, [selectedLead?.id]);
 
   // Conversão de Lead Ganho em Cliente
   const [conversionLead, setConversionLead] = useState<PipelineLead | null>(null);
@@ -141,6 +160,19 @@ const Pipeline: React.FC = () => {
       };
 
       if (editingLead) {
+        if (editingLead.proxima_acao && 
+           (editingLead.proxima_acao !== leadForm.proxima_acao || 
+            editingLead.data_proxima_acao !== leadForm.data_proxima_acao)) {
+          try {
+            await createPipelineAcaoHistorico(
+              editingLead.id,
+              editingLead.proxima_acao,
+              editingLead.data_proxima_acao || new Date().toISOString().split('T')[0]
+            );
+          } catch (histErr) {
+            console.error('Erro ao arquivar ação antiga no histórico:', histErr);
+          }
+        }
         await updatePipelineLead(editingLead.id, payload);
       } else {
         await createPipelineLead(payload);
@@ -450,11 +482,46 @@ const Pipeline: React.FC = () => {
                 <div className="flex justify-between items-center text-[10px] text-mtabi-muted uppercase font-bold tracking-wider">
                   <span>Próxima Ação Agendada</span>
                   {selectedLead.data_proxima_acao && (
-                    <span className="text-white font-mono">{new Date(selectedLead.data_proxima_acao).toLocaleDateString('pt-BR')}</span>
+                    <span className="text-white font-mono">{formatDateBR(selectedLead.data_proxima_acao)}</span>
                   )}
                 </div>
                 <p className="text-xs text-white font-bold leading-relaxed">{selectedLead.proxima_acao || 'Nenhuma ação programada'}</p>
               </div>
+
+              {/* Histórico de Ações */}
+              {selectedLeadHistory.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                    Histórico de Ações Realizadas
+                  </h4>
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {selectedLeadHistory.map(h => (
+                      <div key={h.id} className="p-3 bg-mtabi-bg/30 border border-mtabi-border/60 rounded-xl flex flex-col gap-1 text-[11px] text-mtabi-text relative group/hist">
+                        <div className="flex items-center justify-between text-[9px] text-mtabi-muted font-bold font-mono uppercase tracking-wider">
+                          <span>Realizada em {formatDateBR(h.data_acao)}</span>
+                          <button
+                            onClick={async () => {
+                              if (confirm('Deseja excluir esta ação do histórico?')) {
+                                try {
+                                  await deletePipelineAcaoHistorico(h.id);
+                                  setSelectedLeadHistory(prev => prev.filter(item => item.id !== h.id));
+                                } catch (err) {
+                                  console.error(err);
+                                }
+                              }
+                            }}
+                            className="text-mtabi-muted hover:text-mtabi-error opacity-0 group-hover/hist:opacity-100 transition-opacity p-0.5 cursor-pointer"
+                            title="Excluir ação histórica"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
+                        <p className="leading-relaxed font-medium">{h.descricao}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Notas e Observações */}
               {selectedLead.observacoes && (

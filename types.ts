@@ -176,3 +176,12 @@ export interface Tecnologia {
   created_at?: string;
 }
 
+// 8. Histórico de Ações do Pipeline (CRM)
+export interface PipelineAcaoHistorico {
+  id: string;
+  lead_id: string;
+  descricao: string;
+  data_acao: string; // YYYY-MM-DD
+  created_at?: string;
+}
+

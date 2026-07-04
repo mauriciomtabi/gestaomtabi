@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Operator, Cliente, Projeto, FerramentaCusto, PipelineLead, FinanceiroMovimento, LogAcessoCredencial, Contrato, Tecnologia } from '../types';
+import { Operator, Cliente, Projeto, FerramentaCusto, PipelineLead, FinanceiroMovimento, LogAcessoCredencial, Contrato, Tecnologia, PipelineAcaoHistorico } from '../types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://rpnyobdmaaanyuquywiv.supabase.co';
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwbnlvYmRtYWFhbnl1cXV5d2l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzIzODEsImV4cCI6MjA5ODEwODM4MX0.6ROH6dNdkdoNrfEl4kdEOyU_FASD0iGuSt8irtYueBg';
@@ -1408,5 +1408,71 @@ export const uploadFinanceiroNf = async (movimentoId: string, file: File): Promi
     return null;
   }
 };
+
+// ==========================================
+// CRUD: PIPELINE AÇÕES HISTÓRICO
+// ==========================================
+
+export const getPipelineAcoesHistorico = async (leadId: string): Promise<PipelineAcaoHistorico[]> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_pipeline_acoes_historico', []);
+    return data.filter((item: any) => item.lead_id === leadId)
+      .sort((a: any, b: any) => b.data_acao.localeCompare(a.data_acao) || b.created_at.localeCompare(a.created_at));
+  }
+  const { data, error } = await supabase
+    .from('pipeline_acoes_historico')
+    .select('*')
+    .eq('lead_id', leadId)
+    .order('data_acao', { ascending: false })
+    .order('created_at', { ascending: false });
+    
+  if (error) throw error;
+  return data || [];
+};
+
+export const createPipelineAcaoHistorico = async (leadId: string, descricao: string, dataAcao: string): Promise<PipelineAcaoHistorico> => {
+  const newAction = {
+    lead_id: leadId,
+    descricao,
+    data_acao: dataAcao
+  };
+  
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_pipeline_acoes_historico', []);
+    const record: PipelineAcaoHistorico = {
+      id: 'h-' + Math.random().toString(36).substring(2, 9),
+      ...newAction,
+      created_at: new Date().toISOString()
+    };
+    data.push(record);
+    saveLocalData('mtabi_mock_pipeline_acoes_historico', data);
+    return record;
+  }
+  
+  const { data, error } = await supabase
+    .from('pipeline_acoes_historico')
+    .insert([newAction])
+    .select()
+    .single();
+    
+  if (error) throw error;
+  return data;
+};
+
+export const deletePipelineAcaoHistorico = async (id: string): Promise<void> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_pipeline_acoes_historico', []);
+    const filtered = data.filter((item: any) => item.id !== id);
+    saveLocalData('mtabi_mock_pipeline_acoes_historico', filtered);
+    return;
+  }
+  const { error } = await supabase
+    .from('pipeline_acoes_historico')
+    .delete()
+    .eq('id', id);
+    
+  if (error) throw error;
+};
+
 
 
