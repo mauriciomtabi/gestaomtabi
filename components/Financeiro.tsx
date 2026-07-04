@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Landmark, Plus, Search, Filter, Calendar, DollarSign, Edit2, Trash2, X, AlertTriangle, ArrowUpRight, ArrowDownRight, TrendingUp, RefreshCw, BarChart } from 'lucide-react';
+import { Landmark, Plus, Search, Filter, Calendar, DollarSign, Edit2, Trash2, X, AlertTriangle, ArrowUpRight, ArrowDownRight, TrendingUp, RefreshCw, BarChart, FileText } from 'lucide-react';
 import { BarChart as RechartsBarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
-import { getFinanceiroMovimentos, createFinanceiroMovimento, updateFinanceiroMovimento, deleteFinanceiroMovimento, getClientes, getProjetos, getFerramentas, sincronizarTodosOsContratos } from '../services/supabaseService';
+import { getFinanceiroMovimentos, createFinanceiroMovimento, updateFinanceiroMovimento, deleteFinanceiroMovimento, getClientes, getProjetos, getFerramentas, sincronizarTodosOsContratos, uploadFinanceiroNf } from '../services/supabaseService';
 import { FinanceiroMovimento, Cliente, Projeto, FerramentaCusto } from '../types';
 import { formatDateBR } from '../utils/timeUtils';
 
@@ -65,6 +65,9 @@ const Financeiro: React.FC = () => {
     loadData();
   }, []);
 
+  const [selectedNfFile, setSelectedNfFile] = useState<File | null>(null);
+  const [uploadingNf, setUploadingNf] = useState(false);
+
   const openNewMovModal = () => {
     setEditingMov(null);
     setMovForm({
@@ -75,8 +78,11 @@ const Financeiro: React.FC = () => {
       valor: 0,
       data_movimento: new Date().toISOString().split('T')[0],
       mes_referencia: new Date().toISOString().slice(0, 7),
-      status: 'Confirmado'
-    });
+      status: 'Confirmado',
+      nf_emitida: false,
+      nf_url: ''
+    } as any);
+    setSelectedNfFile(null);
     setIsMovModalOpen(true);
   };
 
@@ -90,29 +96,49 @@ const Financeiro: React.FC = () => {
       valor: Number(m.valor),
       data_movimento: m.data_movimento,
       mes_referencia: m.mes_referencia,
-      status: m.status
-    });
+      status: m.status,
+      nf_emitida: m.nf_emitida || false,
+      nf_url: m.nf_url || ''
+    } as any);
+    setSelectedNfFile(null);
     setIsMovModalOpen(true);
   };
 
   const handleMovSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUploadingNf(true);
     try {
-      const payload = {
+      const payload: any = {
         ...movForm,
-        projeto_id: movForm.projeto_id || undefined,
-        valor: Number(movForm.valor)
+        projeto_id: movForm.projeto_id || null,
+        valor: Number(movForm.valor),
+        nf_emitida: movForm.nf_emitida || false,
+        nf_url: movForm.nf_url || ''
       };
 
       if (editingMov) {
+        if (selectedNfFile) {
+          const uploadedUrl = await uploadFinanceiroNf(editingMov.id, selectedNfFile);
+          if (uploadedUrl) {
+            payload.nf_url = uploadedUrl;
+          }
+        }
         await updateFinanceiroMovimento(editingMov.id, payload);
       } else {
-        await createFinanceiroMovimento(payload);
+        const savedMov = await createFinanceiroMovimento(payload);
+        if (selectedNfFile) {
+          const uploadedUrl = await uploadFinanceiroNf(savedMov.id, selectedNfFile);
+          if (uploadedUrl) {
+            await updateFinanceiroMovimento(savedMov.id, { ...payload, nf_url: uploadedUrl });
+          }
+        }
       }
       setIsMovModalOpen(false);
       await loadData();
     } catch (err) {
       console.error('Erro ao salvar movimento:', err);
+    } finally {
+      setUploadingNf(false);
     }
   };
 
@@ -493,6 +519,7 @@ const Financeiro: React.FC = () => {
                 <th className="py-2.5">Tipo</th>
                 <th className="py-2.5">Valor</th>
                 <th className="py-2.5">Status</th>
+                <th className="py-2.5">NF</th>
                 <th className="py-2.5 text-right">Ações</th>
               </tr>
             </thead>
@@ -536,6 +563,29 @@ const Financeiro: React.FC = () => {
                         <option value="Previsto" className="bg-mtabi-card text-mtabi-muted font-bold text-[9px]">PROJETADO</option>
                         <option value="Cancelado" className="bg-mtabi-card text-zinc-500 font-bold text-[9px]">CANCELADO</option>
                       </select>
+                    </td>
+                    <td className="py-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                          mov.nf_emitida 
+                            ? 'bg-emerald-900/30 text-mtabi-success border border-emerald-800/20' 
+                            : 'bg-zinc-800 text-mtabi-muted border border-zinc-700/50'
+                        }`}>
+                          {mov.nf_emitida ? 'Emitida' : 'Pendente'}
+                        </span>
+                        
+                        {mov.nf_url && (
+                          <a
+                            href={mov.nf_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border/60 text-mtabi-yellow hover:text-white rounded-lg transition-colors cursor-pointer"
+                            title="Ver NF Anexada"
+                          >
+                            <FileText size={12} />
+                          </a>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
@@ -709,6 +759,59 @@ const Financeiro: React.FC = () => {
                 />
               </div>
 
+              {/* Nota Fiscal (NF) Section */}
+              <div className="p-4 bg-mtabi-bg/40 border border-mtabi-border/60 rounded-xl space-y-3">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
+                  Nota Fiscal Eletrônica (NF)
+                </h4>
+                
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="nf_emitida"
+                    checked={movForm.nf_emitida || false}
+                    onChange={(e: any) => setMovForm({ ...movForm, nf_emitida: e.target.checked })}
+                    className="w-4 h-4 accent-mtabi-yellow bg-mtabi-bg border border-mtabi-border rounded focus:ring-0 cursor-pointer"
+                  />
+                  <label htmlFor="nf_emitida" className="text-xs font-bold uppercase tracking-wider text-white cursor-pointer select-none">
+                    NF Emitida / Enviada
+                  </label>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">
+                    Anexar Nota Fiscal (PDF ou Imagem)
+                  </label>
+                  
+                  {movForm.nf_url && (
+                    <div className="flex items-center justify-between p-2 bg-mtabi-card border border-mtabi-border rounded-lg text-xs mb-2">
+                      <span className="text-[10px] text-white truncate max-w-[200px] font-mono">
+                        {movForm.nf_url.split('/').pop() || 'Ver Nota Fiscal'}
+                      </span>
+                      <a
+                        href={movForm.nf_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[9px] font-bold text-mtabi-yellow hover:underline uppercase"
+                      >
+                        Visualizar
+                      </a>
+                    </div>
+                  )}
+
+                  <input
+                    type="file"
+                    accept=".pdf,image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setSelectedNfFile(e.target.files[0]);
+                      }
+                    }}
+                    className="w-full text-xs text-mtabi-muted file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:uppercase file:bg-mtabi-border file:text-white hover:file:bg-mtabi-border/80 file:cursor-pointer"
+                  />
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-3 border-t border-mtabi-border">
                 <button
                   type="button"
@@ -719,9 +822,10 @@ const Financeiro: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="w-1/2 py-2.5 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors"
+                  disabled={uploadingNf}
+                  className="w-1/2 py-2.5 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                 >
-                  {editingMov ? 'SALVAR ALTERAÇÕES' : 'CADASTRAR'}
+                  {uploadingNf ? 'ENVIANDO NF...' : (editingMov ? 'SALVAR ALTERAÇÕES' : 'CADASTRAR LANÇAMENTO')}
                 </button>
               </div>
             </form>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FolderKanban, Plus, Search, Filter, Globe, Github, Database, Image, Server, Calendar, DollarSign, Edit2, Trash2, X, AlertTriangle, Building2, ChevronRight, ExternalLink } from 'lucide-react';
-import { getProjetos, createProjeto, updateProjeto, deleteProjeto, getClientes, getFerramentas, getFinanceiroMovimentos, createFinanceiroMovimento, deleteFinanceiroMovimento } from '../services/supabaseService';
-import { Projeto, Cliente, FerramentaCusto, FinanceiroMovimento } from '../types';
+import { getProjetos, createProjeto, updateProjeto, deleteProjeto, getClientes, getFerramentas, getFinanceiroMovimentos, createFinanceiroMovimento, deleteFinanceiroMovimento, getTecnologias, createTecnologia, updateTecnologia, deleteTecnologia } from '../services/supabaseService';
+import { Projeto, Cliente, FerramentaCusto, FinanceiroMovimento, Tecnologia } from '../types';
 
 interface ProjetosProps {
   selectedProjectId?: string | null;
@@ -56,6 +56,18 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
 
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [newToolInput, setNewToolInput] = useState('');
+  const [tecnologias, setTecnologias] = useState<Tecnologia[]>([]);
+  const [isTechManagerOpen, setIsTechManagerOpen] = useState(false);
+  const [editingTechId, setEditingTechId] = useState<string | null>(null);
+  const [editingTechName, setEditingTechName] = useState('');
+
+  // Toast/Feedback temporário
+  const [techFeedback, setTechFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const showTechFeedback = (message: string, type: 'success' | 'error') => {
+    setTechFeedback({ message, type });
+    setTimeout(() => setTechFeedback(null), 3000);
+  };
 
   // Confirmação de Exclusão
   const [projectToDelete, setProjectToDelete] = useState<Projeto | null>(null);
@@ -63,16 +75,18 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
   const loadData = async () => {
     try {
       setLoading(true);
-      const [p, c, f, m] = await Promise.all([
+      const [p, c, f, m, t] = await Promise.all([
         getProjetos(),
         getClientes(),
         getFerramentas(),
-        getFinanceiroMovimentos()
+        getFinanceiroMovimentos(),
+        getTecnologias()
       ]);
       setProjetos(p);
       setClientes(c);
       setFerramentas(f);
       setMovimentos(m);
+      setTecnologias(t);
 
       // Tratamento de seleção profunda via navegação externa (ex: tela Clientes)
       if (selectedProjectId) {
@@ -165,13 +179,69 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
     );
   };
 
-  const handleAddCustomTool = () => {
+  const handleAddCustomTool = async () => {
     const trimmed = newToolInput.trim();
     if (trimmed) {
-      if (!selectedTools.includes(trimmed)) {
-        setSelectedTools(prev => [...prev, trimmed]);
+      try {
+        const existe = tecnologias.find(t => t.nome.toLowerCase() === trimmed.toLowerCase());
+        let novaTech: Tecnologia;
+        if (!existe) {
+          novaTech = await createTecnologia(trimmed);
+          setTecnologias(prev => [...prev, novaTech].sort((a, b) => a.nome.localeCompare(b.nome)));
+          showTechFeedback(`"${trimmed}" cadastrada com sucesso!`, 'success');
+        } else {
+          novaTech = existe;
+          showTechFeedback(`"${trimmed}" já está cadastrada!`, 'success');
+        }
+        
+        if (!selectedTools.includes(novaTech.nome)) {
+          setSelectedTools(prev => [...prev, novaTech.nome]);
+        }
+        setNewToolInput('');
+      } catch (err: any) {
+        console.error('Erro ao criar ferramenta:', err);
+        showTechFeedback(err.message || 'Erro ao criar ferramenta.', 'error');
       }
-      setNewToolInput('');
+    }
+  };
+
+  const handleRenameTechnology = async (id: string) => {
+    const trimmed = editingTechName.trim();
+    if (!trimmed) return;
+    try {
+      const updated = await updateTecnologia(id, trimmed);
+      const oldTech = tecnologias.find(t => t.id === id);
+      
+      setTecnologias(prev => prev.map(t => t.id === id ? updated : t).sort((a, b) => a.nome.localeCompare(b.nome)));
+      
+      if (oldTech && selectedTools.includes(oldTech.nome)) {
+        setSelectedTools(prev => prev.map(t => t === oldTech.nome ? updated.nome : t));
+      }
+      
+      setEditingTechId(null);
+      setEditingTechName('');
+      showTechFeedback('Tecnologia renomeada com sucesso!', 'success');
+    } catch (err: any) {
+      console.error('Erro ao renomear tecnologia:', err);
+      showTechFeedback(err.message || 'Erro ao renomear.', 'error');
+    }
+  };
+
+  const handleDeleteTechnology = async (id: string) => {
+    try {
+      const oldTech = tecnologias.find(t => t.id === id);
+      await deleteTecnologia(id);
+      
+      setTecnologias(prev => prev.filter(t => t.id !== id));
+      
+      if (oldTech && selectedTools.includes(oldTech.nome)) {
+        setSelectedTools(prev => prev.filter(t => t !== oldTech.nome));
+      }
+      
+      showTechFeedback('Tecnologia excluída!', 'success');
+    } catch (err: any) {
+      console.error('Erro ao excluir tecnologia:', err);
+      showTechFeedback(err.message || 'Erro ao excluir.', 'error');
     }
   };
 
@@ -868,100 +938,121 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
-                  Link do Supabase (Painel)
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://supabase.com/dashboard/project/..."
-                  value={projectForm.link_supabase}
-                  onChange={(e) => setProjectForm({ ...projectForm, link_supabase: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                />
-                <input
-                  type="text"
-                  placeholder="Usuário do Supabase (E-mail)"
-                  value={projectForm.user_supabase}
-                  onChange={(e) => setProjectForm({ ...projectForm, user_supabase: e.target.value })}
-                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
-                />
-              </div>
+              {/* Campos Condicionais baseados nas Ferramentas Utilizadas */}
+              {selectedTools.includes('Supabase') && (
+                <div className="space-y-1.5 transition-all duration-300 animate-fadeIn">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
+                    Link do Supabase (Painel)
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://supabase.com/dashboard/project/..."
+                    value={projectForm.link_supabase}
+                    onChange={(e) => setProjectForm({ ...projectForm, link_supabase: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Usuário do Supabase (E-mail)"
+                    value={projectForm.user_supabase}
+                    onChange={(e) => setProjectForm({ ...projectForm, user_supabase: e.target.value })}
+                    className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
+                  />
+                </div>
+              )}
 
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
-                  URL do Repositório Git
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://github.com/empresa/projeto"
-                  value={projectForm.repositorio_url}
-                  onChange={(e) => setProjectForm({ ...projectForm, repositorio_url: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                />
-                <input
-                  type="text"
-                  placeholder="Usuário Git (GitHub/GitLab)"
-                  value={projectForm.user_repositorio}
-                  onChange={(e) => setProjectForm({ ...projectForm, user_repositorio: e.target.value })}
-                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
-                />
-              </div>
+              {selectedTools.some(t => /git/i.test(t)) && (
+                <div className="space-y-1.5 transition-all duration-300 animate-fadeIn">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
+                    URL do Repositório Git
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://github.com/empresa/projeto"
+                    value={projectForm.repositorio_url}
+                    onChange={(e) => setProjectForm({ ...projectForm, repositorio_url: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Usuário Git (GitHub/GitLab)"
+                    value={projectForm.user_repositorio}
+                    onChange={(e) => setProjectForm({ ...projectForm, user_repositorio: e.target.value })}
+                    className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
+                  />
+                </div>
+              )}
 
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
-                  Link do Banco de Imagens (Storage)
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://cloudinary.com/... ou Supabase Storage"
-                  value={projectForm.hospedagem_imagens}
-                  onChange={(e) => setProjectForm({ ...projectForm, hospedagem_imagens: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                />
-                <input
-                  type="text"
-                  placeholder="Usuário do Banco de Imagens"
-                  value={projectForm.user_imagens}
-                  onChange={(e) => setProjectForm({ ...projectForm, user_imagens: e.target.value })}
-                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
-                />
-              </div>
+              {selectedTools.some(t => /cloudinary|storage|firebase/i.test(t)) && (
+                <div className="space-y-1.5 transition-all duration-300 animate-fadeIn">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
+                    Link do Banco de Imagens (Storage)
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://cloudinary.com/... ou Supabase Storage"
+                    value={projectForm.hospedagem_imagens}
+                    onChange={(e) => setProjectForm({ ...projectForm, hospedagem_imagens: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Usuário do Banco de Imagens"
+                    value={projectForm.user_imagens}
+                    onChange={(e) => setProjectForm({ ...projectForm, user_imagens: e.target.value })}
+                    className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
+                  />
+                </div>
+              )}
 
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
-                  Hospedagem Geral (Frontend/Backend)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: Netlify, Railway"
-                  value={projectForm.hospedagem_geral}
-                  onChange={(e) => setProjectForm({ ...projectForm, hospedagem_geral: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                />
-                <input
-                  type="text"
-                  placeholder="Usuário da Hospedagem Geral"
-                  value={projectForm.user_hospedagem}
-                  onChange={(e) => setProjectForm({ ...projectForm, user_hospedagem: e.target.value })}
-                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
-                />
-              </div>
+              {selectedTools.some(t => /vercel|netlify|railway|hospedagem|aws|gcp|azure/i.test(t)) && (
+                <div className="space-y-1.5 transition-all duration-300 animate-fadeIn">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
+                    Hospedagem Geral (Frontend/Backend)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Vercel, Netlify, Railway"
+                    value={projectForm.hospedagem_geral}
+                    onChange={(e) => setProjectForm({ ...projectForm, hospedagem_geral: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Usuário da Hospedagem Geral"
+                    value={projectForm.user_hospedagem}
+                    onChange={(e) => setProjectForm({ ...projectForm, user_hospedagem: e.target.value })}
+                    className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow text-white placeholder-mtabi-muted/50"
+                  />
+                </div>
+              )}
 
               <div className="sm:col-span-2 space-y-2">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
-                  Ferramentas Utilizadas (Selecione na lista)
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
+                    Ferramentas Utilizadas (Selecione na lista)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsTechManagerOpen(true)}
+                    className="text-[9px] font-bold text-mtabi-yellow hover:text-mtabi-yellow/80 cursor-pointer uppercase tracking-wider transition-colors"
+                  >
+                    Gerenciar Tecnologias
+                  </button>
+                </div>
+                
+                {techFeedback && (
+                  <div className={`p-2 rounded-xl text-[10px] font-bold text-center border transition-all ${
+                    techFeedback.type === 'success' 
+                      ? 'bg-emerald-950/40 text-mtabi-success border-emerald-800/30' 
+                      : 'bg-rose-950/40 text-mtabi-error border-rose-800/30'
+                  }`}>
+                    {techFeedback.message}
+                  </div>
+                )}
                 
                 <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-mtabi-bg/30 border border-mtabi-border/60 rounded-xl">
-                  {Array.from(
-                    new Set([
-                      'React', 'Vite', 'TypeScript', 'Tailwind CSS', 'Supabase', 'Node.js', 
-                      'PostgreSQL', 'Cloudinary', 'Vercel', 'Next.js', 'Lovable', 'Antigravity', 
-                      'AI Studio', 'Firebase',
-                      ...projetos.flatMap(p => p.ferramenta_dev || [])
-                    ])
-                  ).sort().map(tool => {
+                  {tecnologias.map(t => t.nome).sort().map(tool => {
                     const isSelected = selectedTools.includes(tool);
                     return (
                       <button
@@ -1139,6 +1230,112 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                 className="w-1/2 py-2.5 bg-mtabi-error hover:bg-mtabi-error/90 text-white text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors"
               >
                 CONFIRMAR EXCLUSÃO
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Secundário: Gerenciar Tecnologias */}
+      {isTechManagerOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+          <div className="w-full max-w-md bg-mtabi-card border border-mtabi-border rounded-2xl shadow-2xl overflow-hidden font-sans">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-mtabi-border bg-[#13151A]/60">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white">
+                Gerenciar Tecnologias
+              </h3>
+              <button
+                onClick={() => {
+                  setIsTechManagerOpen(false);
+                  setEditingTechId(null);
+                  setEditingTechName('');
+                }}
+                className="text-mtabi-muted hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+              <div className="space-y-2">
+                {tecnologias.length === 0 ? (
+                  <p className="text-xs text-mtabi-muted text-center py-4">Nenhuma tecnologia cadastrada.</p>
+                ) : (
+                  <div className="divide-y divide-mtabi-border/40">
+                    {tecnologias.map(tech => (
+                      <div key={tech.id} className="flex items-center justify-between py-2.5">
+                        {editingTechId === tech.id ? (
+                          <div className="flex-1 flex gap-2 mr-2">
+                            <input
+                              type="text"
+                              value={editingTechName}
+                              onChange={e => setEditingTechName(e.target.value)}
+                              className="flex-1 px-2.5 py-1 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs text-white focus:outline-none focus:border-mtabi-yellow"
+                            />
+                            <button
+                              onClick={() => handleRenameTechnology(tech.id)}
+                              className="px-2.5 py-1 bg-mtabi-yellow text-[#13151A] text-[10px] font-bold uppercase rounded-lg hover:bg-mtabi-yellow/90 transition-colors cursor-pointer"
+                            >
+                              Salvar
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingTechId(null);
+                                setEditingTechName('');
+                              }}
+                              className="px-2.5 py-1 bg-mtabi-border text-white text-[10px] font-bold uppercase rounded-lg hover:bg-mtabi-border/80 transition-colors cursor-pointer"
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-xs text-white font-mono uppercase">{tech.nome}</span>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => {
+                                  setEditingTechId(tech.id);
+                                  setEditingTechName(tech.nome);
+                                }}
+                                className="p-1 hover:text-mtabi-yellow text-mtabi-muted transition-colors cursor-pointer"
+                                title="Editar"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (confirm(`Tem certeza que deseja excluir a tecnologia "${tech.nome}"? Ela será removida da seleção dos projetos.`)) {
+                                    handleDeleteTechnology(tech.id);
+                                  }
+                                }}
+                                className="p-1 hover:text-mtabi-error text-mtabi-muted transition-colors cursor-pointer"
+                                title="Excluir"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-mtabi-border bg-[#13151A]/20 text-right">
+              <button
+                onClick={() => {
+                  setIsTechManagerOpen(false);
+                  setEditingTechId(null);
+                  setEditingTechName('');
+                }}
+                className="px-4 py-2 bg-mtabi-border hover:bg-mtabi-border/80 text-white text-xs font-bold uppercase rounded-xl transition-colors cursor-pointer"
+              >
+                Fechar
               </button>
             </div>
           </div>

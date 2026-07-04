@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Operator, Cliente, Projeto, FerramentaCusto, PipelineLead, FinanceiroMovimento, LogAcessoCredencial, Contrato } from '../types';
+import { Operator, Cliente, Projeto, FerramentaCusto, PipelineLead, FinanceiroMovimento, LogAcessoCredencial, Contrato, Tecnologia } from '../types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://rpnyobdmaaanyuquywiv.supabase.co';
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwbnlvYmRtYWFhbnl1cXV5d2l2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1MzIzODEsImV4cCI6MjA5ODEwODM4MX0.6ROH6dNdkdoNrfEl4kdEOyU_FASD0iGuSt8irtYueBg';
@@ -1286,4 +1286,127 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
     console.error('Erro na sincronização global de contratos:', err);
   }
 };
+
+// ==========================================
+// CONFIGURAÇÃO DE MOCK PARA TECNOLOGIAS
+// ==========================================
+
+const MOCK_TECNOLOGIAS: Tecnologia[] = [
+  { id: 't1', nome: 'React' },
+  { id: 't2', nome: 'Vite' },
+  { id: 't3', nome: 'TypeScript' },
+  { id: 't4', nome: 'Tailwind CSS' },
+  { id: 't5', nome: 'Supabase' },
+  { id: 't6', nome: 'Node.js' },
+  { id: 't7', nome: 'PostgreSQL' },
+  { id: 't8', nome: 'Cloudinary' },
+  { id: 't9', nome: 'Vercel' },
+  { id: 't10', nome: 'Next.js' },
+  { id: 't11', nome: 'Lovable' },
+  { id: 't12', nome: 'Antigravity' },
+  { id: 't13', nome: 'AI Studio' },
+  { id: 't14', nome: 'Firebase' }
+];
+
+// ==========================================
+// CRUD: TECNOLOGIAS
+// ==========================================
+
+export const getTecnologias = async (): Promise<Tecnologia[]> => {
+  if (isMockMode()) {
+    return getLocalData('mtabi_mock_tecnologias', MOCK_TECNOLOGIAS);
+  }
+  const { data, error } = await supabase
+    .from('tecnologias')
+    .select('*')
+    .order('nome', { ascending: true });
+    
+  if (error) throw error;
+  return data || [];
+};
+
+export const createTecnologia = async (nome: string): Promise<Tecnologia> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_tecnologias', MOCK_TECNOLOGIAS);
+    const newTech: Tecnologia = {
+      id: 't-' + Math.random().toString(36).substring(2, 9),
+      nome,
+      created_at: new Date().toISOString()
+    };
+    data.push(newTech);
+    saveLocalData('mtabi_mock_tecnologias', data);
+    return newTech;
+  }
+  const { data, error } = await supabase
+    .from('tecnologias')
+    .insert([{ nome }])
+    .select()
+    .single();
+    
+  if (error) throw error;
+  return data;
+};
+
+export const updateTecnologia = async (id: string, nome: string): Promise<Tecnologia> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_tecnologias', MOCK_TECNOLOGIAS);
+    const idx = data.findIndex(t => t.id === id);
+    if (idx === -1) throw new Error('Tecnologia não encontrada');
+    data[idx].nome = nome;
+    saveLocalData('mtabi_mock_tecnologias', data);
+    return data[idx];
+  }
+  const { data, error } = await supabase
+    .from('tecnologias')
+    .update({ nome })
+    .eq('id', id)
+    .select()
+    .single();
+    
+  if (error) throw error;
+  return data;
+};
+
+export const deleteTecnologia = async (id: string): Promise<void> => {
+  if (isMockMode()) {
+    const data = getLocalData('mtabi_mock_tecnologias', MOCK_TECNOLOGIAS);
+    const filtered = data.filter(t => t.id !== id);
+    saveLocalData('mtabi_mock_tecnologias', filtered);
+    return;
+  }
+  const { error } = await supabase
+    .from('tecnologias')
+    .delete()
+    .eq('id', id);
+    
+  if (error) throw error;
+};
+
+// ==========================================
+// UPLOAD DE NOTA FISCAL
+// ==========================================
+
+export const uploadFinanceiroNf = async (movimentoId: string, file: File): Promise<string | null> => {
+  if (isMockMode()) {
+    // Retorna uma URL de objeto local simulada
+    return URL.createObjectURL(file);
+  }
+  try {
+    const fileExt = file.name.split('.').pop() || 'pdf';
+    const filePath = `invoices/${movimentoId}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(filePath, file, { contentType: file.type, upsert: true });
+      
+    if (uploadError) throw uploadError;
+    
+    const { data } = supabase.storage.from('documents').getPublicUrl(filePath);
+    return data.publicUrl;
+  } catch (error) {
+    console.error('Erro ao fazer upload da nota fiscal:', error);
+    return null;
+  }
+};
+
 

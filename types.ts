@@ -150,6 +150,8 @@ export interface FinanceiroMovimento {
   mes_referencia: string; // YYYY-MM
   status: 'Previsto' | 'Confirmado' | 'Atrasado' | 'Cancelado';
   data_criacao?: string;
+  nf_emitida?: boolean;
+  nf_url?: string;
   
   // Carregados por join
   cliente?: Cliente;
@@ -166,3 +168,11 @@ export interface LogAcessoCredencial {
   // Carregado por join
   ferramenta_nome?: string;
 }
+
+// 7. Tecnologias (Dev Tools)
+export interface Tecnologia {
+  id: string;
+  nome: string;
+  created_at?: string;
+}
+

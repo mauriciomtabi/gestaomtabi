@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Building2, Plus, Search, Filter, Phone, User, Landmark, HelpCircle, Edit2, Trash2, Calendar, FileText, ChevronRight, X, AlertTriangle, ArrowUpRight, Upload } from 'lucide-react';
-import { getClientes, createCliente, updateCliente, deleteCliente, getProjetos, createProjeto, getFinanceiroMovimentos, uploadClientLogo, getContratos, createContrato, updateContrato, deleteContrato, createFinanceiroMovimento, updateFinanceiroMovimento, deleteFinanceiroMovimento, sincronizarTodosOsContratos } from '../services/supabaseService';
-import { Cliente, Projeto, FinanceiroMovimento, Contrato } from '../types';
+import { getClientes, createCliente, updateCliente, deleteCliente, getProjetos, createProjeto, getFinanceiroMovimentos, uploadClientLogo, getContratos, createContrato, updateContrato, deleteContrato, createFinanceiroMovimento, updateFinanceiroMovimento, deleteFinanceiroMovimento, sincronizarTodosOsContratos, getTecnologias } from '../services/supabaseService';
+import { Cliente, Projeto, FinanceiroMovimento, Contrato, Tecnologia } from '../types';
 import { formatDateBR } from '../utils/timeUtils';
 
 interface MonthProjection {
@@ -119,6 +119,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
 
   const [selectedProjectTools, setSelectedProjectTools] = useState<string[]>([]);
   const [newProjectToolInput, setNewProjectToolInput] = useState('');
+  const [tecnologias, setTecnologias] = useState<Tecnologia[]>([]);
 
   // Modal de Confirmação de Exclusão
   const [clientToDelete, setClientToDelete] = useState<Cliente | null>(null);
@@ -127,16 +128,18 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     try {
       setLoading(true);
       await sincronizarTodosOsContratos();
-      const [c, p, f, ct] = await Promise.all([
+      const [c, p, f, ct, t] = await Promise.all([
         getClientes(),
         getProjetos(),
         getFinanceiroMovimentos(),
-        getContratos()
+        getContratos(),
+        getTecnologias()
       ]);
       setClientes(c);
       setProjetos(p);
       setMovimentos(f);
       setContratos(ct);
+      setTecnologias(t);
       
       // Atualiza o cliente selecionado se aplicável
       if (selectedCliente) {
@@ -585,13 +588,26 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     );
   };
 
-  const handleAddCustomProjectTool = () => {
+  const handleAddCustomProjectTool = async () => {
     const trimmed = newProjectToolInput.trim();
     if (trimmed) {
-      if (!selectedProjectTools.includes(trimmed)) {
-        setSelectedProjectTools(prev => [...prev, trimmed]);
+      try {
+        const existe = tecnologias.find(t => t.nome.toLowerCase() === trimmed.toLowerCase());
+        let novaTech: Tecnologia;
+        if (!existe) {
+          novaTech = await createTecnologia(trimmed);
+          setTecnologias(prev => [...prev, novaTech].sort((a, b) => a.nome.localeCompare(b.nome)));
+        } else {
+          novaTech = existe;
+        }
+        
+        if (!selectedProjectTools.includes(novaTech.nome)) {
+          setSelectedProjectTools(prev => [...prev, novaTech.nome]);
+        }
+        setNewProjectToolInput('');
+      } catch (err) {
+        console.error('Erro ao criar ferramenta no quick form:', err);
       }
-      setNewProjectToolInput('');
     }
   };
 
@@ -809,15 +825,15 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
             Buscando clientes...
           </div>
         ) : filteredClientes.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
             {filteredClientes.map(c => (
               <div
                 key={c.id}
                 onClick={() => setSelectedCliente(c)}
-                className="p-4 bg-mtabi-card border border-mtabi-border rounded-2xl transition-all hover:border-mtabi-yellow/50 hover:scale-[1.02] cursor-pointer flex flex-col items-center group font-sans text-center relative overflow-hidden"
+                className="p-5 bg-mtabi-card border border-mtabi-border rounded-2xl transition-all hover:border-mtabi-yellow/50 hover:scale-[1.01] cursor-pointer flex items-center gap-4.5 group font-sans relative overflow-hidden text-left"
               >
                 {/* Status badge */}
-                <span className={`absolute top-2.5 right-2.5 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                <span className={`absolute top-3 right-3 text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
                   c.status === 'Ativo' ? 'bg-emerald-900/30 text-mtabi-success border border-emerald-800/20' :
                   c.status === 'Negociação' ? 'bg-amber-900/30 text-mtabi-yellow border border-amber-800/20' :
                   c.status === 'Pausado' ? 'bg-blue-900/30 text-mtabi-info border border-blue-800/20' :
@@ -827,28 +843,27 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 </span>
 
                 {/* Logo */}
-                <div className="mt-5 mb-3">
-                  {c.logo_url ? (
-                    <div className="w-16 h-16 rounded-xl bg-[#13151A] border border-mtabi-border flex items-center justify-center p-2 shrink-0">
-                      <img src={c.logo_url} alt={c.nome_empresa} className="w-full h-full object-contain" />
-                    </div>
-                  ) : (
-                    <div className="w-16 h-16 rounded-xl bg-mtabi-border/35 border border-mtabi-border flex items-center justify-center text-mtabi-yellow font-display font-extrabold text-xl shrink-0 uppercase select-none">
-                      {c.nome_empresa.substring(0, 2)}
-                    </div>
-                  )}
-                </div>
+                {c.logo_url ? (
+                  <div className="w-20 h-20 rounded-xl bg-[#13151A] border border-mtabi-border flex items-center justify-center p-2 shrink-0">
+                    <img src={c.logo_url} alt={c.nome_empresa} className="w-full h-full object-contain rounded-lg" />
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 rounded-xl bg-mtabi-border/35 border border-mtabi-border flex items-center justify-center text-mtabi-yellow font-display font-extrabold text-2xl shrink-0 uppercase select-none">
+                    {c.nome_empresa.substring(0, 2)}
+                  </div>
+                )}
 
                 {/* Info */}
-                <div className="w-full pb-1">
-                  <h3 className="text-xs font-bold text-white group-hover:text-mtabi-yellow transition-colors truncate">
+                <div className="min-w-0 flex-1 pr-12">
+                  <h3 className="text-sm font-bold text-white group-hover:text-mtabi-yellow transition-colors truncate">
                     {c.nome_empresa}
                   </h3>
-                  <div className="flex items-center justify-center gap-1 mt-1 text-[9px] text-mtabi-muted">
-                    <span className="truncate max-w-[90px]">{c.segmento || 'Sem Segmento'}</span>
-                    <span>•</span>
-                    <span className="truncate max-w-[80px]">{c.tipo_relacao}</span>
-                  </div>
+                  <p className="text-[10px] text-mtabi-muted mt-1.5 font-semibold uppercase tracking-wider truncate">
+                    {c.segmento || 'Sem Segmento'}
+                  </p>
+                  <p className="text-[9px] text-mtabi-muted mt-1 uppercase tracking-widest truncate">
+                    {c.tipo_relacao}
+                  </p>
                 </div>
               </div>
             ))}
@@ -1138,6 +1153,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                           <th className="py-2">Descrição</th>
                           <th className="py-2">Tipo</th>
                           <th className="py-2">Valor</th>
+                          <th className="py-2">NF</th>
                           <th className="py-2 text-right">Status</th>
                         </tr>
                       </thead>
@@ -1149,6 +1165,29 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                             <td className="py-2.5 text-mtabi-muted text-[10px] uppercase tracking-wider">{mov.tipo}</td>
                             <td className={`py-2.5 font-bold ${mov.tipo === 'Saída/custo' ? 'text-mtabi-error' : 'text-mtabi-success'}`}>
                               {mov.tipo === 'Saída/custo' ? '-' : '+'} R$ {Number(mov.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="py-2.5">
+                              <div className="flex items-center gap-1">
+                                <span className={`text-[8px] font-bold px-1 py-0.5 rounded uppercase tracking-wider ${
+                                  mov.nf_emitida 
+                                    ? 'bg-emerald-900/30 text-mtabi-success border border-emerald-800/20' 
+                                    : 'bg-zinc-800 text-mtabi-muted border border-zinc-700/50'
+                                }`}>
+                                  {mov.nf_emitida ? 'Emitida' : 'Pendente'}
+                                </span>
+                                
+                                {mov.nf_url && (
+                                  <a
+                                    href={mov.nf_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-0.5 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border/60 text-mtabi-yellow hover:text-white rounded transition-colors cursor-pointer"
+                                    title="Ver NF"
+                                  >
+                                    <FileText size={11} />
+                                  </a>
+                                )}
+                              </div>
                             </td>
                             <td className="py-2.5 text-right">
                               <select
@@ -1484,76 +1523,126 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Link do Supabase (Painel)</label>
-                <input
-                  type="url"
-                  placeholder="https://supabase.com/dashboard/project/..."
-                  value={projectForm.link_supabase}
-                  onChange={(e) => setProjectForm({ ...projectForm, link_supabase: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                />
-                <input
-                  type="text"
-                  placeholder="Usuário do Supabase (E-mail)"
-                  value={projectForm.user_supabase}
-                  onChange={(e) => setProjectForm({ ...projectForm, user_supabase: e.target.value })}
-                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans placeholder-mtabi-muted/50"
-                />
-              </div>
+              {/* Campos Condicionais baseados nas Ferramentas Utilizadas */}
+              {selectedProjectTools.includes('Supabase') && (
+                <div className="space-y-1.5 transition-all duration-300 animate-fadeIn">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Link do Supabase (Painel)</label>
+                  <input
+                    type="url"
+                    placeholder="https://supabase.com/dashboard/project/..."
+                    value={projectForm.link_supabase}
+                    onChange={(e) => setProjectForm({ ...projectForm, link_supabase: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Usuário do Supabase (E-mail)"
+                    value={projectForm.user_supabase}
+                    onChange={(e) => setProjectForm({ ...projectForm, user_supabase: e.target.value })}
+                    className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans placeholder-mtabi-muted/50"
+                  />
+                </div>
+              )}
 
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Repositório URL (GitHub/GitLab)</label>
-                <input
-                  type="url"
-                  placeholder="https://github.com/usuario/repo"
-                  value={projectForm.repositorio_url}
-                  onChange={(e) => setProjectForm({ ...projectForm, repositorio_url: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                />
-                <input
-                  type="text"
-                  placeholder="Usuário Git (GitHub/GitLab)"
-                  value={projectForm.user_repositorio}
-                  onChange={(e) => setProjectForm({ ...projectForm, user_repositorio: e.target.value })}
-                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans placeholder-mtabi-muted/50"
-                />
-              </div>
+              {selectedProjectTools.some(t => /git/i.test(t)) && (
+                <div className="space-y-1.5 transition-all duration-300 animate-fadeIn">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Repositório URL (GitHub/GitLab)</label>
+                  <input
+                    type="url"
+                    placeholder="https://github.com/usuario/repo"
+                    value={projectForm.repositorio_url}
+                    onChange={(e) => setProjectForm({ ...projectForm, repositorio_url: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Usuário Git (GitHub/GitLab)"
+                    value={projectForm.user_repositorio}
+                    onChange={(e) => setProjectForm({ ...projectForm, user_repositorio: e.target.value })}
+                    className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans placeholder-mtabi-muted/50"
+                  />
+                </div>
+              )}
 
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Link do Banco de Imagens (Storage)</label>
-                <input
-                  type="url"
-                  placeholder="https://cloudinary.com/... ou Supabase Storage"
-                  value={projectForm.hospedagem_imagens}
-                  onChange={(e) => setProjectForm({ ...projectForm, hospedagem_imagens: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                />
-                <input
-                  type="text"
-                  placeholder="Usuário do Banco de Imagens"
-                  value={projectForm.user_imagens}
-                  onChange={(e) => setProjectForm({ ...projectForm, user_imagens: e.target.value })}
-                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans placeholder-mtabi-muted/50"
-                />
-              </div>
+              {selectedProjectTools.some(t => /cloudinary|storage|firebase/i.test(t)) && (
+                <div className="space-y-1.5 transition-all duration-300 animate-fadeIn">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Link do Banco de Imagens (Storage)</label>
+                  <input
+                    type="url"
+                    placeholder="https://cloudinary.com/... ou Supabase Storage"
+                    value={projectForm.hospedagem_imagens}
+                    onChange={(e) => setProjectForm({ ...projectForm, hospedagem_imagens: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Usuário do Banco de Imagens"
+                    value={projectForm.user_imagens}
+                    onChange={(e) => setProjectForm({ ...projectForm, user_imagens: e.target.value })}
+                    className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans placeholder-mtabi-muted/50"
+                  />
+                </div>
+              )}
 
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Hospedagem Geral (Servidor)</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Vercel"
-                  value={projectForm.hospedagem_geral}
-                  onChange={(e) => setProjectForm({ ...projectForm, hospedagem_geral: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                />
-                <input
-                  type="text"
-                  placeholder="Usuário da Hospedagem Geral"
-                  value={projectForm.user_hospedagem}
-                  onChange={(e) => setProjectForm({ ...projectForm, user_hospedagem: e.target.value })}
-                  className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans placeholder-mtabi-muted/50"
-                />
+              {selectedProjectTools.some(t => /vercel|netlify|railway|hospedagem|aws|gcp|azure/i.test(t)) && (
+                <div className="space-y-1.5 transition-all duration-300 animate-fadeIn">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Hospedagem Geral (Servidor)</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Vercel, Netlify, Railway"
+                    value={projectForm.hospedagem_geral}
+                    onChange={(e) => setProjectForm({ ...projectForm, hospedagem_geral: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Usuário da Hospedagem Geral"
+                    value={projectForm.user_hospedagem}
+                    onChange={(e) => setProjectForm({ ...projectForm, user_hospedagem: e.target.value })}
+                    className="w-full px-3 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans placeholder-mtabi-muted/50"
+                  />
+                </div>
+              )}
+
+              <div className="sm:col-span-2 space-y-2">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Ferramentas Utilizadas (Selecione na lista)</label>
+                
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-mtabi-bg/30 border border-mtabi-border/60 rounded-xl">
+                  {tecnologias.map(t => t.nome).sort().map(tool => {
+                    const isSelected = selectedProjectTools.includes(tool);
+                    return (
+                      <button
+                        type="button"
+                        key={tool}
+                        onClick={() => toggleProjectTool(tool)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer ${
+                          isSelected 
+                            ? 'bg-mtabi-yellow/20 border-mtabi-yellow text-mtabi-yellow' 
+                            : 'bg-mtabi-bg border-mtabi-border text-mtabi-muted hover:text-white'
+                        }`}
+                      >
+                        {tool}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Adicionar nova ferramenta..."
+                    value={newProjectToolInput}
+                    onChange={e => setNewProjectToolInput(e.target.value)}
+                    className="flex-1 px-3 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs text-white focus:outline-none focus:border-mtabi-yellow"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomProjectTool}
+                    className="px-3 py-1.5 bg-mtabi-border hover:bg-mtabi-border/80 border border-mtabi-border text-white text-xs font-bold uppercase rounded-xl cursor-pointer transition-colors"
+                  >
+                    Adicionar
+                  </button>
+                </div>
               </div>
 
               <div>
