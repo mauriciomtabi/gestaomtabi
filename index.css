@@ -25,9 +25,9 @@ html.light {
   --mtabi-muted: #64748B; /* Slate 500 */
   --mtabi-border: #E2E8F0; /* Slate 200 */
   
-  --mtabi-success: #4ADE80; /* Original success */
-  --mtabi-error: #F87171; /* Original error */
-  --mtabi-info: #60A5FA; /* Original info */
+  --mtabi-success: #15803D; /* Stronger green (Emerald 700) for excellent value readability */
+  --mtabi-error: #DC2626; /* Stronger red (Red 600) for contrast */
+  --mtabi-info: #1D4ED8; /* Stronger blue (Blue 700) for contrast */
 }
 
 @theme {
@@ -167,7 +167,7 @@ body {
    ========================================== */
 html.light {
   /* Dynamic text color overrides for readability on light backgrounds */
-  .text-white:not(button):not(a):not([class*="bg-mtabi-"]):not([class*="bg-red-"]):not([class*="bg-green-"]):not([class*="bg-blue-"]):not([class*="bg-emerald-"]):not([class*="bg-amber-"]):not([class*="bg-purple-"]) {
+  .text-white:not(button):not(a):not([class*="bg-mtabi-yellow"]):not([class*="bg-mtabi-error"]):not([class*="bg-mtabi-success"]):not([class*="bg-mtabi-info"]):not([class*="bg-red-"]):not([class*="bg-green-"]):not([class*="bg-blue-"]):not([class*="bg-emerald-"]):not([class*="bg-amber-"]):not([class*="bg-purple-"]) {
     color: var(--mtabi-text) !important;
   }
 
@@ -245,6 +245,70 @@ html.light {
   /* Ensure SVG icons in tables/headers look good */
   .text-mtabi-muted svg {
     color: var(--mtabi-muted) !important;
+  }
+
+  /* Specific color adjustments for SVGs and icons in Light Mode */
+  svg.text-mtabi-yellow,
+  .text-mtabi-yellow svg,
+  [class*="text-mtabi-yellow"] svg,
+  svg.text-yellow-400,
+  .text-yellow-400 svg {
+    color: #C27803 !important;
+  }
+
+  /* Core status badges style overrides for Light Mode */
+  .bg-emerald-950,
+  .bg-emerald-900\/30,
+  .bg-emerald-950\/30,
+  .bg-emerald-900\/40 {
+    background-color: #E6F4EA !important;
+    color: #137333 !important;
+    border-color: #CEEAD6 !important;
+  }
+
+  .bg-amber-950,
+  .bg-amber-900\/30,
+  .bg-amber-950\/30,
+  .bg-amber-900\/40 {
+    background-color: #FEF7E0 !important;
+    color: #B06000 !important;
+    border-color: #FEEFC3 !important;
+  }
+
+  .bg-blue-950,
+  .bg-blue-900\/30,
+  .bg-blue-950\/30,
+  .bg-blue-900\/40 {
+    background-color: #E8F0FE !important;
+    color: #1A73E8 !important;
+    border-color: #D2E3FC !important;
+  }
+
+  .bg-red-950,
+  .bg-red-900\/30,
+  .bg-red-950\/30,
+  .bg-red-900\/40 {
+    background-color: #FCE8E6 !important;
+    color: #C5221F !important;
+    border-color: #FAD2CF !important;
+  }
+
+  .bg-zinc-800,
+  .bg-zinc-800\/40,
+  .bg-zinc-900\/40,
+  .bg-zinc-900\/60 {
+    background-color: #F1F3F4 !important;
+    color: #5F6368 !important;
+    border-color: #E8EAED !important;
+  }
+
+  .bg-purple-950,
+  .bg-purple-900\/30,
+  .bg-purple-950\/30,
+  .bg-purple-900\/40 {
+    background-color: #F3E8FF !important;
+    color: #6B21A8 !important;
+    border-color: #E9D5FF !important;
   }
 }
 
