@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, Plus, Search, Calendar, ChevronRight, X, AlertTriangle, User, ShieldAlert, Award, ArrowRight, ArrowLeft, MoreVertical, Edit2, Trash2, ExternalLink, Link } from 'lucide-react';
-import { getPipeline, createPipelineLead, updatePipelineLead, deletePipelineLead, getClientes, createCliente, getPipelineAcoesHistorico, createPipelineAcaoHistorico, deletePipelineAcaoHistorico } from '../services/supabaseService';
+import { getPipeline, createPipelineLead, updatePipelineLead, deletePipelineLead, getClientes, createCliente, updateCliente, getPipelineAcoesHistorico, createPipelineAcaoHistorico, deletePipelineAcaoHistorico } from '../services/supabaseService';
 import { PipelineLead, Cliente, PipelineAcaoHistorico } from '../types';
 import { formatDateBR } from '../utils/timeUtils';
 
@@ -326,6 +326,12 @@ const Pipeline: React.FC = () => {
         }
       } else if (stage === 'Fechado-Ganho') {
         setPendingStageUpdate(null);
+        
+        // Se o lead já tem um cliente vinculado, atualiza o status para Ativo
+        if (lead.cliente_id) {
+          await updateCliente(lead.cliente_id, { status: 'Ativo' });
+        }
+        
         await moveLeadStage(lead, 'Fechado-Ganho', true);
       }
     } catch (err) {
