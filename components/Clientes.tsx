@@ -923,7 +923,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
 
                 {/* Logo */}
                 {c.logo_url ? (
-                  <div className="w-20 h-20 rounded-xl bg-white border border-mtabi-border flex items-center justify-center p-2 shrink-0">
+                  <div className="w-20 h-20 rounded-xl bg-[#252830] border border-mtabi-border flex items-center justify-center p-2 shrink-0">
                     <img src={c.logo_url} alt={c.nome_empresa} className="w-full h-full object-contain rounded-lg" />
                   </div>
                 ) : (
@@ -962,7 +962,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
             <div className="flex justify-between items-start border-b border-mtabi-border pb-5 gap-4">
               <div className="flex items-center gap-4 min-w-0">
                 {selectedCliente.logo_url ? (
-                  <div className="w-16 h-16 rounded-xl bg-white border border-mtabi-border flex items-center justify-center p-2 shrink-0">
+                  <div className="w-16 h-16 rounded-xl bg-[#252830] border border-mtabi-border flex items-center justify-center p-2 shrink-0">
                     <img
                       src={selectedCliente.logo_url}
                       alt={selectedCliente.nome_empresa}
@@ -1341,7 +1341,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 </label>
                 <div className="flex items-center gap-4">
                   {clientForm.logo_url ? (
-                    <div className="relative w-16 h-16 rounded-xl bg-white border border-mtabi-border flex items-center justify-center p-1 shrink-0 overflow-hidden group">
+                    <div className="relative w-16 h-16 rounded-xl bg-[#252830] border border-mtabi-border flex items-center justify-center p-1 shrink-0 overflow-hidden group">
                       <img 
                         src={clientForm.logo_url} 
                         alt="Logotipo Preview" 
