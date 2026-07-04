@@ -43,6 +43,14 @@ export interface Cliente {
   data_criacao?: string;
   valor_recorrente?: number;
   link_contrato?: string;
+  telefone?: string;
+  cep?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
 }
 
 // 2. Projetos

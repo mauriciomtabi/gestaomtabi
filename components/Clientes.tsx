@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Building2, Plus, Search, Filter, Phone, User, Landmark, HelpCircle, Edit2, Trash2, Calendar, FileText, ChevronRight, X, AlertTriangle, ArrowUpRight, Upload } from 'lucide-react';
+import { Building2, Plus, Search, Filter, Phone, User, Landmark, HelpCircle, Edit2, Trash2, Calendar, FileText, ChevronRight, X, AlertTriangle, ArrowUpRight, Upload, MapPin, FileSpreadsheet } from 'lucide-react';
 import { getClientes, createCliente, updateCliente, deleteCliente, getProjetos, createProjeto, getFinanceiroMovimentos, uploadClientLogo, getContratos, createContrato, updateContrato, deleteContrato, createFinanceiroMovimento, updateFinanceiroMovimento, deleteFinanceiroMovimento, sincronizarTodosOsContratos, getTecnologias, createTecnologia, updateTecnologia, deleteTecnologia } from '../services/supabaseService';
 import { Cliente, Projeto, FinanceiroMovimento, Contrato, Tecnologia, RecursoAdicional } from '../types';
 import { formatDateBR } from '../utils/timeUtils';
@@ -42,6 +42,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isFetchingCNPJ, setIsFetchingCNPJ] = useState(false);
   const [clientForm, setClientForm] = useState({
     nome_empresa: '',
     cnpj: '',
@@ -53,7 +54,15 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     tipo_relacao: 'Projeto único' as Cliente['tipo_relacao'],
     observacoes: '',
     valor_recorrente: 0,
-    link_contrato: ''
+    link_contrato: '',
+    telefone: '',
+    cep: '',
+    logradouro: '',
+    numero: '',
+    complemento: '',
+    bairro: '',
+    cidade: '',
+    estado: ''
   });
 
   // Modal de Projeção Financeira
@@ -191,7 +200,15 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       tipo_relacao: 'Projeto único',
       observacoes: '',
       valor_recorrente: 0,
-      link_contrato: ''
+      link_contrato: '',
+      telefone: '',
+      cep: '',
+      logradouro: '',
+      numero: '',
+      complemento: '',
+      bairro: '',
+      cidade: '',
+      estado: ''
     });
     setIsClientModalOpen(true);
   };
@@ -210,9 +227,99 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       tipo_relacao: c.tipo_relacao,
       observacoes: c.observacoes || '',
       valor_recorrente: Number(c.valor_recorrente || 0),
-      link_contrato: c.link_contrato || ''
+      link_contrato: c.link_contrato || '',
+      telefone: c.telefone || '',
+      cep: c.cep || '',
+      logradouro: c.logradouro || '',
+      numero: c.numero || '',
+      complemento: c.complemento || '',
+      bairro: c.bairro || '',
+      cidade: c.cidade || '',
+      estado: c.estado || ''
     });
     setIsClientModalOpen(true);
+  };
+
+  const formatCNPJ = (value: string) => {
+    const clean = value.replace(/\D/g, '');
+    if (clean.length <= 14) {
+      let formatted = clean;
+      if (clean.length > 2) formatted = `${clean.slice(0, 2)}.${clean.slice(2)}`;
+      if (clean.length > 5) formatted = `${formatted.slice(0, 6)}.${formatted.slice(6)}`;
+      if (clean.length > 8) formatted = `${formatted.slice(0, 10)}/${formatted.slice(10)}`;
+      if (clean.length > 12) formatted = `${formatted.slice(0, 15)}-${formatted.slice(15, 17)}`;
+      return formatted;
+    }
+    return value.slice(0, 18);
+  };
+
+  const formatPhone = (value: string) => {
+    const clean = value.replace(/\D/g, '');
+    if (clean.length <= 11) {
+      let formatted = clean;
+      if (clean.length > 0) formatted = `(${clean}`;
+      if (clean.length > 2) formatted = `(${clean.slice(0, 2)}) ${clean.slice(2)}`;
+      if (clean.length > 7) {
+        if (clean.length === 11) {
+          formatted = `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7, 11)}`;
+        } else {
+          formatted = `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6, 10)}`;
+        }
+      }
+      return formatted;
+    }
+    return value.slice(0, 15);
+  };
+
+  const handleCNPJChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawVal = e.target.value;
+    const formatted = formatCNPJ(rawVal);
+    const clean = rawVal.replace(/\D/g, '');
+    
+    setClientForm(prev => ({ ...prev, cnpj: formatted }));
+
+    if (clean.length === 14) {
+      setIsFetchingCNPJ(true);
+      setErrorMsg(null);
+      try {
+        const response = await fetch(`https://open.cnpja.com/office/${clean}`);
+        if (!response.ok) {
+          throw new Error('Empresa não encontrada ou limite de requisições atingido.');
+        }
+        const data = await response.json();
+        
+        setClientForm(prev => {
+          let updated = { ...prev };
+          if (data.company?.name) {
+            updated.nome_empresa = data.company.name;
+          } else if (data.alias) {
+            updated.nome_empresa = data.alias;
+          }
+
+          if (data.phones && data.phones.length > 0) {
+            const phoneObj = data.phones[0];
+            const rawPhone = `${phoneObj.area}${phoneObj.number}`;
+            updated.telefone = formatPhone(rawPhone);
+          }
+
+          if (data.address) {
+            updated.cep = data.address.zip || '';
+            updated.logradouro = data.address.street || '';
+            updated.numero = data.address.number || '';
+            updated.complemento = data.address.details || '';
+            updated.bairro = data.address.district || '';
+            updated.cidade = data.address.city || '';
+            updated.estado = data.address.state || '';
+          }
+          return updated;
+        });
+      } catch (err: any) {
+        console.error('Erro ao buscar CNPJ:', err);
+        setErrorMsg('Não foi possível autocompletar os dados via CNPJá (verifique o CNPJ ou digite manualmente).');
+      } finally {
+        setIsFetchingCNPJ(false);
+      }
+    }
   };
 
   // Funções da Projeção Financeira
@@ -1024,23 +1131,69 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
               </div>
             </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-mtabi-bg border border-mtabi-border p-4 rounded-xl space-y-2">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Contatos principais</h4>
-                  <div className="space-y-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Coluna 1: Identificação & Contato */}
+                <div className="bg-mtabi-bg border border-mtabi-border p-4 rounded-xl space-y-2.5">
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Identificação & Contatos</h4>
+                  <div className="space-y-2">
+                    {selectedCliente.cnpj && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <FileSpreadsheet size={12} className="text-mtabi-yellow shrink-0" />
+                        <span className="text-mtabi-muted">CNPJ:</span>
+                        <span className="text-white font-mono">{selectedCliente.cnpj}</span>
+                      </div>
+                    )}
+                    {selectedCliente.telefone && (
+                      <div className="flex items-center gap-2 text-xs">
+                        <Phone size={12} className="text-mtabi-yellow shrink-0" />
+                        <span className="text-mtabi-muted">Telefone:</span>
+                        <span className="text-white font-medium">{selectedCliente.telefone}</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 text-xs">
-                      <User size={12} className="text-mtabi-yellow" />
+                      <User size={12} className="text-mtabi-yellow shrink-0" />
                       <span className="text-mtabi-muted">Decisor:</span>
-                      <span className="text-white font-medium">{selectedCliente.nome_contato_principal || 'Não informado'}</span>
+                      <span className="text-white font-medium truncate">{selectedCliente.nome_contato_principal || 'Não informado'}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs">
-                      <Phone size={12} className="text-mtabi-yellow" />
-                      <span className="text-mtabi-muted">Campeão Interno:</span>
-                      <span className="text-white font-medium">{selectedCliente.nome_contato_interno || 'Não informado'}</span>
+                      <User size={12} className="text-mtabi-yellow/70 shrink-0" />
+                      <span className="text-mtabi-muted">Facilitador:</span>
+                      <span className="text-white font-medium truncate">{selectedCliente.nome_contato_interno || 'Não informado'}</span>
                     </div>
                   </div>
                 </div>
 
+                {/* Coluna 2: Endereço */}
+                <div className="bg-mtabi-bg border border-mtabi-border p-4 rounded-xl space-y-2">
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">Endereço</h4>
+                  <div className="space-y-1.5 text-xs">
+                    {selectedCliente.logradouro ? (
+                      <>
+                        <p className="text-white font-semibold">
+                          {selectedCliente.logradouro}, {selectedCliente.numero || 'S/N'}
+                        </p>
+                        {selectedCliente.complemento && (
+                          <p className="text-white/90 text-[11px] truncate">
+                            {selectedCliente.complemento}
+                          </p>
+                        )}
+                        <p className="text-mtabi-muted text-[11px]">
+                          {selectedCliente.bairro && `${selectedCliente.bairro}, `}
+                          {selectedCliente.cidade} - {selectedCliente.estado}
+                        </p>
+                        {selectedCliente.cep && (
+                          <p className="text-[10px] text-mtabi-yellow font-mono">
+                            CEP: {selectedCliente.cep}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-mtabi-muted italic text-[11px]">Endereço não cadastrado.</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Coluna 3: Resumo financeiro */}
                 <div className="bg-mtabi-bg border border-mtabi-border p-4 rounded-xl">
                   <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">Resumo financeiro</h4>
                   <div className="grid grid-cols-2 gap-2">
@@ -1387,16 +1540,23 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                     className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
                   />
                 </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
-                    CNPJ
+                <div className="relative">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2 flex items-center justify-between">
+                    <span>CNPJ</span>
+                    {isFetchingCNPJ && (
+                      <span className="text-[9px] text-mtabi-yellow animate-pulse font-semibold">
+                        Buscando CNPJ...
+                      </span>
+                    )}
                   </label>
                   <input
                     type="text"
                     placeholder="00.000.000/0001-00"
                     value={clientForm.cnpj}
-                    onChange={(e) => setClientForm({ ...clientForm, cnpj: e.target.value })}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    onChange={handleCNPJChange}
+                    className={`w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans ${
+                      isFetchingCNPJ ? 'border-mtabi-yellow/60' : ''
+                    }`}
                   />
                 </div>
               </div>
@@ -1404,7 +1564,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
-                    Contato Principal
+                    Contato Decisor
                   </label>
                   <input
                     type="text"
@@ -1416,7 +1576,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
-                    Contato Interno
+                    Contato Facilitador
                   </label>
                   <input
                     type="text"
@@ -1431,6 +1591,18 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
+                    Telefone de Contato
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="(00) 00000-0000"
+                    value={clientForm.telefone}
+                    onChange={(e) => setClientForm({ ...clientForm, telefone: formatPhone(e.target.value) })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
                     Segmento
                   </label>
                   <input
@@ -1441,6 +1613,113 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                     className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
                   />
                 </div>
+              </div>
+
+              {/* Seção de Endereço */}
+              <div className="border-t border-mtabi-border/60 pt-4 space-y-4">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-mtabi-yellow">Endereço da Empresa</h4>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
+                      CEP
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="00000-000"
+                      value={clientForm.cep}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 8);
+                        let formatted = val;
+                        if (val.length > 5) formatted = `${val.slice(0, 5)}-${val.slice(5)}`;
+                        setClientForm({ ...clientForm, cep: formatted });
+                      }}
+                      className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
+                      Logradouro
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Rua, Avenida, etc."
+                      value={clientForm.logradouro}
+                      onChange={(e) => setClientForm({ ...clientForm, logradouro: e.target.value })}
+                      className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
+                      Número
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 123"
+                      value={clientForm.numero}
+                      onChange={(e) => setClientForm({ ...clientForm, numero: e.target.value })}
+                      className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
+                      Complemento
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Sala, Andar, etc."
+                      value={clientForm.complemento}
+                      onChange={(e) => setClientForm({ ...clientForm, complemento: e.target.value })}
+                      className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
+                      Bairro
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Centro"
+                      value={clientForm.bairro}
+                      onChange={(e) => setClientForm({ ...clientForm, bairro: e.target.value })}
+                      className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
+                      Cidade
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Porto Alegre"
+                      value={clientForm.cidade}
+                      onChange={(e) => setClientForm({ ...clientForm, cidade: e.target.value })}
+                      className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
+                      Estado
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: RS"
+                      maxLength={2}
+                      value={clientForm.estado}
+                      onChange={(e) => setClientForm({ ...clientForm, estado: e.target.value.toUpperCase() })}
+                      className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-mtabi-border/60 pt-4">
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
                     Tipo de Relação *
@@ -1455,27 +1734,22 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                     <option value="Ambos">Ambos</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
+                    Status da Conta *
+                  </label>
+                  <select
+                    value={clientForm.status}
+                    onChange={(e) => setClientForm({ ...clientForm, status: e.target.value as any })}
+                    className="w-full px-3 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  >
+                    <option value="Negociação">Negociação</option>
+                    <option value="Ativo">Ativo</option>
+                    <option value="Pausado">Pausado</option>
+                    <option value="Inativo">Inativo</option>
+                  </select>
+                </div>
               </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">
-                  Status da Conta *
-                </label>
-                <select
-                  value={clientForm.status}
-                  onChange={(e) => setClientForm({ ...clientForm, status: e.target.value as any })}
-                  className="w-full px-3 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                >
-                  <option value="Negociação">Negociação</option>
-                  <option value="Ativo">Ativo</option>
-                  <option value="Pausado">Pausado</option>
-                  <option value="Inativo">Inativo</option>
-                </select>
-              </div>
-
-
-
-
 
               <div className="flex gap-3 pt-3 border-t border-mtabi-border">
                 <button
@@ -1513,7 +1787,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
             </div>
             <div className="p-5 space-y-4">
               <div 
-                className="w-64 h-64 mx-auto rounded-2xl border-2 border-mtabi-yellow relative overflow-hidden bg-[#13151A] cursor-move select-none"
+                className="w-64 h-64 mx-auto rounded-2xl border-2 border-mtabi-yellow relative overflow-hidden bg-mtabi-bg cursor-move select-none"
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUpOrLeave}
@@ -2530,7 +2804,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
           <div className="w-full max-w-md bg-mtabi-card border border-mtabi-border rounded-2xl shadow-2xl overflow-hidden font-sans">
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-mtabi-border bg-[#13151A]/60">
+            <div className="flex items-center justify-between p-5 border-b border-mtabi-border bg-mtabi-bg/60">
               <h3 className="text-sm font-bold uppercase tracking-wider text-white">
                 Gerenciar Tecnologias
               </h3>
@@ -2564,7 +2838,7 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                     onClick={async () => {
                       if (!newToolInput.trim()) return;
                       try {
-                        await createTecnologia({ nome: newToolInput.trim() });
+                        await createTecnologia(newToolInput.trim());
                         setNewToolInput('');
                         await loadData();
                       } catch (err) {

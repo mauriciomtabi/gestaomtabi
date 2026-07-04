@@ -1,20 +1,49 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 @import "tailwindcss";
 
-@theme {
+:root {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   
-  --color-mtabi-bg: #13151A;
-  --color-mtabi-card: #1C1F26;
-  --color-mtabi-yellow: #E8A33D;
-  --color-mtabi-text: #F2F0EA;
-  --color-mtabi-muted: #8A8A8F;
-  --color-mtabi-border: #2A2F3D;
+  --mtabi-bg: #13151A;
+  --mtabi-card: #1C1F26;
+  --mtabi-yellow: #E8A33D;
+  --mtabi-text: #F2F0EA;
+  --mtabi-muted: #8A8A8F;
+  --mtabi-border: #2A2F3D;
   
-  --color-mtabi-success: #4ADE80;
-  --color-mtabi-error: #F87171;
-  --color-mtabi-info: #60A5FA;
+  --mtabi-success: #4ADE80;
+  --mtabi-error: #F87171;
+  --mtabi-info: #60A5FA;
+}
+
+html.light {
+  --mtabi-bg: #F3F4F6; /* Gray 100 */
+  --mtabi-card: #FFFFFF;
+  --mtabi-yellow: #D97706; /* Amber 600 - darker for readability on light backgrounds */
+  --mtabi-text: #111827; /* Gray 900 */
+  --mtabi-muted: #6B7280; /* Gray 500 */
+  --mtabi-border: #E5E7EB; /* Gray 200 */
+  
+  --mtabi-success: #16A34A; /* Emerald 600 */
+  --mtabi-error: #DC2626; /* Red 600 */
+  --mtabi-info: #2563EB; /* Blue 600 */
+}
+
+@theme {
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  
+  --color-mtabi-bg: var(--mtabi-bg);
+  --color-mtabi-card: var(--mtabi-card);
+  --color-mtabi-yellow: var(--mtabi-yellow);
+  --color-mtabi-text: var(--mtabi-text);
+  --color-mtabi-muted: var(--mtabi-muted);
+  --color-mtabi-border: var(--mtabi-border);
+  
+  --color-mtabi-success: var(--mtabi-success);
+  --color-mtabi-error: var(--mtabi-error);
+  --color-mtabi-info: var(--mtabi-info);
 }
 
 body {
@@ -22,6 +51,7 @@ body {
   background-color: var(--color-mtabi-bg);
   color: var(--color-mtabi-text);
   overflow-x: hidden;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 /* Custom Scrollbar for premium dark feel */

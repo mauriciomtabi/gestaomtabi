@@ -24,7 +24,9 @@ import {
   X, 
   CheckCircle2, 
   AlertCircle,
-  MoreHorizontal
+  MoreHorizontal,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 const Toast: React.FC<{ message: string; type: 'success' | 'error'; onClose: () => void }> = ({ message, type, onClose }) => {
@@ -59,10 +61,25 @@ const App: React.FC = () => {
     return (saved && valid.includes(saved) ? saved : 'dashboard') as any;
   });
 
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('mtabi_theme');
+    return (saved === 'light' ? 'light' : 'dark');
+  });
+
   // Persiste a view ativa sempre que mudar
   useEffect(() => {
     localStorage.setItem('mtabi_last_view', view);
   }, [view]);
+
+  // Efeito para sincronizar tema
+  useEffect(() => {
+    localStorage.setItem('mtabi_theme', theme);
+    if (theme === 'light') {
+      document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
+    }
+  }, [theme]);
   
   // Sincronizar navegação direta de sub-telas (ex: ir para projetos a partir de um cliente)
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -230,7 +247,7 @@ const App: React.FC = () => {
         {/* Toggle Collapse Button */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className="absolute top-6 -right-3.5 z-50 p-1.5 bg-mtabi-card border border-mtabi-border text-mtabi-muted hover:text-white rounded-full transition-colors cursor-pointer"
+          className="absolute top-6 -right-3.5 z-50 p-1.5 bg-mtabi-card border border-mtabi-border text-mtabi-muted hover:text-mtabi-text rounded-full transition-colors cursor-pointer"
         >
           {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
@@ -240,7 +257,7 @@ const App: React.FC = () => {
           sidebarCollapsed ? 'justify-center p-4 py-6' : 'p-6'
         }`}>
           <img 
-            src="/mtabi-icone-amarelo-branco.svg" 
+            src={theme === 'light' ? "/mtabi-icone-preto.svg" : "/mtabi-icone-amarelo-branco.svg"} 
             alt="Logo MTABI" 
             className={`object-contain shrink-0 select-none transition-all ${
               sidebarCollapsed ? 'w-10 h-10' : 'w-14 h-14'
@@ -248,7 +265,7 @@ const App: React.FC = () => {
           />
           {!sidebarCollapsed && (
             <div className="min-w-0">
-              <h2 className="text-2xl font-black tracking-wider font-display text-white select-none leading-none">
+              <h2 className="text-2xl font-black tracking-wider font-display text-mtabi-text select-none leading-none">
                 MT<span className="text-mtabi-yellow">ABI</span>
               </h2>
               <span className="text-[9px] text-mtabi-muted uppercase tracking-widest block mt-1.5 font-bold">
@@ -273,7 +290,7 @@ const App: React.FC = () => {
                 className={`w-full flex items-center gap-3.5 px-3 py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer border ${
                   active 
                     ? 'bg-mtabi-yellow text-black border-mtabi-yellow shadow-md shadow-mtabi-yellow/5' 
-                    : 'text-mtabi-muted hover:text-white border-transparent hover:bg-mtabi-border/30'
+                    : 'text-mtabi-muted hover:text-mtabi-text border-transparent hover:bg-mtabi-border/30'
                 }`}
                 title={sidebarCollapsed ? item.label : undefined}
               >
@@ -286,11 +303,23 @@ const App: React.FC = () => {
 
         {/* PERFIL / LOGOUT BOTTOM */}
         <div className="p-4 border-t border-mtabi-border space-y-2">
+          {/* Theme Toggle Button */}
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className={`w-full flex items-center gap-3.5 px-3 py-2 text-xs font-bold text-mtabi-muted hover:text-mtabi-text hover:bg-mtabi-border/30 border border-transparent rounded-xl transition-all cursor-pointer ${
+              sidebarCollapsed ? 'justify-center' : ''
+            }`}
+            title={theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
+          >
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            {!sidebarCollapsed && <span>{theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}</span>}
+          </button>
+
           <div className="flex items-center gap-3 px-2">
             <UserCircle className="text-mtabi-muted shrink-0" size={24} />
             {!sidebarCollapsed && (
               <div className="min-w-0">
-                <p className="text-xs font-bold text-white truncate">{currentUser.name}</p>
+                <p className="text-xs font-bold text-mtabi-text truncate">{currentUser.name}</p>
                 <p className="text-[9px] text-mtabi-muted truncate">{currentUser.email}</p>
               </div>
             )}
@@ -336,7 +365,7 @@ const App: React.FC = () => {
             setIsMobileMoreOpen(false);
           }}
           className={`flex flex-col items-center gap-1 py-1.5 transition-colors cursor-pointer ${
-            view === 'dashboard' && !isMobileMoreOpen ? 'text-mtabi-yellow' : 'text-mtabi-muted hover:text-white'
+            view === 'dashboard' && !isMobileMoreOpen ? 'text-mtabi-yellow' : 'text-mtabi-muted hover:text-mtabi-text'
           }`}
         >
           <LayoutDashboard size={20} />
@@ -350,7 +379,7 @@ const App: React.FC = () => {
             setIsMobileMoreOpen(false);
           }}
           className={`flex flex-col items-center gap-1 py-1.5 transition-colors cursor-pointer ${
-            view === 'clientes' && !isMobileMoreOpen ? 'text-mtabi-yellow' : 'text-mtabi-muted hover:text-white'
+            view === 'clientes' && !isMobileMoreOpen ? 'text-mtabi-yellow' : 'text-mtabi-muted hover:text-mtabi-text'
           }`}
         >
           <Building2 size={20} />
@@ -365,7 +394,7 @@ const App: React.FC = () => {
             setIsMobileMoreOpen(false);
           }}
           className={`flex flex-col items-center gap-1 py-1.5 transition-colors cursor-pointer ${
-            view === 'projetos' && !isMobileMoreOpen ? 'text-mtabi-yellow' : 'text-mtabi-muted hover:text-white'
+            view === 'projetos' && !isMobileMoreOpen ? 'text-mtabi-yellow' : 'text-mtabi-muted hover:text-mtabi-text'
           }`}
         >
           <FolderKanban size={20} />
@@ -379,7 +408,7 @@ const App: React.FC = () => {
             setIsMobileMoreOpen(false);
           }}
           className={`flex flex-col items-center gap-1 py-1.5 transition-colors cursor-pointer ${
-            view === 'pipeline' && !isMobileMoreOpen ? 'text-mtabi-yellow' : 'text-mtabi-muted hover:text-white'
+            view === 'pipeline' && !isMobileMoreOpen ? 'text-mtabi-yellow' : 'text-mtabi-muted hover:text-mtabi-text'
           }`}
         >
           <TrendingUp size={20} />
@@ -390,7 +419,7 @@ const App: React.FC = () => {
         <button
           onClick={() => setIsMobileMoreOpen(!isMobileMoreOpen)}
           className={`flex flex-col items-center gap-1 py-1.5 transition-colors cursor-pointer ${
-            isMobileMoreOpen ? 'text-mtabi-yellow' : 'text-mtabi-muted hover:text-white'
+            isMobileMoreOpen ? 'text-mtabi-yellow' : 'text-mtabi-muted hover:text-mtabi-text'
           }`}
         >
           <MoreHorizontal size={20} />
@@ -408,10 +437,10 @@ const App: React.FC = () => {
           <div className="w-full bg-mtabi-card border-t border-mtabi-border rounded-t-3xl p-5 space-y-4 z-50 animate-in slide-in-from-bottom duration-300 font-sans">
             
             <div className="flex justify-between items-center border-b border-mtabi-border pb-3">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-white">Navegação Adicional</h3>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-mtabi-text">Navegação Adicional</h3>
               <button 
                 onClick={() => setIsMobileMoreOpen(false)}
-                className="p-1 hover:bg-mtabi-border text-mtabi-muted hover:text-white rounded-lg cursor-pointer"
+                className="p-1 hover:bg-mtabi-border text-mtabi-muted hover:text-mtabi-text rounded-lg cursor-pointer"
               >
                 <X size={16} />
               </button>
@@ -425,7 +454,7 @@ const App: React.FC = () => {
                   setIsMobileMoreOpen(false);
                 }}
                 className={`p-4 rounded-2xl flex flex-col items-center gap-2 border text-center transition-colors cursor-pointer ${
-                  view === 'financeiro' ? 'bg-mtabi-yellow/10 border-mtabi-yellow text-mtabi-yellow' : 'bg-mtabi-bg border-mtabi-border text-white'
+                  view === 'financeiro' ? 'bg-mtabi-yellow/10 border-mtabi-yellow text-mtabi-yellow' : 'bg-mtabi-bg border-mtabi-border text-mtabi-text'
                 }`}
               >
                 <Landmark size={24} />
@@ -438,7 +467,7 @@ const App: React.FC = () => {
                   setIsMobileMoreOpen(false);
                 }}
                 className={`p-4 rounded-2xl flex flex-col items-center gap-2 border text-center transition-colors cursor-pointer ${
-                  view === 'ferramentas' ? 'bg-mtabi-yellow/10 border-mtabi-yellow text-mtabi-yellow' : 'bg-mtabi-bg border-mtabi-border text-white'
+                  view === 'ferramentas' ? 'bg-mtabi-yellow/10 border-mtabi-yellow text-mtabi-yellow' : 'bg-mtabi-bg border-mtabi-border text-mtabi-text'
                 }`}
               >
                 <Wrench size={24} />
@@ -451,19 +480,28 @@ const App: React.FC = () => {
               <div className="flex items-center gap-2">
                 <UserCircle className="text-mtabi-muted" size={20} />
                 <div className="text-left">
-                  <p className="text-xs font-bold text-white">{currentUser.name}</p>
+                  <p className="text-xs font-bold text-mtabi-text">{currentUser.name}</p>
                   <p className="text-[9px] text-mtabi-muted">{currentUser.email}</p>
                 </div>
               </div>
-              <button
-                onClick={() => {
-                  setIsMobileMoreOpen(false);
-                  handleLogout();
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-mtabi-error/10 hover:bg-mtabi-error/20 border border-mtabi-error/20 rounded-xl text-[10px] font-bold text-mtabi-error uppercase tracking-wider cursor-pointer"
-              >
-                <LogOut size={12} /> Sair
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                  className="p-2 bg-mtabi-bg hover:bg-mtabi-border/30 border border-mtabi-border text-mtabi-muted hover:text-mtabi-text rounded-xl cursor-pointer"
+                  title={theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
+                >
+                  {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+                </button>
+                <button
+                  onClick={() => {
+                    setIsMobileMoreOpen(false);
+                    handleLogout();
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-mtabi-error/10 hover:bg-mtabi-error/20 border border-mtabi-error/20 rounded-xl text-[10px] font-bold text-mtabi-error uppercase tracking-wider cursor-pointer"
+                >
+                  <LogOut size={12} /> Sair
+                </button>
+              </div>
             </div>
 
           </div>

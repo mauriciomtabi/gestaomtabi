@@ -653,7 +653,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                       <img
                         src={selectedProjeto.cliente.logo_url}
                         alt={selectedProjeto.cliente.nome_empresa}
-                        className="w-5 h-5 object-contain rounded bg-[#13151A] p-0.5 border border-mtabi-border/40 shrink-0"
+                        className="w-5 h-5 object-contain rounded bg-mtabi-bg p-0.5 border border-mtabi-border/40 shrink-0"
                       />
                     ) : (
                       <div className="w-5 h-5 rounded bg-mtabi-border/30 border border-mtabi-border flex items-center justify-center text-mtabi-yellow font-display font-extrabold text-[10px] shrink-0 uppercase select-none">
@@ -1528,7 +1528,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
         <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
           <div className="w-full max-w-md bg-mtabi-card border border-mtabi-border rounded-2xl shadow-2xl overflow-hidden font-sans">
             {/* Header */}
-            <div className="flex items-center justify-between p-5 border-b border-mtabi-border bg-[#13151A]/60">
+            <div className="flex items-center justify-between p-5 border-b border-mtabi-border bg-mtabi-bg/60">
               <h3 className="text-sm font-bold uppercase tracking-wider text-white">
                 Gerenciar Tecnologias
               </h3>
@@ -1562,7 +1562,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                     onClick={async () => {
                       if (!newToolInput.trim()) return;
                       try {
-                        await createTecnologia({ nome: newToolInput.trim() });
+                        await createTecnologia(newToolInput.trim());
                         setNewToolInput('');
                         await loadData();
                       } catch (err) {
@@ -1643,7 +1643,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-mtabi-border bg-[#13151A]/20 text-right">
+            <div className="p-4 border-t border-mtabi-border bg-mtabi-bg/20 text-right">
               <button
                 onClick={() => {
                   setIsTechManagerOpen(false);

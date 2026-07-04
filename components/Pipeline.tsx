@@ -491,7 +491,7 @@ const Pipeline: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             {/* === CABEÇALHO === */}
-            <div className="p-4 border-b border-mtabi-border shrink-0 bg-[#13151A]/70">
+            <div className="p-4 border-b border-mtabi-border shrink-0 bg-mtabi-bg/70">
               <div className="flex justify-between items-start mb-2">
                 <span className="text-[10px] text-mtabi-yellow font-bold uppercase tracking-wider">Lead Comercial</span>
                 <div className="flex items-center gap-1.5">
