@@ -22,6 +22,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [toolFilter, setToolFilter] = useState<string>('todos');
+  const [clientFilter, setClientFilter] = useState<string>('todos');
 
   // Modais CRUD Projeto
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
