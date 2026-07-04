@@ -446,7 +446,9 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
     
     const matchesTool = toolFilter === 'todos' || (p.ferramenta_dev && p.ferramenta_dev.includes(toolFilter));
     
-    return matchesSearch && matchesStatus && matchesTool;
+    const matchesClient = clientFilter === 'todos' || p.cliente_id === clientFilter;
+    
+    return matchesSearch && matchesStatus && matchesTool && matchesClient;
   });
 
   // Custos associados ao projeto selecionado
@@ -492,7 +494,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
       </div>
 
       {/* Barra de Busca e Filtros superior de largura total */}
-      <div className="bg-mtabi-card border border-mtabi-border p-4 rounded-2xl grid grid-cols-1 md:grid-cols-3 gap-4 font-sans mb-6">
+      <div className="bg-mtabi-card border border-mtabi-border p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-sans mb-6">
         {/* Campo de pesquisa */}
         <div className="relative">
           <Search className="absolute left-3 top-2.5 text-mtabi-muted" size={16} />
@@ -539,6 +541,22 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
             ))}
           </select>
         </div>
+        {/* Filtro Cliente */}
+        <div className="flex items-center gap-2">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted shrink-0 font-sans">
+            Cliente:
+          </label>
+          <select
+            value={clientFilter}
+            onChange={(e) => setClientFilter(e.target.value)}
+            className="w-full p-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs text-white focus:outline-none focus:border-mtabi-yellow font-sans cursor-pointer"
+          >
+            <option value="todos">Todos</option>
+            {clientes.map(c => (
+              <option key={c.id} value={c.id}>{c.nome_empresa}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Grid Principal de Projetos em Cards */}
@@ -548,66 +566,69 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
             Buscando projetos...
           </div>
         ) : filteredProjetos.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
             {filteredProjetos.map(p => (
               <div
                 key={p.id}
                 onClick={() => setSelectedProjeto(p)}
-                className="p-4 bg-mtabi-card border border-mtabi-border rounded-2xl transition-all hover:border-mtabi-yellow/50 hover:scale-[1.02] cursor-pointer flex flex-col group font-sans relative overflow-hidden"
+                className="p-4 bg-mtabi-card border border-mtabi-border rounded-2xl transition-all hover:border-mtabi-yellow/50 hover:scale-[1.02] cursor-pointer flex items-center gap-4 group font-sans relative overflow-hidden h-28"
               >
-                <div>
-                  <div className="flex justify-between items-start gap-2">
-                    <span className="text-[9px] font-bold text-mtabi-muted uppercase tracking-wider flex items-center gap-1.5 min-w-0 font-sans">
-                      {p.cliente?.logo_url ? (
-                        <img
-                          src={p.cliente.logo_url}
-                          alt={p.cliente.nome_empresa}
-                          className="w-4 h-4 object-contain rounded bg-[#13151A] p-0.5 border border-mtabi-border/40 shrink-0"
-                        />
-                      ) : (
-                        <div className="w-4 h-4 rounded bg-mtabi-border/30 border border-mtabi-border flex items-center justify-center text-mtabi-yellow font-display font-extrabold text-[8px] shrink-0 uppercase select-none">
-                          {p.cliente?.nome_empresa?.substring(0, 2) || 'CL'}
-                        </div>
-                      )}
-                      <span className="truncate">{p.cliente?.nome_empresa}</span>
-                    </span>
-                    <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${
-                      p.status === 'Em produção' ? 'bg-emerald-950 text-mtabi-success border border-emerald-800/10' :
-                      p.status === 'Em desenvolvimento' ? 'bg-blue-950 text-mtabi-info border border-blue-800/10' :
-                      p.status === 'Manutenção' ? 'bg-purple-950 text-purple-400 border border-purple-800/10' :
-                      p.status === 'Em negociação' ? 'bg-amber-950 text-mtabi-yellow border border-amber-800/10' :
-                      'bg-zinc-800 text-mtabi-muted border border-zinc-700/50'
-                    }`}>
-                      {p.status}
-                    </span>
+                {/* Logo do Cliente à Esquerda */}
+                {p.cliente?.logo_url ? (
+                  <div className="w-20 h-20 rounded-xl bg-[#252830] border border-mtabi-border flex items-center justify-center p-2 shrink-0">
+                    <img src={p.cliente.logo_url} alt={p.cliente.nome_empresa} className="w-full h-full object-contain rounded-lg" />
                   </div>
-
-                  <h3 className="text-xs font-bold text-white group-hover:text-mtabi-yellow transition-colors uppercase tracking-wider mt-2 truncate font-display">
-                    {p.nome_solucao}
-                  </h3>
-
-                  {p.descricao && (
-                    <p className="text-[10px] text-mtabi-muted mt-1.5 font-sans line-clamp-2 leading-relaxed">
-                      {p.descricao}
-                    </p>
-                  )}
-                </div>
-
-                {/* Badge de Ferramentas */}
-                {p.ferramenta_dev && p.ferramenta_dev.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-3">
-                    {p.ferramenta_dev.slice(0, 3).map(tool => (
-                      <span key={tool} className="text-[8px] font-mono px-1.5 py-0.5 bg-mtabi-bg/60 border border-mtabi-border text-white rounded">
-                        {tool}
-                      </span>
-                    ))}
-                    {p.ferramenta_dev.length > 3 && (
-                      <span className="text-[8px] font-mono px-1.5 py-0.5 bg-mtabi-bg text-mtabi-muted rounded">
-                        +{p.ferramenta_dev.length - 3}
-                      </span>
-                    )}
+                ) : (
+                  <div className="w-20 h-20 rounded-xl bg-mtabi-border/35 border border-mtabi-border flex items-center justify-center text-mtabi-yellow font-display font-extrabold text-2xl shrink-0 uppercase select-none">
+                    {p.cliente?.nome_empresa?.substring(0, 2) || 'CL'}
                   </div>
                 )}
+
+                {/* Informações do Projeto à Direita */}
+                <div className="min-w-0 flex-1 flex flex-col justify-between h-full py-0.5">
+                  <div>
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="text-[9px] font-bold text-mtabi-muted uppercase tracking-wider truncate max-w-[120px] font-mono">
+                        {p.cliente?.nome_empresa}
+                      </span>
+                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0 ${
+                        p.status === 'Em produção' ? 'bg-emerald-950 text-mtabi-success border border-emerald-800/10' :
+                        p.status === 'Em desenvolvimento' ? 'bg-blue-950 text-mtabi-info border border-blue-800/10' :
+                        p.status === 'Manutenção' ? 'bg-purple-950 text-purple-400 border border-purple-800/10' :
+                        p.status === 'Em negociação' ? 'bg-amber-950 text-mtabi-yellow border border-amber-800/10' :
+                        'bg-zinc-800 text-mtabi-muted border border-zinc-700/50'
+                      }`}>
+                        {p.status}
+                      </span>
+                    </div>
+
+                    <h3 className="text-sm font-bold text-white group-hover:text-mtabi-yellow transition-colors truncate mt-1 font-display uppercase tracking-wide">
+                      {p.nome_solucao}
+                    </h3>
+
+                    {p.descricao && (
+                      <p className="text-[10px] text-mtabi-muted mt-1 font-sans line-clamp-1 leading-normal">
+                        {p.descricao}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Badge de Ferramentas */}
+                  {p.ferramenta_dev && p.ferramenta_dev.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {p.ferramenta_dev.slice(0, 3).map(tool => (
+                        <span key={tool} className="text-[8px] font-mono px-1.5 py-0.5 bg-mtabi-bg/60 border border-mtabi-border text-white rounded uppercase">
+                          {tool}
+                        </span>
+                      ))}
+                      {p.ferramenta_dev.length > 3 && (
+                        <span className="text-[8px] font-mono px-1.5 py-0.5 bg-mtabi-bg text-mtabi-muted rounded">
+                          +{p.ferramenta_dev.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
