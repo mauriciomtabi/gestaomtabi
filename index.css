@@ -18,16 +18,16 @@
 }
 
 html.light {
-  --mtabi-bg: #F3F4F6; /* Gray 100 */
-  --mtabi-card: #FFFFFF;
-  --mtabi-yellow: #D97706; /* Amber 600 - darker for readability on light backgrounds */
-  --mtabi-text: #111827; /* Gray 900 */
-  --mtabi-muted: #6B7280; /* Gray 500 */
-  --mtabi-border: #E5E7EB; /* Gray 200 */
+  --mtabi-bg: #F4F5F6; /* Soft warm-gray */
+  --mtabi-card: #FFFFFF; /* Pure white */
+  --mtabi-yellow: #E8A33D; /* Original yellow */
+  --mtabi-text: #0F172A; /* Slate 900 */
+  --mtabi-muted: #64748B; /* Slate 500 */
+  --mtabi-border: #E2E8F0; /* Slate 200 */
   
-  --mtabi-success: #16A34A; /* Emerald 600 */
-  --mtabi-error: #DC2626; /* Red 600 */
-  --mtabi-info: #2563EB; /* Blue 600 */
+  --mtabi-success: #4ADE80; /* Original success */
+  --mtabi-error: #F87171; /* Original error */
+  --mtabi-info: #60A5FA; /* Original info */
 }
 
 @theme {
@@ -160,5 +160,91 @@ body {
 
 .animate-slideInRight {
   animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ==========================================
+   Premium Light Mode Contrast & Styling Overrides
+   ========================================== */
+html.light {
+  /* Dynamic text color overrides for readability on light backgrounds */
+  .text-white:not(button):not(a):not([class*="bg-mtabi-"]):not([class*="bg-red-"]):not([class*="bg-green-"]):not([class*="bg-blue-"]):not([class*="bg-emerald-"]):not([class*="bg-amber-"]):not([class*="bg-purple-"]) {
+    color: var(--mtabi-text) !important;
+  }
+
+  /* Support for tailwind default light slate/gray text classes that are hardcoded */
+  .text-slate-50, .text-slate-100, .text-slate-200, .text-slate-300, .text-slate-400,
+  .text-gray-50, .text-gray-100, .text-gray-200, .text-gray-300, .text-gray-400,
+  .text-zinc-50, .text-zinc-100, .text-zinc-200, .text-zinc-300, .text-zinc-400,
+  .text-neutral-50, .text-neutral-100, .text-neutral-200, .text-neutral-300, .text-neutral-400 {
+    color: var(--mtabi-text) !important;
+  }
+
+  .text-slate-500, .text-gray-500, .text-zinc-500, .text-neutral-500 {
+    color: var(--mtabi-muted) !important;
+  }
+
+  /* General typography hierarchy overrides */
+  h1, h2, h3, h4, h5, h6, label {
+    color: var(--mtabi-text);
+  }
+
+  /* Inputs, selects and textareas in Light Mode */
+  input, select, textarea {
+    color: var(--mtabi-text) !important;
+    background-color: var(--mtabi-card) !important;
+    border-color: var(--mtabi-border) !important;
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: #A0AEC0 !important;
+  }
+
+  /* Premium shadows and borders for main cards and elements */
+  .bg-mtabi-card, 
+  .bg-mtabi-bg\/60,
+  .bg-mtabi-card\/40,
+  .bg-mtabi-bg\/20 {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+    border-color: var(--mtabi-border) !important;
+  }
+
+  /* Enhanced shadows and pure white bg for floating modals and drawers */
+  .fixed.z-\[1100\] .bg-mtabi-card,
+  .fixed.z-\[1200\] .bg-mtabi-card,
+  .fixed.z-\[1300\] .bg-mtabi-card {
+    background-color: #FFFFFF !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
+    border-color: var(--mtabi-border) !important;
+  }
+
+  /* Grid dividers, borders, and separator lines */
+  .border-mtabi-border,
+  .border-mtabi-border\/40,
+  .border-mtabi-border\/60,
+  .divide-mtabi-border {
+    border-color: var(--mtabi-border) !important;
+  }
+
+  /* Recharts Tooltip for Light Mode */
+  .recharts-default-tooltip {
+    background-color: #FFFFFF !important;
+    border-color: var(--mtabi-border) !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08) !important;
+    border-radius: 12px !important;
+    
+    .recharts-tooltip-label {
+      font-weight: bold !important;
+      color: var(--mtabi-text) !important;
+    }
+
+    span, p, li {
+      color: var(--mtabi-text) !important;
+    }
+  }
+
+  /* Ensure SVG icons in tables/headers look good */
+  .text-mtabi-muted svg {
+    color: var(--mtabi-muted) !important;
+  }
 }
 
