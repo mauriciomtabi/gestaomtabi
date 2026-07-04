@@ -256,6 +256,29 @@ html.light {
     color: #C27803 !important;
   }
 
+  /* Delete / error icons: keep strong visible red in light mode */
+  svg.text-mtabi-error,
+  .text-mtabi-error svg,
+  [class*="text-mtabi-error"] svg,
+  svg.text-red-400,
+  .text-red-400 svg,
+  svg.text-red-500,
+  .text-red-500 svg,
+  button.text-mtabi-error svg,
+  button.text-red-400 svg,
+  button.text-red-500 svg,
+  button:hover.hover\:text-mtabi-error svg,
+  button.hover\:text-red-400:hover svg,
+  button.hover\:text-red-500:hover svg {
+    color: #B91C1C !important;
+  }
+
+  /* Muted icons that need to darken for readability */
+  svg.text-mtabi-muted,
+  .text-mtabi-muted svg {
+    color: #6B7280 !important;
+  }
+
   /* Core status badges style overrides for Light Mode */
   .bg-emerald-950,
   .bg-emerald-900\/30,

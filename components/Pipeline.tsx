@@ -157,6 +157,8 @@ const Pipeline: React.FC = () => {
 
   // Conversão de Lead Ganho em Cliente
   const [conversionLead, setConversionLead] = useState<PipelineLead | null>(null);
+  const [pendingStageUpdate, setPendingStageUpdate] = useState<{ lead: PipelineLead; stage: EtapaType } | null>(null);
+  const [lostReasonInput, setLostReasonInput] = useState('');
   const [conversionForm, setConversionForm] = useState({
     nome_empresa: '',
     nome_contato_principal: '',
@@ -271,7 +273,13 @@ const Pipeline: React.FC = () => {
   };
 
   // Mover etapa rápido
-  const moveLeadStage = async (lead: PipelineLead, novaEtapa: EtapaType) => {
+  const moveLeadStage = async (lead: PipelineLead, novaEtapa: EtapaType, ignoreConfirm = false) => {
+    if (!ignoreConfirm && (novaEtapa === 'Fechado-Ganho' || novaEtapa === 'Fechado-Perdido')) {
+      setPendingStageUpdate({ lead, stage: novaEtapa });
+      setLostReasonInput('');
+      return;
+    }
+
     try {
       await updatePipelineLead(lead.id, { etapa: novaEtapa });
       await loadData();
@@ -291,6 +299,37 @@ const Pipeline: React.FC = () => {
       }
     } catch (e) {
       console.error('Erro ao mover lead:', e);
+    }
+  };
+
+  const handleConfirmStageUpdate = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!pendingStageUpdate) return;
+    const { lead, stage } = pendingStageUpdate;
+
+    try {
+      if (stage === 'Fechado-Perdido') {
+        const obs = lead.observacoes ? lead.observacoes.trim() : '';
+        const motivoTag = `[Motivo da Perda: ${lostReasonInput.trim()}]`;
+        const updatedObs = obs ? `${motivoTag}\n${obs}` : motivoTag;
+        
+        await updatePipelineLead(lead.id, { 
+          etapa: 'Fechado-Perdido', 
+          observacoes: updatedObs 
+        });
+        await loadData();
+        setPendingStageUpdate(null);
+        
+        // Se o lead detalhado estiver aberto, atualiza a view dele
+        if (selectedLead && selectedLead.id === lead.id) {
+          setSelectedLead({ ...selectedLead, etapa: 'Fechado-Perdido', observacoes: updatedObs });
+        }
+      } else if (stage === 'Fechado-Ganho') {
+        setPendingStageUpdate(null);
+        await moveLeadStage(lead, 'Fechado-Ganho', true);
+      }
+    } catch (err) {
+      console.error('Erro ao confirmar alteração de etapa:', err);
     }
   };
 
@@ -1074,6 +1113,106 @@ const Pipeline: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Confirmação de Etapa — Fechado-Ganho / Fechado-Perdido */}
+      {pendingStageUpdate && (
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+          <div className="bg-mtabi-card border border-mtabi-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden font-sans">
+
+            {pendingStageUpdate.stage === 'Fechado-Ganho' ? (
+              <>
+                {/* Header - Ganho */}
+                <div className="flex justify-between items-center p-5 border-b border-mtabi-border bg-emerald-950/20">
+                  <div className="flex items-center gap-2 text-mtabi-success">
+                    <Award size={20} />
+                    <h3 className="text-sm font-bold uppercase tracking-wider">Confirmar Fechamento Ganho</h3>
+                  </div>
+                  <button onClick={() => setPendingStageUpdate(null)} className="text-mtabi-muted hover:text-white transition-colors cursor-pointer">
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="p-5 space-y-4">
+                  <p className="text-sm text-mtabi-muted leading-relaxed">
+                    🎉 Parabéns! Você está marcando a negociação com{' '}
+                    <span className="text-white font-bold">
+                      {pendingStageUpdate.lead.nome_lead || pendingStageUpdate.lead.cliente?.nome_empresa}
+                    </span>{' '}
+                    como <span className="text-mtabi-success font-bold">FECHADO — GANHO</span>.
+                  </p>
+                  <p className="text-xs text-mtabi-muted leading-relaxed bg-emerald-950/20 border border-emerald-900/30 rounded-xl px-4 py-3">
+                    Após confirmar, você poderá criar o cadastro oficial deste lead como <strong>cliente do sistema</strong>.
+                  </p>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setPendingStageUpdate(null)}
+                      className="w-1/2 py-2.5 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border text-white text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleConfirmStageUpdate}
+                      className="w-1/2 py-2.5 bg-mtabi-success hover:bg-mtabi-success/90 text-white text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors"
+                    >
+                      ✓ Confirmar e Cadastrar Cliente
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Header - Perdido */}
+                <div className="flex justify-between items-center p-5 border-b border-mtabi-border bg-red-950/20">
+                  <div className="flex items-center gap-2 text-mtabi-error">
+                    <AlertTriangle size={20} />
+                    <h3 className="text-sm font-bold uppercase tracking-wider">Registrar Fechamento Perdido</h3>
+                  </div>
+                  <button onClick={() => setPendingStageUpdate(null)} className="text-mtabi-muted hover:text-white transition-colors cursor-pointer">
+                    <X size={18} />
+                  </button>
+                </div>
+                <form onSubmit={handleConfirmStageUpdate} className="p-5 space-y-4">
+                  <p className="text-sm text-mtabi-muted leading-relaxed">
+                    Você está marcando a negociação com{' '}
+                    <span className="text-white font-bold">
+                      {pendingStageUpdate.lead.nome_lead || pendingStageUpdate.lead.cliente?.nome_empresa}
+                    </span>{' '}
+                    como <span className="text-mtabi-error font-bold">FECHADO — PERDIDO</span>.
+                  </p>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                      Motivo da Perda *
+                    </label>
+                    <textarea
+                      required
+                      rows={3}
+                      placeholder="Ex: Preço acima do orçamento, escolheu concorrente, projeto cancelado..."
+                      value={lostReasonInput}
+                      onChange={(e) => setLostReasonInput(e.target.value)}
+                      className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-error text-white resize-none placeholder-mtabi-muted leading-relaxed"
+                    />
+                    <p className="text-[10px] text-mtabi-muted mt-1">Este motivo será registrado nas observações da negociação para análise futura.</p>
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setPendingStageUpdate(null)}
+                      className="w-1/2 py-2.5 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border text-white text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="w-1/2 py-2.5 bg-mtabi-error hover:bg-mtabi-error/90 text-white text-xs font-bold uppercase tracking-wider rounded-xl cursor-pointer transition-colors"
+                    >
+                      Registrar Perda
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
           </div>
         </div>
       )}
