@@ -53,6 +53,13 @@ const Pipeline: React.FC = () => {
   const [selectedLeadHistory, setSelectedLeadHistory] = useState<PipelineAcaoHistorico[]>([]);
   const [leadToDelete, setLeadToDelete] = useState<PipelineLead | null>(null);
 
+  // Drawer tabs and inline action
+  const [drawerTab, setDrawerTab] = useState<'visao' | 'historico'>('visao');
+  const [drawerAcaoText, setDrawerAcaoText] = useState('');
+  const [drawerAcaoDate, setDrawerAcaoDate] = useState('');
+  const [drawerProbabilidade, setDrawerProbabilidade] = useState(50);
+  const [savingAcao, setSavingAcao] = useState(false);
+
   const loadLeadHistory = async (leadId: string) => {
     try {
       const hist = await getPipelineAcoesHistorico(leadId);
@@ -65,10 +72,54 @@ const Pipeline: React.FC = () => {
   useEffect(() => {
     if (selectedLead?.id) {
       loadLeadHistory(selectedLead.id);
+      setDrawerProbabilidade(Number(selectedLead.probabilidade || 50));
+      setDrawerAcaoText('');
+      setDrawerAcaoDate('');
+      setDrawerTab('visao');
     } else {
       setSelectedLeadHistory([]);
     }
   }, [selectedLead?.id]);
+
+  // Registrar nova ação diretamente pelo drawer
+  const handleDrawerAcaoSubmit = async () => {
+    if (!selectedLead || !drawerAcaoText.trim()) return;
+    setSavingAcao(true);
+    try {
+      // Arquiva a ação atual no histórico
+      if (selectedLead.proxima_acao) {
+        await createPipelineAcaoHistorico(
+          selectedLead.id,
+          selectedLead.proxima_acao,
+          selectedLead.data_proxima_acao || new Date().toISOString().split('T')[0]
+        );
+      }
+      // Salva a nova ação como próxima ação
+      await updatePipelineLead(selectedLead.id, {
+        proxima_acao: drawerAcaoText.trim(),
+        data_proxima_acao: drawerAcaoDate || null
+      });
+      setDrawerAcaoText('');
+      setDrawerAcaoDate('');
+      await loadData();
+      await loadLeadHistory(selectedLead.id);
+    } catch (err) {
+      console.error('Erro ao registrar ação:', err);
+    } finally {
+      setSavingAcao(false);
+    }
+  };
+
+  // Salva probabilidade no drawer ao soltar o slider
+  const handleDrawerProbabilidadeSave = async (value: number) => {
+    if (!selectedLead) return;
+    try {
+      await updatePipelineLead(selectedLead.id, { probabilidade: value });
+      await loadData();
+    } catch (err) {
+      console.error('Erro ao salvar probabilidade:', err);
+    }
+  };
 
   // Conversão de Lead Ganho em Cliente
   const [conversionLead, setConversionLead] = useState<PipelineLead | null>(null);
@@ -396,117 +447,252 @@ const Pipeline: React.FC = () => {
         })}
       </div>
 
-      {/* MODAL (DRAWER): Visualizar Detalhes e Mover Etapas */}
+      {/* DRAWER: Detalhes e Trabalho do Lead */}
       {selectedLead && (
-        <div className="fixed inset-0 z-[1100] flex justify-end bg-black/60 backdrop-blur-[2px] animate-fadeIn" onClick={() => setSelectedLead(null)}>
-          <div 
+        <div className="fixed inset-0 z-[1100] flex justify-end bg-black/60 backdrop-blur-[2px]" onClick={() => setSelectedLead(null)}>
+          <div
             className="bg-mtabi-card border-l border-mtabi-border w-full max-w-lg h-full shadow-2xl flex flex-col font-sans animate-slideInRight"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="flex justify-between items-center p-5 border-b border-mtabi-border shrink-0 bg-[#13151A]/60">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-mtabi-muted">
-                DETALHES DA NEGOCIAÇÃO
-              </h3>
-              <div className="flex items-center gap-3">
+            {/* === CABEÇALHO === */}
+            <div className="p-5 border-b border-mtabi-border shrink-0 bg-[#13151A]/70">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-[10px] text-mtabi-yellow font-bold uppercase tracking-wider">Lead Comercial</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => openEditLeadModal(selectedLead)}
+                    className="p-1.5 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border text-white hover:text-mtabi-yellow rounded-lg transition-colors cursor-pointer"
+                    title="Editar dados básicos"
+                  >
+                    <Edit2 size={12} />
+                  </button>
+                  <button
+                    onClick={() => setLeadToDelete(selectedLead)}
+                    className="p-1.5 bg-mtabi-bg hover:bg-mtabi-error/10 border border-mtabi-border text-white hover:text-mtabi-error rounded-lg transition-colors cursor-pointer"
+                    title="Excluir negociação"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                  <button onClick={() => setSelectedLead(null)} className="text-mtabi-muted hover:text-white transition-colors cursor-pointer ml-1">
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              <h2 className="text-xl font-extrabold text-white font-display leading-tight">
+                {selectedLead.cliente?.nome_empresa || selectedLead.nome_lead || 'Sem Nome'}
+              </h2>
+
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${ETAPA_COLORS[selectedLead.etapa].text} ${ETAPA_COLORS[selectedLead.etapa].bg} border ${ETAPA_COLORS[selectedLead.etapa].border}`}>
+                  {selectedLead.etapa}
+                </span>
+                <span className="text-mtabi-muted text-xs">•</span>
+                <span className="text-xs text-white font-mono font-bold">
+                  {Number(selectedLead.valor_estimado).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </span>
+                {selectedLead.valor_recorrente && Number(selectedLead.valor_recorrente) > 0 && (
+                  <>
+                    <span className="text-mtabi-muted text-xs">+</span>
+                    <span className="text-xs text-mtabi-yellow font-mono font-bold">
+                      {Number(selectedLead.valor_recorrente).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {/* Abas */}
+              <div className="flex gap-1 mt-4">
                 <button
-                  onClick={() => openEditLeadModal(selectedLead)}
-                  className="p-1.5 bg-mtabi-bg hover:bg-mtabi-border border border-mtabi-border text-white hover:text-mtabi-yellow rounded-lg transition-colors cursor-pointer"
-                  title="Editar Lançamento"
+                  onClick={() => setDrawerTab('visao')}
+                  className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                    drawerTab === 'visao'
+                      ? 'bg-mtabi-yellow text-black'
+                      : 'bg-mtabi-bg/60 text-mtabi-muted hover:text-white border border-mtabi-border'
+                  }`}
                 >
-                  <Edit2 size={12} />
+                  Visão Geral
                 </button>
                 <button
-                  onClick={() => setLeadToDelete(selectedLead)}
-                  className="p-1.5 bg-mtabi-bg hover:bg-mtabi-error/10 border border-mtabi-border text-white hover:text-mtabi-error rounded-lg transition-colors cursor-pointer"
-                  title="Excluir Lançamento"
+                  onClick={() => setDrawerTab('historico')}
+                  className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer relative ${
+                    drawerTab === 'historico'
+                      ? 'bg-mtabi-yellow text-black'
+                      : 'bg-mtabi-bg/60 text-mtabi-muted hover:text-white border border-mtabi-border'
+                  }`}
                 >
-                  <Trash2 size={12} />
-                </button>
-                <button onClick={() => setSelectedLead(null)} className="text-mtabi-muted hover:text-white transition-colors cursor-pointer">
-                  <X size={18} />
+                  Histórico
+                  {selectedLeadHistory.length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-mtabi-yellow text-black text-[8px] font-bold rounded-full flex items-center justify-center">
+                      {selectedLeadHistory.length}
+                    </span>
+                  )}
                 </button>
               </div>
             </div>
 
-            {/* Scrollable Content */}
-            <div className="p-6 space-y-6 overflow-y-auto flex-1 kanban-scroll">
-              {/* Resumo do Lead */}
-              <div>
-                <span className="text-[10px] text-mtabi-yellow font-bold uppercase tracking-wider block">Lead Comercial</span>
-                <h2 className="text-xl sm:text-2xl font-extrabold text-white font-display mt-0.5">
-                  {selectedLead.cliente?.nome_empresa || selectedLead.nome_lead || 'Sem Nome'}
-                </h2>
-                <div className="flex items-center gap-2 mt-2">
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${ETAPA_COLORS[selectedLead.etapa].text} ${ETAPA_COLORS[selectedLead.etapa].bg}`}>
-                    {selectedLead.etapa}
-                  </span>
-                  <span className="text-mtabi-muted">•</span>
-                  <span className="text-xs text-white font-mono font-bold">
-                    Desenv.: {Number(selectedLead.valor_estimado).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  </span>
-                  {selectedLead.valor_recorrente && Number(selectedLead.valor_recorrente) > 0 ? (
-                    <>
-                      <span className="text-mtabi-muted">•</span>
-                      <span className="text-xs text-mtabi-yellow font-mono font-bold">
-                        Recorrente: {Number(selectedLead.valor_recorrente).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês
-                      </span>
-                    </>
-                  ) : null}
-                </div>
-              </div>
+            {/* === ABA: VISÃO GERAL === */}
+            {drawerTab === 'visao' && (
+              <div className="p-5 space-y-5 overflow-y-auto flex-1 kanban-scroll">
 
-              {/* Informações da Oportunidade */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-mtabi-bg border border-mtabi-border p-3.5 rounded-xl">
-                  <span className="text-[9px] text-mtabi-muted uppercase tracking-wider block">Decisor principal</span>
-                  <span className="text-xs text-white font-bold mt-1 block">{selectedLead.decisor_nome || 'Não mapeado'}</span>
+                {/* Probabilidade de Fechamento */}
+                <div className="bg-mtabi-bg border border-mtabi-border p-4 rounded-xl">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="text-[10px] text-mtabi-muted uppercase tracking-wider font-bold">Probabilidade de Fechamento</span>
+                    <span className={`text-lg font-extrabold font-mono ${
+                      drawerProbabilidade >= 75 ? 'text-mtabi-success' :
+                      drawerProbabilidade >= 50 ? 'text-mtabi-yellow' :
+                      drawerProbabilidade >= 25 ? 'text-amber-400' :
+                      'text-mtabi-error'
+                    }`}>{drawerProbabilidade}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={drawerProbabilidade}
+                    onChange={(e) => setDrawerProbabilidade(Number(e.target.value))}
+                    onMouseUp={(e) => handleDrawerProbabilidadeSave(Number((e.target as HTMLInputElement).value))}
+                    onTouchEnd={(e) => handleDrawerProbabilidadeSave(Number((e.target as HTMLInputElement).value))}
+                    className="w-full h-2 appearance-none cursor-pointer accent-mtabi-yellow"
+                    style={{ accentColor: drawerProbabilidade >= 75 ? '#4ade80' : drawerProbabilidade >= 50 ? '#E8A33D' : drawerProbabilidade >= 25 ? '#fb923c' : '#ef4444' }}
+                  />
+                  <div className="flex justify-between text-[9px] text-mtabi-muted mt-1 font-mono">
+                    <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+                  </div>
                 </div>
-                <div className="bg-mtabi-bg border border-mtabi-border p-3.5 rounded-xl">
-                  <span className="text-[9px] text-mtabi-muted uppercase tracking-wider block">Facilitador interno</span>
-                  <span className="text-xs text-white font-bold mt-1 block">{selectedLead.campeao_interno_nome || 'Não mapeado'}</span>
-                </div>
-              </div>
 
-              {/* Proposta Comercial Link */}
-              {selectedLead.link_proposta && (
-                <div className="bg-mtabi-bg/50 border border-mtabi-border p-3.5 rounded-xl flex items-center justify-between">
-                  <div>
-                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider block">Link da Proposta</span>
+                {/* Decisor + Campeão */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-mtabi-bg border border-mtabi-border p-3.5 rounded-xl">
+                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider block">Decisor</span>
+                    <span className="text-xs text-white font-bold mt-1 block truncate">{selectedLead.decisor_nome || '—'}</span>
+                  </div>
+                  <div className="bg-mtabi-bg border border-mtabi-border p-3.5 rounded-xl">
+                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider block">Facilitador</span>
+                    <span className="text-xs text-white font-bold mt-1 block truncate">{selectedLead.campeao_interno_nome || '—'}</span>
+                  </div>
+                </div>
+
+                {/* Proposta */}
+                {selectedLead.link_proposta ? (
+                  <div className="bg-mtabi-bg/50 border border-mtabi-border p-3.5 rounded-xl">
+                    <span className="text-[9px] text-mtabi-muted uppercase tracking-wider block mb-1">Proposta Comercial</span>
                     <a
                       href={selectedLead.link_proposta.startsWith('http') ? selectedLead.link_proposta : `https://${selectedLead.link_proposta}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-xs text-mtabi-yellow hover:underline flex items-center gap-1 mt-1 font-bold"
+                      className="text-xs text-mtabi-yellow hover:underline flex items-center gap-1.5 font-bold break-all"
                     >
-                      <Link size={12} /> Ver Proposta Comercial <ExternalLink size={10} />
+                      <Link size={12} className="shrink-0" />
+                      <span className="truncate">Ver Proposta Comercial</span>
+                      <ExternalLink size={10} className="shrink-0" />
                     </a>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="bg-mtabi-bg/30 border border-dashed border-mtabi-border/50 p-3 rounded-xl text-center">
+                    <span className="text-[10px] text-mtabi-muted">Nenhuma proposta vinculada — edite para adicionar</span>
+                  </div>
+                )}
 
-              {/* Ação Pendente */}
-              <div className="bg-mtabi-bg/50 border border-mtabi-border p-4 rounded-xl space-y-2">
-                <div className="flex justify-between items-center text-[10px] text-mtabi-muted uppercase font-bold tracking-wider">
-                  <span>Próxima Ação Agendada</span>
-                  {selectedLead.data_proxima_acao && (
-                    <span className="text-white font-mono">{formatDateBR(selectedLead.data_proxima_acao)}</span>
-                  )}
+                {/* Próxima Ação Atual */}
+                <div className="bg-mtabi-bg/50 border border-mtabi-border rounded-xl overflow-hidden">
+                  <div className="flex justify-between items-center px-4 py-2.5 border-b border-mtabi-border/50 bg-mtabi-bg/30">
+                    <span className="text-[10px] text-mtabi-muted uppercase font-bold tracking-wider">Próxima Ação Agendada</span>
+                    {selectedLead.data_proxima_acao && (
+                      <span className="text-[10px] text-white font-mono bg-mtabi-bg px-2 py-0.5 rounded-lg border border-mtabi-border">
+                        {formatDateBR(selectedLead.data_proxima_acao)}
+                      </span>
+                    )}
+                  </div>
+                  <p className="px-4 py-3 text-xs text-white font-medium leading-relaxed">
+                    {selectedLead.proxima_acao || 'Nenhuma ação programada'}
+                  </p>
                 </div>
-                <p className="text-xs text-white font-bold leading-relaxed">{selectedLead.proxima_acao || 'Nenhuma ação programada'}</p>
-              </div>
 
-              {/* Histórico de Ações */}
-              {selectedLeadHistory.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                    Histórico de Ações Realizadas
+                {/* === REGISTRAR NOVA AÇÃO === */}
+                <div className="border border-mtabi-yellow/30 bg-mtabi-yellow/5 rounded-xl p-4 space-y-3">
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-yellow flex items-center gap-1.5">
+                    <Plus size={12} /> Registrar Nova Ação
                   </h4>
-                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {selectedLeadHistory.map(h => (
-                      <div key={h.id} className="p-3 bg-mtabi-bg/30 border border-mtabi-border/60 rounded-xl flex flex-col gap-1 text-[11px] text-mtabi-text relative group/hist">
-                        <div className="flex items-center justify-between text-[9px] text-mtabi-muted font-bold font-mono uppercase tracking-wider">
-                          <span>Realizada em {formatDateBR(h.data_acao)}</span>
+                  <textarea
+                    rows={2}
+                    placeholder="Descreva a próxima ação a realizar..."
+                    value={drawerAcaoText}
+                    onChange={(e) => setDrawerAcaoText(e.target.value)}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs focus:outline-none focus:border-mtabi-yellow text-white resize-none placeholder-mtabi-muted"
+                  />
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="date"
+                      value={drawerAcaoDate}
+                      onChange={(e) => setDrawerAcaoDate(e.target.value)}
+                      className="flex-1 px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs focus:outline-none focus:border-mtabi-yellow text-white"
+                    />
+                    <button
+                      onClick={handleDrawerAcaoSubmit}
+                      disabled={!drawerAcaoText.trim() || savingAcao}
+                      className="px-4 py-2 bg-mtabi-yellow hover:bg-mtabi-yellow/90 text-black text-[10px] font-bold uppercase tracking-wider rounded-xl disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all shrink-0"
+                    >
+                      {savingAcao ? 'Salvando...' : 'Registrar'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Observações */}
+                {selectedLead.observacoes && (
+                  <div>
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">Observações da Negociação</h4>
+                    <p className="text-xs text-mtabi-text bg-mtabi-bg/30 border border-mtabi-border p-3.5 rounded-xl leading-relaxed whitespace-pre-wrap">
+                      {selectedLead.observacoes}
+                    </p>
+                  </div>
+                )}
+
+                {/* Alterar Etapa */}
+                <div className="border-t border-mtabi-border pt-4">
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2.5">Mover no Funil</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ETAPAS.map(etapa => (
+                      <button
+                        key={etapa}
+                        disabled={selectedLead.etapa === etapa}
+                        onClick={() => moveLeadStage(selectedLead, etapa)}
+                        className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg border transition-all cursor-pointer ${
+                          selectedLead.etapa === etapa
+                            ? `${ETAPA_COLORS[etapa].bg} ${ETAPA_COLORS[etapa].text} ${ETAPA_COLORS[etapa].border} opacity-100`
+                            : 'bg-mtabi-bg text-mtabi-muted border-mtabi-border hover:border-mtabi-muted hover:text-white'
+                        }`}
+                      >
+                        {etapa}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* === ABA: HISTÓRICO === */}
+            {drawerTab === 'historico' && (
+              <div className="p-5 overflow-y-auto flex-1 kanban-scroll">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-4">
+                  Histórico de Ações Realizadas
+                </h4>
+                {selectedLeadHistory.length === 0 ? (
+                  <div className="text-center py-12 border border-dashed border-mtabi-border/50 rounded-xl">
+                    <Calendar size={28} className="text-mtabi-muted mx-auto mb-3 opacity-40" />
+                    <p className="text-xs text-mtabi-muted">Nenhuma ação registrada ainda.</p>
+                    <p className="text-[10px] text-mtabi-muted/60 mt-1">Registre ações na aba Visão Geral.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {selectedLeadHistory.slice().reverse().map(h => (
+                      <div key={h.id} className="p-3.5 bg-mtabi-bg/30 border border-mtabi-border/60 rounded-xl flex flex-col gap-1.5 relative group/hist">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] text-mtabi-muted font-bold font-mono uppercase tracking-wider bg-mtabi-bg px-2 py-0.5 rounded-lg border border-mtabi-border/40">
+                            {formatDateBR(h.data_acao)}
+                          </span>
                           <button
                             onClick={async () => {
                               if (confirm('Deseja excluir esta ação do histórico?')) {
@@ -518,50 +704,19 @@ const Pipeline: React.FC = () => {
                                 }
                               }
                             }}
-                            className="text-mtabi-muted hover:text-mtabi-error opacity-0 group-hover/hist:opacity-100 transition-opacity p-0.5 cursor-pointer"
-                            title="Excluir ação histórica"
+                            className="text-mtabi-muted hover:text-mtabi-error opacity-0 group-hover/hist:opacity-100 transition-opacity p-1 cursor-pointer rounded-lg hover:bg-mtabi-error/10"
+                            title="Excluir"
                           >
-                            <Trash2 size={11} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
-                        <p className="leading-relaxed font-medium">{h.descricao}</p>
+                        <p className="text-xs text-mtabi-text leading-relaxed font-medium">{h.descricao}</p>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {/* Notas e Observações */}
-              {selectedLead.observacoes && (
-                <div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1">Observações da Negociação</h4>
-                  <p className="text-xs text-mtabi-text bg-mtabi-bg/30 border border-mtabi-border p-3 rounded-xl leading-relaxed whitespace-pre-wrap">
-                    {selectedLead.observacoes}
-                  </p>
-                </div>
-              )}
-
-              {/* Alterar Etapa do Funil */}
-              <div className="border-t border-mtabi-border pt-4">
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-2">Alterar Etapa do Funil</h4>
-                <div className="flex flex-wrap gap-1.5">
-                  {ETAPAS.map(etapa => (
-                    <button
-                      key={etapa}
-                      disabled={selectedLead.etapa === etapa}
-                      onClick={() => moveLeadStage(selectedLead, etapa)}
-                      className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg border transition-all cursor-pointer ${
-                        selectedLead.etapa === etapa
-                          ? 'bg-mtabi-yellow text-black border-mtabi-yellow'
-                          : 'bg-mtabi-bg text-white border-mtabi-border hover:border-mtabi-muted'
-                      }`}
-                    >
-                      {etapa}
-                    </button>
-                  ))}
-                </div>
+                )}
               </div>
-            </div>
+            )}
           </div>
         </div>
       )}
@@ -613,10 +768,11 @@ const Pipeline: React.FC = () => {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Valores */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                    Valor Desenv. Estimado (R$)
+                    Valor Dev. Estimado (R$)
                   </label>
                   <input
                     type="number"
@@ -628,7 +784,7 @@ const Pipeline: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                    Valor Recorrente Mensal (R$)
+                    Recorrente Mensal (R$)
                   </label>
                   <input
                     type="number"
@@ -638,9 +794,13 @@ const Pipeline: React.FC = () => {
                     className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
                   />
                 </div>
+              </div>
+
+              {/* Somente para NOVO lead — etapa inicial */}
+              {!editingLead && (
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                    Etapa Atual
+                    Etapa Inicial
                   </label>
                   <select
                     value={leadForm.etapa}
@@ -652,16 +812,17 @@ const Pipeline: React.FC = () => {
                     ))}
                   </select>
                 </div>
-              </div>
+              )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Decisor e Campeão */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                    Nome do Decisor (Contato)
+                    Decisor (Contato)
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: Diretor de Produto"
+                    placeholder="Nome do decisor"
                     value={leadForm.decisor_nome}
                     onChange={(e) => setLeadForm({ ...leadForm, decisor_nome: e.target.value })}
                     className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
@@ -669,11 +830,11 @@ const Pipeline: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                    Campeão Interno (Facilitador)
+                    Facilitador Interno
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: Desenvolvedor Principal"
+                    placeholder="Nome do facilitador"
                     value={leadForm.campeao_interno_nome}
                     onChange={(e) => setLeadForm({ ...leadForm, campeao_interno_nome: e.target.value })}
                     className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
@@ -681,63 +842,24 @@ const Pipeline: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                    Data da Próxima Ação
-                  </label>
-                  <input
-                    type="date"
-                    value={leadForm.data_proxima_acao}
-                    onChange={(e) => setLeadForm({ ...leadForm, data_proxima_acao: e.target.value })}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                    Probabilidade de Fechamento ({leadForm.probabilidade}%)
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="5"
-                    value={leadForm.probabilidade}
-                    onChange={(e) => setLeadForm({ ...leadForm, probabilidade: Number(e.target.value) })}
-                    className="w-full h-2 bg-mtabi-bg border border-mtabi-border rounded-xl appearance-none cursor-pointer accent-mtabi-yellow mt-3"
-                  />
-                </div>
-              </div>
-
+              {/* Link da Proposta */}
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
                   Link da Proposta Comercial
                 </label>
                 <input
                   type="url"
-                  placeholder="https://drive.google.com/... ou link do PDF da proposta Carton Pack"
+                  placeholder="https://drive.google.com/..."
                   value={leadForm.link_proposta}
                   onChange={(e) => setLeadForm({ ...leadForm, link_proposta: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white mb-4"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Próxima Ação (Resumo)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: Ligar segunda-feira para negociar proposta"
-                  value={leadForm.proxima_acao}
-                  onChange={(e) => setLeadForm({ ...leadForm, proxima_acao: e.target.value })}
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
                 />
               </div>
 
+              {/* Observações */}
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Observações Gerais da Negociação
+                  Observações Gerais
                 </label>
                 <textarea
                   rows={3}
@@ -747,6 +869,22 @@ const Pipeline: React.FC = () => {
                   className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white resize-none"
                 />
               </div>
+
+              {/* Somente para NOVO lead — ação inicial */}
+              {!editingLead && (
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                    Primeira Ação Planejada
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Ligar segunda-feira para apresentar proposta"
+                    value={leadForm.proxima_acao}
+                    onChange={(e) => setLeadForm({ ...leadForm, proxima_acao: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
+                  />
+                </div>
+              )}
 
               <div className="flex gap-3 pt-3 border-t border-mtabi-border">
                 <button
