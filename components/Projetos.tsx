@@ -1503,7 +1503,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
 
       {/* Modal Secundário: Gerenciar Tecnologias */}
       {isTechManagerOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
           <div className="w-full max-w-md bg-mtabi-card border border-mtabi-border rounded-2xl shadow-2xl overflow-hidden font-sans">
             {/* Header */}
             <div className="flex items-center justify-between p-5 border-b border-mtabi-border bg-[#13151A]/60">
