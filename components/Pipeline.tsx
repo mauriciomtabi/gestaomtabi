@@ -392,8 +392,8 @@ const Pipeline: React.FC = () => {
         </div>
       </div>
 
-      {/* Quadro Kanban (Scroll horizontal) */}
-      <div className="flex gap-4 overflow-x-auto pb-4 kanban-scroll font-sans min-h-[60vh]">
+      {/* Quadro Kanban - colunas responsivas */}
+      <div className="flex gap-3 pb-4 kanban-scroll font-sans min-h-[60vh] overflow-x-auto">
         {ETAPAS.map(etapa => {
           const etapaLeads = filteredLeads.filter(l => l.etapa === etapa);
           const totalEtapa = etapaLeads.reduce((acc, curr) => acc + Number(curr.valor_estimado || 0), 0);
@@ -403,13 +403,13 @@ const Pipeline: React.FC = () => {
               key={etapa}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, etapa)}
-              className="w-[260px] shrink-0 bg-mtabi-card border border-mtabi-border rounded-2xl flex flex-col p-3.5 space-y-3"
+              className="flex-1 min-w-[200px] max-w-[320px] shrink-0 bg-mtabi-card border border-mtabi-border rounded-2xl flex flex-col p-3.5 space-y-3"
             >
               {/* Cabeçalho da coluna */}
               <div className="flex justify-between items-center border-b border-mtabi-border pb-2">
-                <div>
+                <div className="flex-1 min-w-0">
                   <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <span className={`w-2.5 h-2.5 rounded-full ${
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${
                       etapa === 'Fechado-Ganho' ? 'bg-mtabi-success' :
                       etapa === 'Fechado-Perdido' ? 'bg-mtabi-error' :
                       etapa === 'Em negociação' ? 'bg-mtabi-yellow' :
@@ -417,15 +417,17 @@ const Pipeline: React.FC = () => {
                       etapa === 'Proposta enviada' ? 'bg-mtabi-info' :
                       'bg-zinc-400'
                     }`}></span>
-                    {etapa}
+                    <span className="truncate">{etapa}</span>
                   </h3>
-                  <span className="text-[9px] text-mtabi-muted font-semibold tracking-wider">
-                    {etapaLeads.length} {etapaLeads.length === 1 ? 'negociação' : 'negociações'}
-                  </span>
+                  <div className="flex items-center justify-between mt-0.5">
+                    <span className="text-[9px] text-mtabi-muted font-semibold tracking-wider">
+                      {etapaLeads.length} {etapaLeads.length === 1 ? 'negociação' : 'negociações'}
+                    </span>
+                    <span className="text-[10px] font-bold text-white font-mono ml-2">
+                      R$ {totalEtapa.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </span>
+                  </div>
                 </div>
-                <span className="text-xs font-bold text-white font-mono">
-                  R$ {totalEtapa.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                </span>
               </div>
 
               {/* Lista de Cards da Etapa */}
@@ -592,21 +594,30 @@ const Pipeline: React.FC = () => {
             {drawerTab === 'visao' && (
               <div className="p-4 flex flex-col gap-3 flex-1 overflow-hidden">
 
-                {/* Probabilidade — linha compacta */}
+                {/* Probabilidade — linha compacta com slider visível */}
                 <div className="flex items-center gap-3 bg-mtabi-bg border border-mtabi-border px-3 py-2 rounded-xl shrink-0">
                   <span className="text-[10px] text-mtabi-muted uppercase tracking-wider font-bold whitespace-nowrap">Prob. Fechamento</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="5"
-                    value={drawerProbabilidade}
-                    onChange={(e) => setDrawerProbabilidade(Number(e.target.value))}
-                    onMouseUp={(e) => handleDrawerProbabilidadeSave(Number((e.target as HTMLInputElement).value))}
-                    onTouchEnd={(e) => handleDrawerProbabilidadeSave(Number((e.target as HTMLInputElement).value))}
-                    className="flex-1 h-1.5 appearance-none cursor-pointer"
-                    style={{ accentColor: drawerProbabilidade >= 75 ? '#4ade80' : drawerProbabilidade >= 50 ? '#E8A33D' : drawerProbabilidade >= 25 ? '#fb923c' : '#ef4444' }}
-                  />
+                  <div className="flex-1 relative">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={drawerProbabilidade}
+                      onChange={(e) => setDrawerProbabilidade(Number(e.target.value))}
+                      onMouseUp={(e) => handleDrawerProbabilidadeSave(Number((e.target as HTMLInputElement).value))}
+                      onTouchEnd={(e) => handleDrawerProbabilidadeSave(Number((e.target as HTMLInputElement).value))}
+                      className="w-full h-1.5 appearance-none cursor-pointer rounded-full"
+                      style={{
+                        background: `linear-gradient(to right, ${
+                          drawerProbabilidade >= 75 ? '#4ade80' :
+                          drawerProbabilidade >= 50 ? '#E8A33D' :
+                          drawerProbabilidade >= 25 ? '#fb923c' : '#ef4444'
+                        } ${drawerProbabilidade}%, #2a2d35 ${drawerProbabilidade}%)`,
+                        accentColor: drawerProbabilidade >= 75 ? '#4ade80' : drawerProbabilidade >= 50 ? '#E8A33D' : drawerProbabilidade >= 25 ? '#fb923c' : '#ef4444'
+                      }}
+                    />
+                  </div>
                   <span className={`text-sm font-extrabold font-mono min-w-[36px] text-right ${
                     drawerProbabilidade >= 75 ? 'text-mtabi-success' :
                     drawerProbabilidade >= 50 ? 'text-mtabi-yellow' :
