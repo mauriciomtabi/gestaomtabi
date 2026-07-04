@@ -324,10 +324,13 @@ const Pipeline: React.FC = () => {
               <div className="flex justify-between items-center border-b border-mtabi-border pb-2">
                 <div>
                   <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${
+                    <span className={`w-2.5 h-2.5 rounded-full ${
                       etapa === 'Fechado-Ganho' ? 'bg-mtabi-success' :
                       etapa === 'Fechado-Perdido' ? 'bg-mtabi-error' :
-                      etapa === 'Em negociação' ? 'bg-mtabi-yellow' : 'bg-mtabi-info'
+                      etapa === 'Em negociação' ? 'bg-mtabi-yellow' :
+                      etapa === 'Aguardando decisão' ? 'bg-purple-400' :
+                      etapa === 'Proposta enviada' ? 'bg-mtabi-info' :
+                      'bg-zinc-400'
                     }`}></span>
                     {etapa}
                   </h3>
@@ -393,13 +396,17 @@ const Pipeline: React.FC = () => {
         })}
       </div>
 
-      {/* MODAL: Visualizar Detalhes e Mover Etapas */}
+      {/* MODAL (DRAWER): Visualizar Detalhes e Mover Etapas */}
       {selectedLead && (
-        <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-          <div className="bg-mtabi-card border border-mtabi-border rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden font-sans">
-            <div className="flex justify-between items-center p-5 border-b border-mtabi-border">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-white">
-                NEGOCIAÇÃO COMERCIAL
+        <div className="fixed inset-0 z-[1100] flex justify-end bg-black/60 backdrop-blur-[2px] animate-fadeIn" onClick={() => setSelectedLead(null)}>
+          <div 
+            className="bg-mtabi-card border-l border-mtabi-border w-full max-w-lg h-full shadow-2xl flex flex-col font-sans animate-slideInRight"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex justify-between items-center p-5 border-b border-mtabi-border shrink-0 bg-[#13151A]/60">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-mtabi-muted">
+                DETALHES DA NEGOCIAÇÃO
               </h3>
               <div className="flex items-center gap-3">
                 <button
@@ -422,7 +429,8 @@ const Pipeline: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-6 space-y-6">
+            {/* Scrollable Content */}
+            <div className="p-6 space-y-6 overflow-y-auto flex-1 kanban-scroll">
               {/* Resumo do Lead */}
               <div>
                 <span className="text-[10px] text-mtabi-yellow font-bold uppercase tracking-wider block">Lead Comercial</span>
