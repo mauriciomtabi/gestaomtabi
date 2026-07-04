@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FolderKanban, Plus, Search, Filter, Globe, Github, Database, Image, Server, Calendar, DollarSign, Edit2, Trash2, X, AlertTriangle, Building2, ChevronRight, ExternalLink } from 'lucide-react';
 import { getProjetos, createProjeto, updateProjeto, deleteProjeto, getClientes, getFerramentas, getFinanceiroMovimentos, createFinanceiroMovimento, deleteFinanceiroMovimento, getTecnologias, createTecnologia, updateTecnologia, deleteTecnologia } from '../services/supabaseService';
-import { Projeto, Cliente, FerramentaCusto, FinanceiroMovimento, Tecnologia } from '../types';
+import { Projeto, Cliente, FerramentaCusto, FinanceiroMovimento, Tecnologia, RecursoAdicional } from '../types';
 
 interface ProjetosProps {
   selectedProjectId?: string | null;
@@ -72,6 +72,9 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
   const [repoTech, setRepoTech] = useState('');
   const [imagesTech, setImagesTech] = useState('');
   const [hostingTech, setHostingTech] = useState('');
+
+  // Recursos Adicionais Dinâmicos
+  const [customResources, setCustomResources] = useState<RecursoAdicional[]>([]);
 
   // Toast/Feedback temporário
   const [techFeedback, setTechFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -157,6 +160,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
     setRepoTech('');
     setImagesTech('');
     setHostingTech('');
+    setCustomResources([]);
     setIsProjectModalOpen(true);
   };
 
@@ -208,6 +212,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
     setHasHosting(isHostingActive);
     setHostingTech((p.ferramenta_dev || []).find(t => ['Vercel', 'Netlify', 'Railway', 'Heroku', 'AWS'].includes(t)) || '');
 
+    setCustomResources(p.recursos_adicionais || []);
     setIsProjectModalOpen(true);
   };
 
@@ -335,12 +340,17 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
     e.preventDefault();
     setErrorMsg(null);
     try {
-      // Compilar a stack de ferramentas final
-      const finalTools = [...selectedTools];
+      // Compilar a stack de ferramentas final a partir dos recursos ativos e adicionais
+      const finalTools: string[] = [];
       if (hasDatabase && dbTech) finalTools.push(dbTech);
       if (hasRepository && repoTech) finalTools.push(repoTech);
       if (hasImages && imagesTech) finalTools.push(imagesTech);
       if (hasHosting && hostingTech) finalTools.push(hostingTech);
+      
+      // Incluir ferramentas dos recursos personalizados
+      customResources.forEach(r => {
+        if (r.tecnologia) finalTools.push(r.tecnologia);
+      });
       
       // Remover duplicatas e valores vazios
       const uniqueTools = Array.from(new Set(finalTools)).filter(Boolean);
@@ -348,6 +358,7 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
       const payload = {
         ...projectForm,
         ferramenta_dev: uniqueTools,
+        recursos_adicionais: customResources,
         valor_projeto: Number(projectForm.valor_projeto),
         valor_mensal: Number(projectForm.valor_mensal),
         data_inicio: projectForm.data_inicio || null,
@@ -1002,9 +1013,11 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
 
               {/* Seção Recursos do Sistema e Credenciais */}
               <div className="sm:col-span-2 border-t border-mtabi-border/60 pt-4 space-y-4">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-mtabi-yellow block">
-                  Recursos do Sistema (Links e Acessos)
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-mtabi-yellow block">
+                    Recursos do Sistema (Links e Acessos)
+                  </span>
+                </div>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* RECURSO: Banco de Dados */}
@@ -1238,71 +1251,105 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                       </div>
                     )}
                   </div>
-                </div>
-              </div>
 
-              <div className="sm:col-span-2 space-y-2 border-t border-mtabi-border/60 pt-4">
-                <div className="flex items-center justify-between">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted">
-                    Frameworks & Outras Tecnologias (Selecione na lista)
-                  </label>
+                  {/* Recursos Adicionais Dinâmicos */}
+                  {customResources.map((res, index) => (
+                    <div key={index} className="bg-mtabi-bg/40 border border-mtabi-border/60 p-3.5 rounded-xl space-y-3 relative group/res animate-fadeIn">
+                      <div className="flex items-center justify-between">
+                        <input
+                          type="text"
+                          placeholder="Nome do Recurso (Ex: API de E-mail)"
+                          value={res.tipo}
+                          onChange={(e) => {
+                            const updated = [...customResources];
+                            updated[index].tipo = e.target.value;
+                            setCustomResources(updated);
+                          }}
+                          className="bg-transparent border-b border-mtabi-border/40 focus:border-mtabi-yellow text-xs font-bold text-white py-0.5 px-1 focus:outline-none w-2/3"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCustomResources(prev => prev.filter((_, idx) => idx !== index));
+                          }}
+                          className="p-1 hover:text-mtabi-error text-mtabi-muted transition-colors cursor-pointer"
+                          title="Remover este recurso"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+
+                      <div className="space-y-2 pt-1">
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">Tecnologia</label>
+                          <select
+                            value={res.tecnologia}
+                            onChange={(e) => {
+                              const updated = [...customResources];
+                              updated[index].tecnologia = e.target.value;
+                              setCustomResources(updated);
+                            }}
+                            className="w-full px-2.5 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs text-white focus:outline-none"
+                          >
+                            <option value="">Selecione...</option>
+                            {tecnologias.map(t => (
+                              <option key={t.id} value={t.nome}>{t.nome}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">Link do Recurso / Painel</label>
+                          <input
+                            type="url"
+                            placeholder="https://..."
+                            value={res.link_acesso}
+                            onChange={(e) => {
+                              const updated = [...customResources];
+                              updated[index].link_acesso = e.target.value;
+                              setCustomResources(updated);
+                            }}
+                            className="w-full px-2.5 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs text-white focus:outline-none focus:border-mtabi-yellow"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted">Usuário de Acesso</label>
+                          <input
+                            type="text"
+                            placeholder="Login / E-mail"
+                            value={res.usuario_acesso}
+                            onChange={(e) => {
+                              const updated = [...customResources];
+                              updated[index].usuario_acesso = e.target.value;
+                              setCustomResources(updated);
+                            }}
+                            className="w-full px-2.5 py-1 bg-mtabi-bg/40 border border-mtabi-border/40 rounded-md text-[11px] text-white focus:outline-none placeholder-mtabi-muted/50"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="sm:col-span-2 flex items-center justify-between pt-2 border-t border-mtabi-border/40">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomResources(prev => [
+                        ...prev,
+                        { tipo: '', tecnologia: '', link_acesso: '', usuario_acesso: '' }
+                      ]);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl transition-all border border-zinc-700 cursor-pointer"
+                  >
+                    <Plus size={12} /> Adicionar Recurso Customizado
+                  </button>
+                  
                   <button
                     type="button"
                     onClick={() => setIsTechManagerOpen(true)}
                     className="text-[9px] font-bold text-mtabi-yellow hover:text-mtabi-yellow/80 cursor-pointer uppercase tracking-wider transition-colors"
                   >
                     Gerenciar Tecnologias
-                  </button>
-                </div>
-                
-                {techFeedback && (
-                  <div className={`p-2 rounded-xl text-[10px] font-bold text-center border transition-all ${
-                    techFeedback.type === 'success' 
-                      ? 'bg-emerald-950/40 text-mtabi-success border-emerald-800/30' 
-                      : 'bg-rose-950/40 text-mtabi-error border-rose-800/30'
-                  }`}>
-                    {techFeedback.message}
-                  </div>
-                )}
-                
-                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-mtabi-bg/30 border border-mtabi-border/60 rounded-xl">
-                  {tecnologias
-                    .map(t => t.nome)
-                    .filter(tool => ![dbTech, repoTech, imagesTech, hostingTech].includes(tool))
-                    .sort()
-                    .map(tool => {
-                      const isSelected = selectedTools.includes(tool);
-                      return (
-                        <button
-                          type="button"
-                          key={tool}
-                          onClick={() => toggleTool(tool)}
-                          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all cursor-pointer ${
-                            isSelected 
-                              ? 'bg-mtabi-yellow/20 border-mtabi-yellow text-mtabi-yellow' 
-                              : 'bg-mtabi-bg border-mtabi-border text-mtabi-muted hover:text-white'
-                          }`}
-                        >
-                          {tool}
-                        </button>
-                      );
-                    })}
-                </div>
-
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Adicionar nova ferramenta..."
-                    value={newToolInput}
-                    onChange={e => setNewToolInput(e.target.value)}
-                    className="flex-1 px-3 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs text-white focus:outline-none focus:border-mtabi-yellow"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddCustomTool}
-                    className="px-3 py-1.5 bg-mtabi-border hover:bg-mtabi-border/80 border border-mtabi-border text-white text-xs font-bold uppercase rounded-xl cursor-pointer transition-colors"
-                  >
-                    Adicionar
                   </button>
                 </div>
               </div>
@@ -1477,6 +1524,36 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
 
             {/* Content */}
             <div className="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* Adicionar Nova Tecnologia Rápido */}
+              <div className="bg-mtabi-bg/40 border border-mtabi-border p-3.5 rounded-xl space-y-2">
+                <span className="text-[9px] font-bold text-mtabi-yellow uppercase tracking-wider block">Cadastrar Nova Tecnologia</span>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Nome da tecnologia (Ex: React Native, Python)"
+                    value={newToolInput}
+                    onChange={e => setNewToolInput(e.target.value)}
+                    className="flex-1 px-3 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs text-white focus:outline-none focus:border-mtabi-yellow placeholder-mtabi-muted/50"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!newToolInput.trim()) return;
+                      try {
+                        await createTecnologia({ nome: newToolInput.trim() });
+                        setNewToolInput('');
+                        await loadData();
+                      } catch (err) {
+                        alert('Erro ao adicionar tecnologia.');
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-mtabi-yellow/20 hover:bg-mtabi-yellow/30 text-mtabi-yellow border border-mtabi-yellow/30 text-xs font-bold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+                  >
+                    Adicionar
+                  </button>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 {tecnologias.length === 0 ? (
                   <p className="text-xs text-mtabi-muted text-center py-4">Nenhuma tecnologia cadastrada.</p>

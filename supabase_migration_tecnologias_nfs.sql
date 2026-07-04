@@ -59,3 +59,8 @@ create policy "Acesso total para autenticados no pipeline_acoes_historico"
   on public.pipeline_acoes_historico for all to authenticated 
   using (true) with check (true);
 
+-- 4. Adicionar recursos_adicionais em projetos
+alter table public.projetos 
+  add column if not exists recursos_adicionais jsonb default '[]'::jsonb;
+
+

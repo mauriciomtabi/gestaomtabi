@@ -72,8 +72,17 @@ export interface Projeto {
   forma_pagamento?: string;
   parcelas?: number;
   
+  recursos_adicionais?: RecursoAdicional[];
+  
   // Carregado por join
   cliente?: Cliente;
+}
+
+export interface RecursoAdicional {
+  tipo: string; // ex: 'API de E-mail'
+  tecnologia: string; // ex: 'SendGrid'
+  link_acesso: string;
+  usuario_acesso: string;
 }
 
 // 2.5 Contratos
