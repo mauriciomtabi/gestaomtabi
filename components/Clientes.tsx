@@ -2502,8 +2502,8 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       {/* MODAL CADASTRAR/EDITAR CONTRATO */}
       {isContractModalOpen && selectedCliente && (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-mtabi-card border border-mtabi-border rounded-2xl w-full max-w-lg shadow-2xl p-6 font-sans">
-            <div className="flex justify-between items-center pb-4 border-b border-mtabi-border mb-4">
+          <div className="bg-mtabi-card border border-mtabi-border rounded-2xl w-full max-w-lg shadow-2xl p-6 font-sans flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center pb-4 border-b border-mtabi-border mb-4 shrink-0">
               <h3 className="text-sm font-bold uppercase tracking-wider text-white">
                 {editingContrato ? 'Editar Contrato' : 'Novo Contrato de Consultoria'}
               </h3>
@@ -2515,230 +2515,233 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
               </button>
             </div>
 
-            <form onSubmit={handleContractSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                    Valor Recorrente Mensal (R$) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="Ex: 8000"
-                    value={contractForm.valor_recorrente || ''}
-                    onChange={(e) => setContractForm({ ...contractForm, valor_recorrente: Number(e.target.value) })}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                    Início da Cobrança Recorrente
-                  </label>
-                  <input
-                    type="date"
-                    value={contractForm.data_inicio_cobranca || ''}
-                    onChange={(e) => setContractForm({ ...contractForm, data_inicio_cobranca: e.target.value })}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                  />
-                  <p className="text-[9px] text-mtabi-muted mt-1">Se não preenchido, usa a Data de Início do Contrato</p>
-                </div>
-              </div>
-
-              {/* Separador - Recorrência */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                    Dia de Pagamento (1-31) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min={1}
-                    max={31}
-                    placeholder="Ex: 10"
-                    value={contractForm.dia_pagamento || ''}
-                    onChange={(e) => setContractForm({ ...contractForm, dia_pagamento: Math.min(31, Math.max(1, Number(e.target.value))) })}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                  />
-                  <p className="text-[9px] text-mtabi-muted mt-1">Dia do mês em que o pagamento mensal vence</p>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                    Link do Contrato (PDF / Drive)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="https://drive.google.com/..."
-                    value={contractForm.link_contrato}
-                    onChange={(e) => setContractForm({ ...contractForm, link_contrato: e.target.value })}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                  />
-                </div>
-              </div>
-
-              {/* Separador - Implantação */}
-              <div className="border-t border-mtabi-border/50 pt-4">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-3 flex items-center gap-1.5">
-                  <span className="w-1 h-3 bg-mtabi-yellow/50 rounded-full" />
-                  Implantação / Desenvolvimento (pagamento único)
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="sm:col-span-1">
+            <form onSubmit={handleContractSubmit} className="flex-1 flex flex-col min-h-0">
+              {/* Área rolável dos campos */}
+              <div className="flex-1 overflow-y-auto space-y-4 pr-1.5 select-none" style={{ scrollbarWidth: 'thin' }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                      Valor (R$)
+                      Valor Recorrente Mensal (R$) *
                     </label>
                     <input
                       type="number"
-                      min={0}
-                      step="0.01"
-                      placeholder="0"
-                      value={contractForm.valor_implantacao || ''}
-                      onChange={(e) => setContractForm({ ...contractForm, valor_implantacao: Number(e.target.value) })}
+                      required
+                      placeholder="Ex: 8000"
+                      value={contractForm.valor_recorrente || ''}
+                      onChange={(e) => setContractForm({ ...contractForm, valor_recorrente: Number(e.target.value) })}
                       className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
                     />
                   </div>
 
-                  <div className="sm:col-span-1">
+                  <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                      Forma de Pagamento
+                      Início da Cobrança Recorrente
                     </label>
-                    <select
-                      value={contractForm.forma_pagamento}
-                      onChange={(e) => setContractForm({ ...contractForm, forma_pagamento: e.target.value })}
-                      className="w-full px-3 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                    >
-                      <option value="PIX">PIX</option>
-                      <option value="TED">TED</option>
-                      <option value="Dinheiro">Dinheiro</option>
-                      <option value="Boleto">Boleto</option>
-                      <option value="Cartão de Crédito">Cartão de Crédito</option>
-                      <option value="Débito">Débito</option>
-                    </select>
+                    <input
+                      type="date"
+                      value={contractForm.data_inicio_cobranca || ''}
+                      onChange={(e) => setContractForm({ ...contractForm, data_inicio_cobranca: e.target.value })}
+                      className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    />
+                    <p className="text-[9px] text-mtabi-muted mt-1">Se não preenchido, usa a Data de Início do Contrato</p>
                   </div>
+                </div>
 
-                  <div className="sm:col-span-1">
+                {/* Separador - Recorrência */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                      Nº de Parcelas
+                      Dia de Pagamento (1-31) *
                     </label>
                     <input
                       type="number"
+                      required
                       min={1}
-                      max={48}
-                      value={contractForm.parcelas || 1}
-                      onChange={(e) => setContractForm({ ...contractForm, parcelas: Math.max(1, Number(e.target.value)) })}
+                      max={31}
+                      placeholder="Ex: 10"
+                      value={contractForm.dia_pagamento || ''}
+                      onChange={(e) => setContractForm({ ...contractForm, dia_pagamento: Math.min(31, Math.max(1, Number(e.target.value))) })}
                       className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
                     />
-                    {contractForm.forma_pagamento !== 'Boleto' && contractForm.parcelas > 1 && (
-                      <p className="text-[9px] text-mtabi-yellow mt-1">⚠ Parcelamento disponível apenas no Boleto</p>
-                    )}
+                    <p className="text-[9px] text-mtabi-muted mt-1">Dia do mês em que o pagamento mensal vence</p>
                   </div>
-                </div>
-                {Number(contractForm.valor_implantacao) > 0 && (
-                  <div className="mt-3">
+
+                  <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                      Data de Pagamento da Implantação *
+                      Link do Contrato (PDF / Drive)
                     </label>
                     <input
-                      type="date"
-                      required={Number(contractForm.valor_implantacao) > 0}
-                      value={contractForm.data_pagamento_implantacao || ''}
-                      onChange={(e) => setContractForm({ ...contractForm, data_pagamento_implantacao: e.target.value })}
+                      type="text"
+                      placeholder="https://drive.google.com/..."
+                      value={contractForm.link_contrato}
+                      onChange={(e) => setContractForm({ ...contractForm, link_contrato: e.target.value })}
                       className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
                     />
-                    <p className="text-[9px] text-mtabi-muted mt-1">Data em que o valor único de implantação foi ou será pago</p>
                   </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                    Data de Início *
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={contractForm.data_inicio}
-                    onChange={(e) => setContractForm({ ...contractForm, data_inicio: e.target.value })}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                  />
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                    Data de Término / Encerramento
-                  </label>
-                  <input
-                    type="date"
-                    value={contractForm.data_fim}
-                    onChange={(e) => setContractForm({ ...contractForm, data_fim: e.target.value })}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                  />
-                </div>
-              </div>
+                {/* Separador - Implantação */}
+                <div className="border-t border-mtabi-border/50 pt-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-3 flex items-center gap-1.5">
+                    <span className="w-1 h-3 bg-mtabi-yellow/50 rounded-full" />
+                    Implantação / Desenvolvimento (pagamento único)
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="sm:col-span-1">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                        Valor (R$)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        placeholder="0"
+                        value={contractForm.valor_implantacao || ''}
+                        onChange={(e) => setContractForm({ ...contractForm, valor_implantacao: Number(e.target.value) })}
+                        className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                      />
+                    </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Status do Contrato *
-                </label>
-                <select
-                  value={contractForm.status}
-                  onChange={(e) => setContractForm({ ...contractForm, status: e.target.value as any })}
-                  className="w-full px-3 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                >
-                  <option value="Ativo">Ativo (Destacado)</option>
-                  <option value="Histórico">Histórico (Arquivado)</option>
-                  <option value="Cancelado">Cancelado</option>
-                </select>
-              </div>
+                    <div className="sm:col-span-1">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                        Forma de Pagamento
+                      </label>
+                      <select
+                        value={contractForm.forma_pagamento}
+                        onChange={(e) => setContractForm({ ...contractForm, forma_pagamento: e.target.value })}
+                        className="w-full px-3 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                      >
+                        <option value="PIX">PIX</option>
+                        <option value="TED">TED</option>
+                        <option value="Dinheiro">Dinheiro</option>
+                        <option value="Boleto">Boleto</option>
+                        <option value="Cartão de Crédito">Cartão de Crédito</option>
+                        <option value="Débito">Débito</option>
+                      </select>
+                    </div>
 
-              <div className="border border-mtabi-border/60 p-3 rounded-xl bg-mtabi-bg/10 space-y-2">
-                <span className="text-[10px] font-bold text-mtabi-yellow uppercase tracking-wider block">
-                  Reajuste Programado / Automático (Opcional)
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted mb-1">
-                      Novo Valor Recorrente (R$)
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="0"
-                      value={contractForm.reajuste_valor || ''}
-                      onChange={(e) => setContractForm({ ...contractForm, reajuste_valor: e.target.value ? Number(e.target.value) : undefined })}
-                      className="w-full px-3 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                    />
+                    <div className="sm:col-span-1">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                        Nº de Parcelas
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={48}
+                        value={contractForm.parcelas || 1}
+                        onChange={(e) => setContractForm({ ...contractForm, parcelas: Math.max(1, Number(e.target.value)) })}
+                        className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                      />
+                      {contractForm.forma_pagamento !== 'Boleto' && contractForm.parcelas > 1 && (
+                        <p className="text-[9px] text-mtabi-yellow mt-1">⚠ Parcelamento disponível apenas no Boleto</p>
+                      )}
+                    </div>
                   </div>
+                  {Number(contractForm.valor_implantacao) > 0 && (
+                    <div className="mt-3">
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                        Data de Pagamento da Implantação
+                      </label>
+                      <input
+                        type="date"
+                        value={contractForm.data_pagamento_implantacao || ''}
+                        onChange={(e) => setContractForm({ ...contractForm, data_pagamento_implantacao: e.target.value })}
+                        className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                      />
+                      <p className="text-[9px] text-mtabi-muted mt-1">Data em que o valor único de implantação foi ou será pago (Opcional - usa Data de Início se vazio)</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted mb-1">
-                      A partir do mês/dia
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                      Data de Início *
                     </label>
                     <input
                       type="date"
-                      value={contractForm.reajuste_data || ''}
-                      onChange={(e) => setContractForm({ ...contractForm, reajuste_data: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                      required
+                      value={contractForm.data_inicio}
+                      onChange={(e) => setContractForm({ ...contractForm, data_inicio: e.target.value })}
+                      className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                      Data de Término / Encerramento
+                    </label>
+                    <input
+                      type="date"
+                      value={contractForm.data_fim}
+                      onChange={(e) => setContractForm({ ...contractForm, data_fim: e.target.value })}
+                      className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
                     />
                   </div>
                 </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                    Status do Contrato *
+                  </label>
+                  <select
+                    value={contractForm.status}
+                    onChange={(e) => setContractForm({ ...contractForm, status: e.target.value as any })}
+                    className="w-full px-3 py-2.5 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  >
+                    <option value="Ativo">Ativo (Destacado)</option>
+                    <option value="Histórico">Histórico (Arquivado)</option>
+                    <option value="Cancelado">Cancelado</option>
+                  </select>
+                </div>
+
+                <div className="border border-mtabi-border/60 p-3 rounded-xl bg-mtabi-bg/10 space-y-2">
+                  <span className="text-[10px] font-bold text-mtabi-yellow uppercase tracking-wider block">
+                    Reajuste Programado / Automático (Opcional)
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted mb-1">
+                        Novo Valor Recorrente (R$)
+                      </label>
+                      <input
+                        type="number"
+                        placeholder="0"
+                        value={contractForm.reajuste_valor || ''}
+                        onChange={(e) => setContractForm({ ...contractForm, reajuste_valor: e.target.value ? Number(e.target.value) : undefined })}
+                        className="w-full px-3 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold uppercase tracking-wider text-mtabi-muted mb-1">
+                        A partir do mês/dia
+                      </label>
+                      <input
+                        type="date"
+                        value={contractForm.reajuste_data || ''}
+                        onChange={(e) => setContractForm({ ...contractForm, reajuste_data: e.target.value })}
+                        className="w-full px-3 py-1.5 bg-mtabi-bg border border-mtabi-border rounded-lg text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                    Observações adicionais
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Ex: Reajuste automático após 6 meses..."
+                    value={contractForm.observacoes}
+                    onChange={(e) => setContractForm({ ...contractForm, observacoes: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans resize-none"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Observações adicionais
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder="Ex: Reajuste automático após 6 meses..."
-                  value={contractForm.observacoes}
-                  onChange={(e) => setContractForm({ ...contractForm, observacoes: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-xs focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans resize-none"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-3 border-t border-mtabi-border">
+              {/* Botões Fixos */}
+              <div className="flex gap-3 pt-4 border-t border-mtabi-border mt-4 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsContractModalOpen(false)}

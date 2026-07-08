@@ -1168,8 +1168,7 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
       // --- SINCRONIZAÇÃO DA IMPLANTAÇÃO (PAGAMENTO ÚNICO) ---
       const contratosComImplantacao = contratosCli.filter(c =>
         c.status !== 'Cancelado' &&
-        Number(c.valor_implantacao || 0) > 0 &&
-        c.data_pagamento_implantacao
+        Number(c.valor_implantacao || 0) > 0
       );
 
       const movsUnicasCli = movimentos.filter(m =>
@@ -1187,7 +1186,7 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
           m.descricao.includes(`[Ref: ${c.id}]`)
         );
 
-        const dataMov = c.data_pagamento_implantacao!;
+        const dataMov = c.data_pagamento_implantacao || c.data_inicio;
         const mesRef = dataMov.slice(0, 7);
         const valor = Number(c.valor_implantacao);
         let status: 'Confirmado' | 'Atrasado' | 'Previsto' = 'Previsto';
@@ -1360,8 +1359,7 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
       // --- SINCRONIZAÇÃO DA IMPLANTAÇÃO (PAGAMENTO ÚNICO) ---
       const contratosComImplantacao = contratosCli.filter(c =>
         c.status !== 'Cancelado' &&
-        Number(c.valor_implantacao || 0) > 0 &&
-        c.data_pagamento_implantacao
+        Number(c.valor_implantacao || 0) > 0
       );
 
       const movsUnicasCli = movimentos.filter(m =>
@@ -1375,7 +1373,7 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
         const descDesejada = `Implantação - ${cli.nome_empresa} [Ref: ${c.id}]`;
         const existente = movsUnicasCli.find(m => m.descricao.includes(`[Ref: ${c.id}]`));
 
-        const dataMov = c.data_pagamento_implantacao!;
+        const dataMov = c.data_pagamento_implantacao || c.data_inicio;
         const mesRef = dataMov.slice(0, 7);
         const valor = Number(c.valor_implantacao);
         let status: 'Confirmado' | 'Atrasado' | 'Previsto' = 'Previsto';
