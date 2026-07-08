@@ -1135,7 +1135,7 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
             const existente = movimentos[indexExistente];
             if (existente.status === 'Confirmado' || existente.status === 'Cancelado') {
               // preservar sem alterar
-            } else if (existente.status === 'Previsto') {
+            } else if (existente.status === 'Previsto' || existente.status === 'Atrasado') {
               if (Number(existente.valor) !== valorMes || existente.status !== status || existente.data_movimento !== dataMovMes) {
                 movimentos[indexExistente] = { ...existente, valor: valorMes, status, data_movimento: dataMovMes };
                 alterado = true;
@@ -1333,7 +1333,7 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
           if (existente) {
             if (existente.status === 'Confirmado' || existente.status === 'Cancelado') {
               // preservar sem alterar
-            } else if (existente.status === 'Previsto') {
+            } else if (existente.status === 'Previsto' || existente.status === 'Atrasado') {
               if (Number(existente.valor) !== valorMes || existente.status !== status || existente.data_movimento !== dataMovMes) {
                 promises.push(updateFinanceiroMovimento(existente.id, { valor: valorMes, status, data_movimento: dataMovMes }));
               }
