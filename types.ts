@@ -111,6 +111,8 @@ export interface Contrato {
   reajuste_data?: string;
   observacoes?: string;
   data_criacao?: string;
+  data_pagamento_implantacao?: string; // YYYY-MM-DD (para pagamento único da implantação)
+  data_inicio_cobranca?: string;       // YYYY-MM-DD (quando a recorrência mensal se inicia)
 }
 
 // 3. Ferramentas e Custos

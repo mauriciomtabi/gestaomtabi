@@ -917,9 +917,17 @@ export const createContrato = async (contrato: Partial<Contrato>): Promise<Contr
       link_contrato: contrato.link_contrato,
       data_inicio: contrato.data_inicio || new Date().toISOString().split('T')[0],
       data_fim: contrato.data_fim || undefined,
+      dia_pagamento: contrato.dia_pagamento,
+      valor_implantacao: contrato.valor_implantacao,
+      forma_pagamento: contrato.forma_pagamento,
+      parcelas: contrato.parcelas,
       status: contrato.status || 'Ativo',
+      reajuste_valor: contrato.reajuste_valor,
+      reajuste_data: contrato.reajuste_data,
       observacoes: contrato.observacoes,
-      data_criacao: new Date().toISOString()
+      data_criacao: new Date().toISOString(),
+      data_pagamento_implantacao: contrato.data_pagamento_implantacao,
+      data_inicio_cobranca: contrato.data_inicio_cobranca
     };
     data.push(newContract);
     saveLocalData('mtabi_mock_contratos', data);
@@ -1063,7 +1071,8 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
 
       contratosCli.forEach(c => {
         if (c.status === 'Cancelado') return;
-        const start = new Date(c.data_inicio + 'T12:00:00');
+        const startStr = c.data_inicio_cobranca || c.data_inicio;
+        const start = new Date(startStr + 'T12:00:00');
         if (start < minData) minData = new Date(start.getFullYear(), start.getMonth(), 1);
         if (c.data_fim) {
           const end = new Date(c.data_fim + 'T12:00:00');
@@ -1078,13 +1087,14 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
         current.setMonth(current.getMonth() + 1);
       }
 
+      // --- SINCRONIZAÇÃO DE RECORRENTES ---
       for (const mesStr of mesesParaProcessar) {
         const inicioMes = `${mesStr}-01`;
         const fimMes = `${mesStr}-31`;
 
         const contratosValidos = contratosCli.filter(c => 
           c.status !== 'Cancelado' &&
-          c.data_inicio <= fimMes &&
+          (c.data_inicio_cobranca || c.data_inicio) <= fimMes &&
           (!c.data_fim || c.data_fim >= inicioMes)
         );
 
@@ -1099,7 +1109,7 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
             mesStr,
             Number(contratoDoMes.valor_recorrente),
             diaVencCont,
-            contratoDoMes.data_inicio,
+            contratoDoMes.data_inicio_cobranca || contratoDoMes.data_inicio,
             contratoDoMes.data_fim,
             contratoDoMes.reajuste_valor,
             contratoDoMes.reajuste_data
@@ -1131,7 +1141,6 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
                 alterado = true;
               }
             }
-            // Atrasado: preserva valor editado pelo usuário
           } else {
             movimentos.push({
               id: 'mov-' + Math.random().toString(36).substring(2, 9),
@@ -1146,8 +1155,6 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
             alterado = true;
           }
         } else {
-          // Sem contrato ativo: remove movimentos Previsto e Atrasado auto-gerados
-          // (Confirmado e Cancelado são preservados)
           if (indexExistente !== -1) {
             const ex = movimentos[indexExistente];
             if (ex.status === 'Previsto' || ex.status === 'Atrasado') {
@@ -1155,6 +1162,79 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
               alterado = true;
             }
           }
+        }
+      }
+
+      // --- SINCRONIZAÇÃO DA IMPLANTAÇÃO (PAGAMENTO ÚNICO) ---
+      const contratosComImplantacao = contratosCli.filter(c =>
+        c.status !== 'Cancelado' &&
+        Number(c.valor_implantacao || 0) > 0 &&
+        c.data_pagamento_implantacao
+      );
+
+      const movsUnicasCli = movimentos.filter(m =>
+        m.cliente_id === cli.id &&
+        m.tipo === 'Entrada única' &&
+        m.descricao.includes('Implantação -') &&
+        m.descricao.includes('[Ref:')
+      );
+
+      for (const c of contratosComImplantacao) {
+        const descDesejada = `Implantação - ${cli.nome_empresa} [Ref: ${c.id}]`;
+        const indexExistente = movimentos.findIndex(m =>
+          m.cliente_id === cli.id &&
+          m.tipo === 'Entrada única' &&
+          m.descricao.includes(`[Ref: ${c.id}]`)
+        );
+
+        const dataMov = c.data_pagamento_implantacao!;
+        const mesRef = dataMov.slice(0, 7);
+        const valor = Number(c.valor_implantacao);
+        let status: 'Confirmado' | 'Atrasado' | 'Previsto' = 'Previsto';
+
+        if (indexExistente !== -1 && movimentos[indexExistente].status === 'Confirmado') {
+          status = 'Confirmado';
+        } else if (indexExistente !== -1 && movimentos[indexExistente].status === 'Cancelado') {
+          status = 'Cancelado' as any;
+        } else {
+          status = hojeLocalStr > dataMov ? 'Atrasado' : 'Previsto';
+        }
+
+        if (indexExistente !== -1) {
+          const existente = movimentos[indexExistente];
+          if (existente.status === 'Confirmado' || existente.status === 'Cancelado') {
+            if (Number(existente.valor) !== valor || existente.data_movimento !== dataMov || existente.mes_referencia !== mesRef) {
+              movimentos[indexExistente] = { ...existente, valor, data_movimento: dataMov, mes_referencia: mesRef, descricao: descDesejada };
+              alterado = true;
+            }
+          } else if (existente.status === 'Previsto' || existente.status === 'Atrasado') {
+            if (Number(existente.valor) !== valor || existente.status !== status || existente.data_movimento !== dataMov || existente.mes_referencia !== mesRef || existente.descricao !== descDesejada) {
+              movimentos[indexExistente] = { ...existente, valor, status, data_movimento: dataMov, mes_referencia: mesRef, descricao: descDesejada };
+              alterado = true;
+            }
+          }
+        } else {
+          movimentos.push({
+            id: 'mov-' + Math.random().toString(36).substring(2, 9),
+            cliente_id: cli.id,
+            tipo: 'Entrada única',
+            descricao: descDesejada,
+            valor: valor,
+            data_movimento: dataMov,
+            mes_referencia: mesRef,
+            status: status
+          });
+          alterado = true;
+        }
+      }
+
+      // Remover implantações órfãs (contrato cancelado/removido)
+      for (const m of movsUnicasCli) {
+        const refMatch = m.descricao.match(/\[Ref:\s*([^\]]+)\]/);
+        const refId = refMatch ? refMatch[1] : null;
+        if (!refId || !contratosComImplantacao.some(c => c.id === refId)) {
+          movimentos = movimentos.filter(item => item.id !== m.id);
+          alterado = true;
         }
       }
     }
@@ -1191,7 +1271,8 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
 
       contratosCli.forEach(c => {
         if (c.status === 'Cancelado') return;
-        const start = new Date(c.data_inicio + 'T12:00:00');
+        const startStr = c.data_inicio_cobranca || c.data_inicio;
+        const start = new Date(startStr + 'T12:00:00');
         if (start < minData) minData = new Date(start.getFullYear(), start.getMonth(), 1);
         if (c.data_fim) {
           const end = new Date(c.data_fim + 'T12:00:00');
@@ -1206,13 +1287,14 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
         current.setMonth(current.getMonth() + 1);
       }
 
+      // --- SINCRONIZAÇÃO DE RECORRENTES ---
       for (const mesStr of mesesParaProcessar) {
         const inicioMes = `${mesStr}-01`;
         const fimMes = `${mesStr}-31`;
 
         const contratosValidos = contratosCli.filter(c => 
           c.status !== 'Cancelado' &&
-          c.data_inicio <= fimMes &&
+          (c.data_inicio_cobranca || c.data_inicio) <= fimMes &&
           (!c.data_fim || c.data_fim >= inicioMes)
         );
 
@@ -1227,7 +1309,7 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
             mesStr,
             Number(contratoDoMes.valor_recorrente),
             diaVencCont,
-            contratoDoMes.data_inicio,
+            contratoDoMes.data_inicio_cobranca || contratoDoMes.data_inicio,
             contratoDoMes.data_fim,
             contratoDoMes.reajuste_valor,
             contratoDoMes.reajuste_data
@@ -1257,7 +1339,6 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
                 promises.push(updateFinanceiroMovimento(existente.id, { valor: valorMes, status, data_movimento: dataMovMes }));
               }
             }
-            // Atrasado: preserva valor editado pelo usuário
           } else {
             promises.push(createFinanceiroMovimento({
               cliente_id: cli.id,
@@ -1270,11 +1351,72 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
             }));
           }
         } else {
-          // Sem contrato ativo: remove movimentos Previsto e Atrasado auto-gerados
-          // (Confirmado e Cancelado são preservados)
           if (existente && (existente.status === 'Previsto' || existente.status === 'Atrasado')) {
             promises.push(deleteFinanceiroMovimento(existente.id));
           }
+        }
+      }
+
+      // --- SINCRONIZAÇÃO DA IMPLANTAÇÃO (PAGAMENTO ÚNICO) ---
+      const contratosComImplantacao = contratosCli.filter(c =>
+        c.status !== 'Cancelado' &&
+        Number(c.valor_implantacao || 0) > 0 &&
+        c.data_pagamento_implantacao
+      );
+
+      const movsUnicasCli = movimentos.filter(m =>
+        m.cliente_id === cli.id &&
+        m.tipo === 'Entrada única' &&
+        m.descricao.includes('Implantação -') &&
+        m.descricao.includes('[Ref:')
+      );
+
+      for (const c of contratosComImplantacao) {
+        const descDesejada = `Implantação - ${cli.nome_empresa} [Ref: ${c.id}]`;
+        const existente = movsUnicasCli.find(m => m.descricao.includes(`[Ref: ${c.id}]`));
+
+        const dataMov = c.data_pagamento_implantacao!;
+        const mesRef = dataMov.slice(0, 7);
+        const valor = Number(c.valor_implantacao);
+        let status: 'Confirmado' | 'Atrasado' | 'Previsto' = 'Previsto';
+
+        if (existente && existente.status === 'Confirmado') {
+          status = 'Confirmado';
+        } else if (existente && existente.status === 'Cancelado') {
+          status = 'Cancelado' as any;
+        } else {
+          status = hojeLocalStr > dataMov ? 'Atrasado' : 'Previsto';
+        }
+
+        if (existente) {
+          if (existente.status === 'Confirmado' || existente.status === 'Cancelado') {
+            if (Number(existente.valor) !== valor || existente.data_movimento !== dataMov || existente.mes_referencia !== mesRef) {
+              promises.push(updateFinanceiroMovimento(existente.id, { valor, data_movimento: dataMov, mes_referencia: mesRef, descricao: descDesejada }));
+            }
+          } else if (existente.status === 'Previsto' || existente.status === 'Atrasado') {
+            if (Number(existente.valor) !== valor || existente.status !== status || existente.data_movimento !== dataMov || existente.mes_referencia !== mesRef || existente.descricao !== descDesejada) {
+              promises.push(updateFinanceiroMovimento(existente.id, { valor, status, data_movimento: dataMov, mes_referencia: mesRef, descricao: descDesejada }));
+            }
+          }
+        } else {
+          promises.push(createFinanceiroMovimento({
+            cliente_id: cli.id,
+            tipo: 'Entrada única',
+            descricao: descDesejada,
+            valor: valor,
+            data_movimento: dataMov,
+            mes_referencia: mesRef,
+            status: status
+          }));
+        }
+      }
+
+      // Remover implantações órfãs (contrato cancelado/removido)
+      for (const m of movsUnicasCli) {
+        const refMatch = m.descricao.match(/\[Ref:\s*([^\]]+)\]/);
+        const refId = refMatch ? refMatch[1] : null;
+        if (!refId || !contratosComImplantacao.some(c => c.id === refId)) {
+          promises.push(deleteFinanceiroMovimento(m.id));
         }
       }
     }

@@ -89,7 +89,9 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
     status: 'Ativo' as Contrato['status'],
     reajuste_valor: 0,
     reajuste_data: '',
-    observacoes: ''
+    observacoes: '',
+    data_pagamento_implantacao: '',
+    data_inicio_cobranca: ''
   });
 
   // Custom Toast & Confirms
@@ -457,7 +459,9 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       status: 'Ativo',
       reajuste_valor: 0,
       reajuste_data: '',
-      observacoes: ''
+      observacoes: '',
+      data_pagamento_implantacao: '',
+      data_inicio_cobranca: ''
     });
     setIsContractModalOpen(true);
   };
@@ -476,7 +480,9 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
       status: c.status,
       reajuste_valor: c.reajuste_valor ?? 0,
       reajuste_data: c.reajuste_data || '',
-      observacoes: c.observacoes || ''
+      observacoes: c.observacoes || '',
+      data_pagamento_implantacao: c.data_pagamento_implantacao || '',
+      data_inicio_cobranca: c.data_inicio_cobranca || ''
     });
     setIsContractModalOpen(true);
   };
@@ -499,7 +505,9 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
         status: contractForm.status,
         reajuste_valor: contractForm.reajuste_valor ? Number(contractForm.reajuste_valor) : null,
         reajuste_data: contractForm.reajuste_data || null,
-        observacoes: contractForm.observacoes || null
+        observacoes: contractForm.observacoes || null,
+        data_pagamento_implantacao: contractForm.data_pagamento_implantacao || null,
+        data_inicio_cobranca: contractForm.data_inicio_cobranca || null
       };
 
       // Se este contrato está ativo, todos os outros deste cliente devem virar histórico
@@ -1275,7 +1283,18 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                                   {c.data_fim && (
                                     <span className="ml-2.5 font-bold text-mtabi-error">Término: {formatDateBR(c.data_fim)}</span>
                                   )}
+                                  {c.data_inicio_cobranca && (
+                                    <span className="ml-2.5 text-mtabi-yellow font-semibold">Início Cobr.: {formatDateBR(c.data_inicio_cobranca)}</span>
+                                  )}
                                 </div>
+                                {Number(c.valor_implantacao || 0) > 0 && (
+                                  <div className="text-[9px] text-zinc-400 font-semibold flex items-center gap-1.5 mt-0.5">
+                                    <span>Implantação: {Number(c.valor_implantacao).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                                    {c.data_pagamento_implantacao && (
+                                      <span className="text-zinc-500 font-normal">(Pagamento: {formatDateBR(c.data_pagamento_implantacao)})</span>
+                                    )}
+                                  </div>
+                                )}
                                 {c.observacoes && (
                                   <p className="text-[9px] text-mtabi-muted italic max-w-md truncate">{c.observacoes}</p>
                                 )}
@@ -2497,18 +2516,33 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
             </div>
 
             <form onSubmit={handleContractSubmit} className="space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
-                  Valor Recorrente Mensal (R$) *
-                </label>
-                <input
-                  type="number"
-                  required
-                  placeholder="Ex: 8000"
-                  value={contractForm.valor_recorrente || ''}
-                  onChange={(e) => setContractForm({ ...contractForm, valor_recorrente: Number(e.target.value) })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                    Valor Recorrente Mensal (R$) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="Ex: 8000"
+                    value={contractForm.valor_recorrente || ''}
+                    onChange={(e) => setContractForm({ ...contractForm, valor_recorrente: Number(e.target.value) })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                    Início da Cobrança Recorrente
+                  </label>
+                  <input
+                    type="date"
+                    value={contractForm.data_inicio_cobranca || ''}
+                    onChange={(e) => setContractForm({ ...contractForm, data_inicio_cobranca: e.target.value })}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                  />
+                  <p className="text-[9px] text-mtabi-muted mt-1">Se não preenchido, usa a Data de Início do Contrato</p>
+                </div>
               </div>
 
               {/* Separador - Recorrência */}
@@ -2601,6 +2635,21 @@ const Clientes: React.FC<ClientesProps> = ({ onNavigateToProject }) => {
                     )}
                   </div>
                 </div>
+                {Number(contractForm.valor_implantacao) > 0 && (
+                  <div className="mt-3">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
+                      Data de Pagamento da Implantação *
+                    </label>
+                    <input
+                      type="date"
+                      required={Number(contractForm.valor_implantacao) > 0}
+                      value={contractForm.data_pagamento_implantacao || ''}
+                      onChange={(e) => setContractForm({ ...contractForm, data_pagamento_implantacao: e.target.value })}
+                      className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow transition-colors text-white font-sans"
+                    />
+                    <p className="text-[9px] text-mtabi-muted mt-1">Data em que o valor único de implantação foi ou será pago</p>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
