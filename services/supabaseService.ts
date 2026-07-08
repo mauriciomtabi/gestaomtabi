@@ -1109,7 +1109,7 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
             mesStr,
             Number(contratoDoMes.valor_recorrente),
             diaVencCont,
-            contratoDoMes.data_inicio_cobranca || contratoDoMes.data_inicio,
+            contratoDoMes.data_inicio,
             contratoDoMes.data_fim,
             contratoDoMes.reajuste_valor,
             contratoDoMes.reajuste_data
@@ -1308,7 +1308,7 @@ export const sincronizarTodosOsContratos = async (): Promise<void> => {
             mesStr,
             Number(contratoDoMes.valor_recorrente),
             diaVencCont,
-            contratoDoMes.data_inicio_cobranca || contratoDoMes.data_inicio,
+            contratoDoMes.data_inicio,
             contratoDoMes.data_fim,
             contratoDoMes.reajuste_valor,
             contratoDoMes.reajuste_data

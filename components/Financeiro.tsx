@@ -22,6 +22,14 @@ const Financeiro: React.FC = () => {
   const [chartYear, setChartYear] = useState<number>(new Date().getFullYear());
   const [chartClient, setChartClient] = useState<string>('todos');
 
+  // Paginação
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, typeFilter, monthFilter, clientFilter]);
+
   // Modais CRUD Movimento
   const [isMovModalOpen, setIsMovModalOpen] = useState(false);
   const [editingMov, setEditingMov] = useState<FinanceiroMovimento | null>(null);
@@ -253,12 +261,19 @@ const Financeiro: React.FC = () => {
     };
   });
 
-  // Lista única de meses para o filtro
-  const todosMesesReferencia = Array.from(new Set(movimentos.map(m => m.mes_referencia))) as string[];
+  const currentYearMonth = new Date().toISOString().slice(0, 7);
+
+  // Lista única de meses para o filtro (filtrando meses futuros para a tabela/dropdown)
+  const todosMesesReferencia = Array.from(new Set(movimentos.map(m => m.mes_referencia)))
+    .filter(m => m && m <= currentYearMonth) as string[];
   todosMesesReferencia.sort((a, b) => b.localeCompare(a));
 
   // Filtragem da tabela
   const filteredMovimentos = movimentos.filter(m => {
+    // Esconder lançamentos futuros na tabela
+    const isFuture = m.mes_referencia ? m.mes_referencia > currentYearMonth : false;
+    if (isFuture) return false;
+
     const matchesSearch = m.descricao.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (m.cliente?.nome_empresa && m.cliente.nome_empresa.toLowerCase().includes(searchQuery.toLowerCase()));
 
@@ -268,6 +283,10 @@ const Financeiro: React.FC = () => {
 
     return matchesSearch && matchesType && matchesMonth && matchesClient;
   });
+
+  // Paginação da tabela
+  const totalPages = Math.ceil(filteredMovimentos.length / PAGE_SIZE);
+  const paginatedMovimentos = filteredMovimentos.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
     <div className="space-y-6">
@@ -524,8 +543,8 @@ const Financeiro: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-mtabi-border/40 text-white">
-              {filteredMovimentos.length > 0 ? (
-                filteredMovimentos.map(mov => (
+              {paginatedMovimentos.length > 0 ? (
+                paginatedMovimentos.map(mov => (
                   <tr key={mov.id} className="hover:bg-mtabi-border/10">
                     <td className="py-3 font-mono">{formatDateBR(mov.data_movimento)}</td>
                     <td className="py-3 font-bold truncate max-w-[120px]">{mov.cliente?.nome_empresa || 'Empresa Geral'}</td>
@@ -613,6 +632,52 @@ const Financeiro: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Paginação */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between pt-4 border-t border-mtabi-border/60 gap-3">
+            <span className="text-[10px] font-bold text-mtabi-muted uppercase tracking-wider">
+              Mostrando {Math.min(filteredMovimentos.length, (currentPage - 1) * PAGE_SIZE + 1)}-{Math.min(filteredMovimentos.length, currentPage * PAGE_SIZE)} de {filteredMovimentos.length} lançamentos
+            </span>
+            <div className="flex items-center gap-1 select-none">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="px-2.5 py-1.5 bg-mtabi-bg hover:bg-mtabi-border disabled:opacity-40 border border-mtabi-border/50 rounded-xl text-[10px] font-bold text-white transition-colors cursor-pointer disabled:cursor-not-allowed uppercase tracking-wider"
+              >
+                Primeira
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 bg-mtabi-bg hover:bg-mtabi-border disabled:opacity-40 border border-mtabi-border/50 rounded-xl text-[10px] font-bold text-white transition-colors cursor-pointer disabled:cursor-not-allowed uppercase tracking-wider"
+              >
+                Anterior
+              </button>
+              <span className="px-3.5 py-1.5 bg-mtabi-border text-mtabi-yellow rounded-xl text-[10px] font-extrabold font-mono">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 bg-mtabi-bg hover:bg-mtabi-border disabled:opacity-40 border border-mtabi-border/50 rounded-xl text-[10px] font-bold text-white transition-colors cursor-pointer disabled:cursor-not-allowed uppercase tracking-wider"
+              >
+                Próxima
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="px-2.5 py-1.5 bg-mtabi-bg hover:bg-mtabi-border disabled:opacity-40 border border-mtabi-border/50 rounded-xl text-[10px] font-bold text-white transition-colors cursor-pointer disabled:cursor-not-allowed uppercase tracking-wider"
+              >
+                Última
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* MODAL: Criar / Editar Lançamento */}
