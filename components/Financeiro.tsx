@@ -33,6 +33,8 @@ const Financeiro: React.FC = () => {
   // Modais CRUD Movimento
   const [isMovModalOpen, setIsMovModalOpen] = useState(false);
   const [editingMov, setEditingMov] = useState<FinanceiroMovimento | null>(null);
+  const [clientSearchText, setClientSearchText] = useState('');
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
   
   const [movForm, setMovForm] = useState({
     cliente_id: '',
@@ -78,8 +80,9 @@ const Financeiro: React.FC = () => {
 
   const openNewMovModal = () => {
     setEditingMov(null);
+    const initialClientId = clientes[0]?.id || '';
     setMovForm({
-      cliente_id: clientes[0]?.id || '',
+      cliente_id: initialClientId,
       projeto_id: '',
       tipo: 'Entrada recorrente mensal',
       descricao: '',
@@ -90,6 +93,9 @@ const Financeiro: React.FC = () => {
       nf_emitida: false,
       nf_url: ''
     } as any);
+    const initialClient = clientes.find(c => c.id === initialClientId);
+    setClientSearchText(initialClient ? initialClient.nome_empresa : '');
+    setIsClientDropdownOpen(false);
     setSelectedNfFile(null);
     setIsMovModalOpen(true);
   };
@@ -108,12 +114,19 @@ const Financeiro: React.FC = () => {
       nf_emitida: m.nf_emitida || false,
       nf_url: m.nf_url || ''
     } as any);
+    const associatedClient = clientes.find(c => c.id === m.cliente_id);
+    setClientSearchText(associatedClient ? associatedClient.nome_empresa : '');
+    setIsClientDropdownOpen(false);
     setSelectedNfFile(null);
     setIsMovModalOpen(true);
   };
 
   const handleMovSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!movForm.cliente_id) {
+      alert("Por favor, selecione um cliente válido.");
+      return;
+    }
     setUploadingNf(true);
     try {
       const payload: any = {
@@ -287,6 +300,10 @@ const Financeiro: React.FC = () => {
   // Paginação da tabela
   const totalPages = Math.ceil(filteredMovimentos.length / PAGE_SIZE);
   const paginatedMovimentos = filteredMovimentos.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const filteredClientesForSelect = clientes.filter(c => 
+    c.nome_empresa.toLowerCase().includes(clientSearchText.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -700,17 +717,53 @@ const Financeiro: React.FC = () => {
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
                     Cliente Relacionado *
                   </label>
-                  <select
-                    required
-                    value={movForm.cliente_id}
-                    onChange={(e) => setMovForm({ ...movForm, cliente_id: e.target.value })}
-                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                  >
-                    <option value="" disabled>Selecione um cliente...</option>
-                    {clientes.map(c => (
-                      <option key={c.id} value={c.id}>{c.nome_empresa}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Buscar cliente..."
+                      value={clientSearchText}
+                      onFocus={() => setIsClientDropdownOpen(true)}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          setIsClientDropdownOpen(false);
+                          const currentClient = clientes.find(c => c.id === movForm.cliente_id);
+                          setClientSearchText(currentClient ? currentClient.nome_empresa : '');
+                        }, 200);
+                      }}
+                      onChange={(e) => {
+                        setClientSearchText(e.target.value);
+                        setIsClientDropdownOpen(true);
+                      }}
+                      className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white pr-8 font-sans"
+                    />
+                    <div className="absolute right-3 top-2.5 text-mtabi-muted pointer-events-none">
+                      <Search size={16} />
+                    </div>
+                    
+                    {isClientDropdownOpen && (
+                      <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-mtabi-card border border-mtabi-border rounded-xl shadow-2xl z-[1300] divide-y divide-mtabi-border/40 select-none" style={{ scrollbarWidth: 'thin' }}>
+                        {filteredClientesForSelect.map(c => (
+                          <div
+                            key={c.id}
+                            onClick={() => {
+                              setMovForm({ ...movForm, cliente_id: c.id, projeto_id: '' });
+                              setClientSearchText(c.nome_empresa);
+                            }}
+                            className={`px-3 py-2 text-xs hover:bg-mtabi-border/20 cursor-pointer font-sans flex justify-between items-center ${movForm.cliente_id === c.id ? 'text-mtabi-yellow font-bold bg-mtabi-border/10' : 'text-white'}`}
+                          >
+                            <span>{c.nome_empresa}</span>
+                            {movForm.cliente_id === c.id && <span className="text-[10px] uppercase font-bold text-mtabi-yellow">Selecionado</span>}
+                          </div>
+                        ))}
+                        {filteredClientesForSelect.length === 0 && (
+                          <div className="px-3 py-2 text-xs text-mtabi-muted font-sans text-center">
+                            Nenhum cliente encontrado
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">

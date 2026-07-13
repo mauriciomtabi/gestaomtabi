@@ -47,6 +47,8 @@ const Pipeline: React.FC = () => {
     probabilidade: 50,
     observacoes: ''
   });
+  const [clientSearchText, setClientSearchText] = useState('');
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
 
   // Modal de Detalhe Completo do Lead
   const [selectedLead, setSelectedLead] = useState<PipelineLead | null>(null);
@@ -210,6 +212,8 @@ const Pipeline: React.FC = () => {
       probabilidade: 50,
       observacoes: ''
     });
+    setClientSearchText('');
+    setIsClientDropdownOpen(false);
     setIsLeadModalOpen(true);
   };
 
@@ -229,6 +233,9 @@ const Pipeline: React.FC = () => {
       probabilidade: Number(lead.probabilidade || 50),
       observacoes: lead.observacoes || ''
     });
+    const associatedClient = clientes.find(c => c.id === lead.cliente_id);
+    setClientSearchText(associatedClient ? associatedClient.nome_empresa : '');
+    setIsClientDropdownOpen(false);
     setIsLeadModalOpen(true);
   };
 
@@ -395,6 +402,10 @@ const Pipeline: React.FC = () => {
       proxima.toLowerCase().includes(searchQuery.toLowerCase()) ||
       desc.toLowerCase().includes(searchQuery.toLowerCase());
   });
+
+  const filteredClientesForSelect = clientes.filter(c => 
+    c.nome_empresa.toLowerCase().includes(clientSearchText.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -851,16 +862,61 @@ const Pipeline: React.FC = () => {
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
                   Vincular Cliente Existente (Opcional)
                 </label>
-                <select
-                  value={leadForm.cliente_id}
-                  onChange={(e) => setLeadForm({ ...leadForm, cliente_id: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                >
-                  <option value="">-- Lead sem Cliente Formalizado --</option>
-                  {clientes.map(c => (
-                    <option key={c.id} value={c.id}>{c.nome_empresa}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Buscar cliente..."
+                    value={clientSearchText}
+                    onFocus={() => setIsClientDropdownOpen(true)}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setIsClientDropdownOpen(false);
+                        const currentClient = clientes.find(c => c.id === leadForm.cliente_id);
+                        setClientSearchText(currentClient ? currentClient.nome_empresa : '');
+                      }, 200);
+                    }}
+                    onChange={(e) => {
+                      setClientSearchText(e.target.value);
+                      setIsClientDropdownOpen(true);
+                    }}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white pr-8 font-sans"
+                  />
+                  <div className="absolute right-3 top-2.5 text-mtabi-muted pointer-events-none">
+                    <Search size={16} />
+                  </div>
+                  
+                  {isClientDropdownOpen && (
+                    <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-mtabi-card border border-mtabi-border rounded-xl shadow-2xl z-[1300] divide-y divide-mtabi-border/40 select-none" style={{ scrollbarWidth: 'thin' }}>
+                      <div
+                        onClick={() => {
+                          setLeadForm({ ...leadForm, cliente_id: '' });
+                          setClientSearchText('');
+                        }}
+                        className="px-3 py-2 text-xs text-mtabi-muted hover:bg-mtabi-border/20 cursor-pointer font-sans"
+                      >
+                        -- Lead sem Cliente Formalizado --
+                      </div>
+                      {filteredClientesForSelect.map(c => (
+                        <div
+                          key={c.id}
+                          onClick={() => {
+                            setLeadForm({ ...leadForm, cliente_id: c.id });
+                            setClientSearchText(c.nome_empresa);
+                          }}
+                          className={`px-3 py-2 text-xs hover:bg-mtabi-border/20 cursor-pointer font-sans flex justify-between items-center ${leadForm.cliente_id === c.id ? 'text-mtabi-yellow font-bold bg-mtabi-border/10' : 'text-white'}`}
+                        >
+                          <span>{c.nome_empresa}</span>
+                          {leadForm.cliente_id === c.id && <span className="text-[10px] uppercase font-bold text-mtabi-yellow">Selecionado</span>}
+                        </div>
+                      ))}
+                      {filteredClientesForSelect.length === 0 && (
+                        <div className="px-3 py-2 text-xs text-mtabi-muted font-sans text-center">
+                          Nenhum cliente encontrado
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {!leadForm.cliente_id && (

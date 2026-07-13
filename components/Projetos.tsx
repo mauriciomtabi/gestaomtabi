@@ -80,6 +80,9 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
   // Toast/Feedback temporário
   const [techFeedback, setTechFeedback] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+  const [clientSearchText, setClientSearchText] = useState('');
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
+
   const showTechFeedback = (message: string, type: 'success' | 'error') => {
     setTechFeedback({ message, type });
     setTimeout(() => setTechFeedback(null), 3000);
@@ -126,8 +129,9 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
   const openNewProjectModal = () => {
     setEditingProjeto(null);
     setErrorMsg(null);
+    const initialClientId = clientes[0]?.id || '';
     setProjectForm({
-      cliente_id: clientes[0]?.id || '',
+      cliente_id: initialClientId,
       nome_solucao: '',
       descricao: '',
       status: 'Em desenvolvimento',
@@ -151,6 +155,9 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
       forma_pagamento: 'Boleto',
       parcelas: 1
     });
+    const initialClient = clientes.find(c => c.id === initialClientId);
+    setClientSearchText(initialClient ? initialClient.nome_empresa : '');
+    setIsClientDropdownOpen(false);
     setSelectedTools([]);
     setNewToolInput('');
     setHasDatabase(false);
@@ -193,6 +200,9 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
       forma_pagamento: p.forma_pagamento || 'Boleto',
       parcelas: Number(p.parcelas || 1)
     });
+    const associatedClient = clientes.find(c => c.id === p.cliente_id);
+    setClientSearchText(associatedClient ? associatedClient.nome_empresa : '');
+    setIsClientDropdownOpen(false);
     setSelectedTools(p.ferramenta_dev || []);
     setNewToolInput('');
 
@@ -340,6 +350,10 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
   const handleProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+    if (!projectForm.cliente_id) {
+      setErrorMsg("Por favor, selecione um cliente válido.");
+      return;
+    }
     try {
       // Compilar a stack de ferramentas final a partir dos recursos ativos e adicionais
       const finalTools: string[] = [];
@@ -464,6 +478,10 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
     if (curr.moeda === 'USD') valorMensal *= 5.5; // câmbio
     return acc + (curr.ativo ? valorMensal : 0);
   }, 0);
+
+  const filteredClientesForSelect = clientes.filter(c => 
+    c.nome_empresa.toLowerCase().includes(clientSearchText.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -955,17 +973,53 @@ const Projetos: React.FC<ProjetosProps> = ({ selectedProjectId, onClearSelectedP
                 <label className="block text-[10px] font-bold uppercase tracking-wider text-mtabi-muted mb-1.5">
                   Cliente Vinculado *
                 </label>
-                <select
-                  required
-                  value={projectForm.cliente_id}
-                  onChange={(e) => setProjectForm({ ...projectForm, cliente_id: e.target.value })}
-                  className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white"
-                >
-                  <option value="" disabled>Selecione um cliente...</option>
-                  {clientes.map(c => (
-                    <option key={c.id} value={c.id}>{c.nome_empresa}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Buscar cliente..."
+                    value={clientSearchText}
+                    onFocus={() => setIsClientDropdownOpen(true)}
+                    onBlur={() => {
+                      setTimeout(() => {
+                        setIsClientDropdownOpen(false);
+                        const currentClient = clientes.find(c => c.id === projectForm.cliente_id);
+                        setClientSearchText(currentClient ? currentClient.nome_empresa : '');
+                      }, 200);
+                    }}
+                    onChange={(e) => {
+                      setClientSearchText(e.target.value);
+                      setIsClientDropdownOpen(true);
+                    }}
+                    className="w-full px-3 py-2 bg-mtabi-bg border border-mtabi-border rounded-xl text-sm focus:outline-none focus:border-mtabi-yellow text-white pr-8 font-sans"
+                  />
+                  <div className="absolute right-3 top-2.5 text-mtabi-muted pointer-events-none">
+                    <Search size={16} />
+                  </div>
+                  
+                  {isClientDropdownOpen && (
+                    <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-mtabi-card border border-mtabi-border rounded-xl shadow-2xl z-[1300] divide-y divide-mtabi-border/40 select-none" style={{ scrollbarWidth: 'thin' }}>
+                      {filteredClientesForSelect.map(c => (
+                        <div
+                          key={c.id}
+                          onClick={() => {
+                            setProjectForm({ ...projectForm, cliente_id: c.id });
+                            setClientSearchText(c.nome_empresa);
+                          }}
+                          className={`px-3 py-2 text-xs hover:bg-mtabi-border/20 cursor-pointer font-sans flex justify-between items-center ${projectForm.cliente_id === c.id ? 'text-mtabi-yellow font-bold bg-mtabi-border/10' : 'text-white'}`}
+                        >
+                          <span>{c.nome_empresa}</span>
+                          {projectForm.cliente_id === c.id && <span className="text-[10px] uppercase font-bold text-mtabi-yellow">Selecionado</span>}
+                        </div>
+                      ))}
+                      {filteredClientesForSelect.length === 0 && (
+                        <div className="px-3 py-2 text-xs text-mtabi-muted font-sans text-center">
+                          Nenhum cliente encontrado
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
