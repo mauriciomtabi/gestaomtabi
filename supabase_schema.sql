@@ -53,6 +53,14 @@ create table if not exists public.projetos (
   valor_projeto numeric(12,2),
   valor_mensal numeric(12,2),
   observacoes text,
+  user_acesso text,
+  user_supabase text,
+  user_repositorio text,
+  user_imagens text,
+  user_hospedagem text,
+  forma_pagamento text,
+  parcelas integer default 1,
+  recursos_adicionais jsonb default '[]'::jsonb,
   data_criacao timestamp with time zone default timezone('utc'::text, now())
 );
 
